@@ -2,8 +2,6 @@
 import '../../styles/globals.css'
 import { usePathname } from 'next/navigation'
 import React from 'react'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import Sidebar from '@/components/Sidebar'
 import PlayerBar from '@/components/PlayerBar'
 
@@ -18,18 +16,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-PT">
       <head />
-      <body className={isAuthPage ? '' : 'pb-24'}>
-        {/* Auth pages: apenas children */}
+      <body className={isAuthPage ? '' : 'pb-24 bg-gray-50'}>
         {isAuthPage ? (
           children
         ) : (
           <div className="flex">
             <Sidebar />
-            <main className="ml-64 flex-1">{children}</main>
+            <main className="flex-1 max-w-7xl px-4">
+              {children}
+            </main>
           </div>
         )}
 
-        {/* Header/Footer para outras páginas */}
         {!isAuthPage && <PlayerBar />}
       </body>
     </html>
