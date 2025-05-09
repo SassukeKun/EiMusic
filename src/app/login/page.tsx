@@ -1,12 +1,60 @@
 // src/app/login/page.tsx
 'use client'                                    // ← isto TEM de vir antes de *todos* os imports
 
-import React from 'react'
+import React, { useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FaGoogle, FaFacebook } from 'react-icons/fa'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useAuth } from '@/hooks/useAuth'
+
+// Schema para validação do formulário
+const loginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login, isLoading } = useAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
+  
+  // Configuração do React Hook Form com Zod
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors } 
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema)
+  });
+  
+  // Função para lidar com o login
+  const onSubmit = async (data: LoginFormData) => {
+    try {
+      setAuthError(null);
+      // Chamada para o serviço de autenticação via hook
+      await login({ 
+        email: data.email, 
+        password: data.password 
+      });
+      
+      // Redirecionar após login bem-sucedido
+      router.push('/');
+    } catch (err: Error | unknown) {
+      // Capturar e exibir erros de autenticação
+      let errorMessage = 'Erro ao fazer login';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setAuthError(errorMessage);
+    }
+  };
+
   return (
     <div className="
       flex items-center justify-center min-h-screen
@@ -38,38 +86,61 @@ export default function LoginPage() {
           </h1>
 
           {/* Formulário */}
-          <form className="space-y-4">
-            <motion.input
-              type="email"
-              placeholder="E-mail"
-              className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-              whileFocus={{ scale: 1.03 }}
-              transition={{ duration: 0.2 }}
-            />
-            <motion.input
-              type="password"
-              placeholder="Senha"
-              className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-              whileFocus={{ scale: 1.03 }}
-              transition={{ duration: 0.2 }}
-            />
+          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+            {/* Mensagem de erro de autenticação */}
+            {authError && (
+              <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded">
+                {authError}
+              </div>
+            )}
+            
+            <div>
+              <motion.input
+                {...register('email')}
+                type="email"
+                placeholder="E-mail"
+                className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                whileFocus={{ scale: 1.03 }}
+                transition={{ duration: 0.2 }}
+              />
+              {errors.email && (
+                <p className="mt-1 text-red-400 text-sm">{errors.email.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <motion.input
+                {...register('password')}
+                type="password"
+                placeholder="Senha"
+                className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                whileFocus={{ scale: 1.03 }}
+                transition={{ duration: 0.2 }}
+              />
+              {errors.password && (
+                <p className="mt-1 text-red-400 text-sm">{errors.password.message}</p>
+              )}
+            </div>
+            
             <div className="text-right">
               <a href="#" className="text-green-400 hover:underline">
                 Esqueceu sua senha?
               </a>
             </div>
+            
             <motion.button
               type="submit"
-              className="w-full py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold transition"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              disabled={isLoading}
+              className="w-full py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white font-semibold transition disabled:opacity-50"
+              whileHover={{ scale: isLoading ? 1 : 1.05 }}
+              whileTap={{ scale: isLoading ? 1 : 0.95 }}
               transition={{ type: 'spring', stiffness: 300 }}
             >
-              Entrar
+              {isLoading ? 'Entrando...' : 'Entrar'}
             </motion.button>
           </form>
 
-          {/* Divisor “OU” */}
+          {/* Divisor "OU" */}
           <div className="my-6 flex items-center">
             <hr className="flex-grow border-gray-700" />
             <span className="mx-4 text-gray-400">OU</span>
@@ -101,7 +172,7 @@ export default function LoginPage() {
           {/* Link de Cadastro */}
           <p className="mt-6 text-center text-gray-400 text-sm">
             Não tem conta?{' '}
-            <a href="#" className="text-green-400 hover:underline">
+            <a href="/register" className="text-green-400 hover:underline">
               Cadastre-se
             </a>
           </p>
