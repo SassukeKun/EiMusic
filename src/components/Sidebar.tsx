@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 import {
   FaHome,
   FaChartLine,
@@ -18,7 +19,8 @@ import {
   FaBell,
   FaBars,
   FaChevronLeft,
-  FaChevronRight
+  FaChevronRight,
+  FaUserCircle
 } from 'react-icons/fa'
 
 export default function Sidebar() {
@@ -26,6 +28,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const { user, loading, isAuthenticated } = useAuth()
 
   // Detecta se a tela é móvel e configura o estado inicial
   useEffect(() => {
@@ -107,6 +110,72 @@ export default function Sidebar() {
     />
   )
 
+  // Renderiza informações do usuário baseado no estado de autenticação
+  const UserInfo = () => {
+    if (loading) {
+      return (
+        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
+          <div className="h-10 w-10 rounded-full bg-gray-300 animate-pulse"></div>
+          {(!isCollapsed || (isMobile && isOpen)) && (
+            <div className="space-y-2">
+              <div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div>
+              <div className="h-3 w-20 bg-gray-300 rounded animate-pulse"></div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    if (!isAuthenticated) {
+      return (
+        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
+          <div className="relative h-10 w-10 flex-shrink-0">
+            <FaUserCircle className="h-10 w-10 text-gray-400" />
+            <div className="absolute bottom-0 right-0 h-3 w-3 bg-gray-300 rounded-full border-2 border-white"></div>
+          </div>
+          {(!isCollapsed || (isMobile && isOpen)) && (
+            <div>
+              <Link href="/login" className="text-sm font-semibold text-gray-500 hover:text-green-500">Entrar</Link>
+              <p className="text-xs text-gray-400">Visitante</p>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    // Dados do usuário autenticado
+    const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Usuário';
+    const userEmail = user?.email || '';
+    const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/avatar.svg';
+    const [imgError, setImgError] = useState(false);
+
+    return (
+      <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
+        {imgError ? (
+          <div className="h-10 w-10 flex-shrink-0 bg-gray-200 rounded-full flex items-center justify-center">
+            <FaUserCircle className="h-8 w-8 text-gray-400" />
+          </div>
+        ) : (
+          <Image
+            src={avatarUrl}
+            alt="Avatar"
+            width={40}
+            height={40}
+            className="rounded-full"
+            priority
+            onError={() => setImgError(true)}
+          />
+        )}
+        {(!isCollapsed || (isMobile && isOpen)) && (
+          <div>
+            <p className="text-sm font-semibold">{userName}</p>
+            <p className="text-xs text-gray-500">{userEmail}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <>
       {isMobile && <MobileMenuButton />}
@@ -132,23 +201,8 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* User Info */}
-        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-          <Image
-            src="/avatar.svg"
-            alt="Avatar"
-            width={40}
-            height={40}
-            className="rounded-full"
-            priority
-          />
-          {(!isCollapsed || (isMobile && isOpen)) && (
-            <div>
-              <p className="text-sm font-semibold">Allallito-X</p>
-              <p className="text-xs text-gray-500">@allennsantos07</p>
-            </div>
-          )}
-        </div>
+        {/* User Info Component */}
+        <UserInfo />
 
         {/* Navigation */}
         <nav className="flex-1 px-2 space-y-1 overflow-y-auto">

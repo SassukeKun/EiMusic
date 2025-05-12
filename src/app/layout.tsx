@@ -19,18 +19,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head />
       <body className={isAuthPage ? '' : 'pb-24 bg-gray-50'}>
         <Providers>
-          {isAuthPage ? (
-            children
-          ) : (
-            <div className="flex">
-              <Sidebar />
-              <main className="flex-1 max-w-7xl px-4">
-                {children}
-              </main>
-            </div>
-          )}
+        {isAuthPage ? (
+          children
+        ) : (
+          <div className="flex">
+            <Sidebar />
+            <main className="flex-1 max-w-7xl px-4">
+              {children}
+            </main>
+          </div>
+        )}
 
-          {!isAuthPage && <PlayerBar />}
+        {!isAuthPage && <PlayerBar />}
         </Providers>
       </body>
     </html>
