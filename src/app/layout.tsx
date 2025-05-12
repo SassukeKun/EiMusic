@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           ) : (
             <div className="flex">
               <Sidebar />
-              <main className="flex-1 max-w-7xl px-4">
+              <main className="flex-1 max-w-7xl px-4 pb-14">
                 {children}
               </main>
             </div>
