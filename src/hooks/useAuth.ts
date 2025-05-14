@@ -146,7 +146,17 @@ export function useAuth() {
       return data;
     } catch (err: any) {
       console.error('Erro ao registrar:', err);
-      setError(err.message || 'Falha ao criar conta');
+      // Improved error handling with better fallbacks
+      if (err?.message) {
+        setError(err.message);
+      } else if (err?.error_description) {
+        setError(err.error_description);
+      } else if (typeof err === 'string') {
+        setError(err);
+      } else {
+        // If err is an empty object or doesn't have useful properties
+        setError('Falha ao criar conta. Verifique suas credenciais e tente novamente.');
+      }
       return null;
     } finally {
       setLoading(false);
@@ -166,7 +176,17 @@ export function useAuth() {
       return data;
     } catch (err: any) {
       console.error('Erro ao registrar artista:', err);
-      setError(err.message || 'Falha ao criar conta de artista');
+      // Improved error handling with better fallbacks
+      if (err?.message) {
+        setError(err.message);
+      } else if (err?.error_description) {
+        setError(err.error_description);
+      } else if (typeof err === 'string') {
+        setError(err);
+      } else {
+        // If err is an empty object or doesn't have useful properties
+        setError('Falha ao criar conta de artista. Verifique suas credenciais e tente novamente.');
+      }
       return null;
     } finally {
       setLoading(false);
