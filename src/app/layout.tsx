@@ -1,38 +1,27 @@
-'use client'
 import '../../styles/globals.css'
-import { usePathname } from 'next/navigation'
-import React from 'react'
-import Sidebar from '@/components/Sidebar'
-import PlayerBar from '@/components/PlayerBar'
-import { Providers } from '@/utils/providers'
+import { Inter } from "next/font/google";
+import type { Metadata } from "next";
+import ClientLayout from '@/components/ClientLayout';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const isAuthPage =
-    pathname === '/login' ||
-    pathname === '/register' ||
-    pathname === '/artist/login' ||
-    pathname === '/artist/register'
+const inter = Inter({ subsets: ["latin"] });
 
+// Definição dos metadados do site (lado do servidor)
+export const metadata: Metadata = {
+  title: "EiMusic - Plataforma de streaming",
+  description: "Plataforma de streaming de musicas nacionais",
+};
+
+// Componente principal de layout (lado do servidor)
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="pt-PT">
-      <head />
-      <body className={isAuthPage ? '' : 'pb-24 bg-gray-50'}>
-        <Providers>
-        {isAuthPage ? (
-          children
-        ) : (
-          <div className="flex">
-            <Sidebar />
-            <main className="flex-1 max-w-7xl px-4">
-              {children}
-            </main>
-          </div>
-        )}
-
-        {!isAuthPage && <PlayerBar />}
-        </Providers>
+      <body className={inter.className}>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
-  )
+  );
 }

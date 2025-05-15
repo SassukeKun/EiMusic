@@ -1,61 +1,75 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import supabase from '@/utils/supabaseClient'
-import authService from '@/services/authService'
+import { FaSpinner } from 'react-icons/fa'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
-    // Process the OAuth callback by Supabase Auth
-    const handleAuthCallback = async () => {
+    // Função para processar o retorno da autenticação
+    async function handleAuthCallback() {
       try {
-        // Get session from URL hash
-        const { data, error } = await supabase.auth.getSession()
+        // Verifica se há fragmentos na URL (tokens após #)
+        const hashParams = window.location.hash
         
-        if (error) {
-          console.error('Error getting auth session:', error.message)
-          return router.push('/login?error=auth_callback_error')
-        }
+        // Verificar se existe um redirect_to nos parâmetros
+        const redirectTo = searchParams?.get('redirect_to') || '/'
         
-        if (!data?.session) {
-          console.error('No session found in callback')
-          return router.push('/login?error=no_session')
-        }
-        
-        // Check if user is an artist
-        try {
-          const isArtist = await authService.isArtist()
+        if (hashParams) {
+          // Recupera a sessão a partir dos parâmetros de hash
+          const { data, error } = await supabase.auth.getSession()
           
-          // Redirect based on user type
-          if (isArtist) {
-            router.push('/artist/dashboard')
-          } else {
-            router.push('/dashboard')
+          if (error) {
+            console.error('Erro ao processar callback de autenticação:', error)
+            router.push('/login?error=auth_callback_failed')
+            return
           }
-        } catch (artistError) {
-          console.error('Error checking if user is artist:', artistError)
-          // Default to user dashboard if we can't determine artist status
-          router.push('/dashboard')
+          
+          if (data?.session) {
+            // Verificar se o usuário é artista para redirecionar à página correta
+            const { data: userData } = await supabase.auth.getUser()
+            
+            if (userData?.user?.user_metadata?.is_artist) {
+              router.push(redirectTo || '/artist/dashboard')
+            } else {
+              router.push(redirectTo || '/dashboard')
+            }
+            return
+          }
         }
+        
+        // Se não tem hash ou sessão mas tem redirect_to, tentar usar esse redirect
+        if (redirectTo && redirectTo !== '/') {
+          // Verificar se já existe uma sessão 
+          const { data } = await supabase.auth.getSession()
+          if (data?.session) {
+            router.push(redirectTo)
+            return
+          }
+        }
+        
+        // Fallback para login se nada funcionar
+        router.push('/login')
       } catch (error) {
-        console.error('Auth callback error:', error)
-        router.push('/login?error=callback_processing')
+        console.error('Exceção ao processar callback de autenticação:', error)
+        router.push('/login?error=auth_callback_exception')
       }
     }
 
     handleAuthCallback()
-  }, [router])
+  }, [router, searchParams])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#006600] via-[#FFDF00] to-[#FF0000]">
-      <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-auto text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto mb-4"></div>
-        <h2 className="text-xl font-semibold mb-2">Finalizando autenticação...</h2>
-        <p className="text-gray-600">Você será redirecionado em instantes.</p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-green-900 to-black">
+      <div className="text-4xl text-yellow-500 animate-spin mb-4">
+        <FaSpinner />
       </div>
+      <h1 className="text-xl text-white font-medium">Autenticando...</h1>
+      <p className="text-gray-300 mt-2">Você será redirecionado automaticamente.</p>
     </div>
   )
 } 

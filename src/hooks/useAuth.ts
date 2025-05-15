@@ -17,6 +17,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isArtist, setIsArtist] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const router = useRouter();
 
   // Verifica estado de autenticação ao carregar
@@ -39,6 +40,12 @@ export function useAuth() {
               if (isMounted) {
                 setIsArtist(artistCheck);
               }
+              
+              // Verificar se o email está confirmado
+              const emailVerified = await authService.isEmailVerified();
+              if (isMounted) {
+                setIsEmailVerified(emailVerified);
+              }
             } catch (artistError) {
               console.error("Erro ao verificar tipo de usuário:", artistError);
               if (isMounted) {
@@ -48,6 +55,7 @@ export function useAuth() {
           } else {
             // Se não há usuário autenticado, não considerar como erro
             setError(null);
+            setIsEmailVerified(false);
           }
         }
       } catch (err: any) {
@@ -75,6 +83,68 @@ export function useAuth() {
     };
   }, []);
 
+  // Verificar status do email periodicamente
+  useEffect(() => {
+    // Não verificar se não há usuário ou se o email já está verificado
+    if (!user || isEmailVerified) return;
+    
+    let isMounted = true;
+    
+    const checkEmailVerification = async () => {
+      try {
+        // Apenas verificar se ainda temos o componente montado e um usuário
+        if (!isMounted || !user) return;
+        
+        const verified = await authService.isEmailVerified();
+        if (isMounted) {
+          setIsEmailVerified(verified);
+          
+          // Se verificou com sucesso, podemos parar as verificações
+          if (verified) {
+            console.log("Email verificado com sucesso!");
+          }
+        }
+      } catch (err) {
+        // A função isEmailVerified já trata os erros internamente,
+        // então não precisamos fazer nada aqui
+      }
+    };
+    
+    // Verificar imediatamente
+    checkEmailVerification();
+    
+    // E então verificar a cada 10 segundos
+    const interval = setInterval(checkEmailVerification, 10000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user, isEmailVerified]);
+
+  // Reenviar email de verificação
+  const resendVerificationEmail = useCallback(async (email: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const result = await authService.resendVerificationEmail(email);
+      
+      if (!result.success) {
+        setError(result.error || 'Falha ao reenviar o email de verificação');
+        return false;
+      }
+      
+      return true;
+    } catch (err: any) {
+      console.error('Erro ao reenviar email de verificação:', err);
+      setError(err.message || 'Falha ao reenviar o email de verificação');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Login usuário regular
   const loginUser = useCallback(async (email: string, password: string) => {
     try {
@@ -85,6 +155,15 @@ export function useAuth() {
       setUser(session?.user || null);
       setIsArtist(false);
       
+      // Verificar se o email está confirmado
+      if (session?.user) {
+        const emailVerified = await authService.isEmailVerified();
+        setIsEmailVerified(emailVerified);
+        
+        // Redirecionar para página inicial após login bem-sucedido
+        router.push('/');
+      }
+      
       return userData;
     } catch (err: any) {
       console.error('Erro de login:', err);
@@ -93,7 +172,7 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   // Login artista
   const loginArtist = useCallback(async (email: string, password: string) => {
@@ -105,6 +184,15 @@ export function useAuth() {
       setUser(session?.user || null);
       setIsArtist(true);
       
+      // Verificar se o email está confirmado
+      if (session?.user) {
+        const emailVerified = await authService.isEmailVerified();
+        setIsEmailVerified(emailVerified);
+        
+        // Redirecionar para página inicial após login bem-sucedido
+        router.push('/');
+      }
+      
       return artistData;
     } catch (err: any) {
       console.error('Erro de login (artista):', err);
@@ -113,7 +201,7 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   // Login com OAuth
   const loginWithOAuth = useCallback(async (provider: 'google' | 'facebook' | 'twitter') => {
@@ -142,6 +230,12 @@ export function useAuth() {
       const data = await authService.signUpUser(userData);
       setUser(data.user);
       setIsArtist(false);
+      setIsEmailVerified(false); // Email recém-registrado não está verificado ainda
+      
+      // Redirecionar para página inicial após registro bem-sucedido
+      if (data.user) {
+        router.push('/');
+      }
       
       return data;
     } catch (err: any) {
@@ -161,7 +255,7 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   // Registro de artista
   const registerArtist = useCallback(async (artistData: CreateArtistInput) => {
@@ -172,6 +266,12 @@ export function useAuth() {
       const data = await authService.signUpArtist(artistData);
       setUser(data.user);
       setIsArtist(true);
+      setIsEmailVerified(false); // Email recém-registrado não está verificado ainda
+      
+      // Redirecionar para página inicial após registro bem-sucedido
+      if (data.user) {
+        router.push('/');
+      }
       
       return data;
     } catch (err: any) {
@@ -191,7 +291,7 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   // Logout
   const logout = useCallback(async () => {
@@ -202,6 +302,7 @@ export function useAuth() {
       await authService.signOut();
       setUser(null);
       setIsArtist(false);
+      setIsEmailVerified(false);
       
       // Redirecionar para página inicial
       router.push('/');
@@ -216,6 +317,7 @@ export function useAuth() {
   return {
     user,
     isArtist,
+    isEmailVerified,
     loading,
     error,
     loginUser,
@@ -223,6 +325,7 @@ export function useAuth() {
     loginWithOAuth,
     registerUser,
     registerArtist,
+    resendVerificationEmail,
     logout,
     isAuthenticated: !!user,
   };

@@ -20,7 +20,8 @@ import {
   FaBars,
   FaChevronLeft,
   FaChevronRight,
-  FaUserCircle
+  FaUserCircle,
+  FaSignOutAlt
 } from 'react-icons/fa'
 
 export default function Sidebar() {
@@ -28,7 +29,8 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
-  const { user, loading, isAuthenticated } = useAuth()
+  const { user, loading, isAuthenticated, logout } = useAuth()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // Detecta se a tela é móvel e configura o estado inicial
   useEffect(() => {
@@ -57,6 +59,19 @@ export default function Sidebar() {
       setIsOpen(!isOpen)
     } else {
       setIsCollapsed(!isCollapsed)
+    }
+  }
+
+  // Função para fazer logout
+  const handleSignOut = async () => {
+    try {
+      setIsLoggingOut(true)
+      await logout()
+      // Não precisa redirecionar, pois o hook useAuth já faz isso
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error)
+    } finally {
+      setIsLoggingOut(false)
     }
   }
 
@@ -228,6 +243,32 @@ export default function Sidebar() {
             )
           })}
         </nav>
+
+        {/* Logout Button - Only show when authenticated */}
+        {isAuthenticated && (
+          <div className="px-2 pb-4">
+            <button
+              onClick={handleSignOut}
+              disabled={isLoggingOut}
+              className={`
+                w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-3'} py-2 rounded-lg transition
+                text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed
+              `}
+              title={isCollapsed && !isMobile ? 'Sair' : ''}
+            >
+              <span className={`text-lg ${!isCollapsed || (isMobile && isOpen) ? 'mr-3' : ''}`}>
+                {isLoggingOut ? (
+                  <div className="animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent"></div>
+                ) : (
+                  <FaSignOutAlt />
+                )}
+              </span>
+              {(!isCollapsed || (isMobile && isOpen)) && (
+                <span>{isLoggingOut ? 'Saindo...' : 'Sair'}</span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         {(!isCollapsed || (isMobile && isOpen)) && (

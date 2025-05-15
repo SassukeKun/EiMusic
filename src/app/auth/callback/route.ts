@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const redirectTo = requestUrl.searchParams.get('redirect_to') || '/';
   
   // If there's no code, this isn't a callback request
   if (!code) {
@@ -19,7 +20,13 @@ export async function GET(request: NextRequest) {
     await supabase.auth.exchangeCodeForSession(code);
     
     // Redirect to our callback page which will handle the session
-    return NextResponse.redirect(new URL('/auth/callback', request.url));
+    // Preserving the redirect_to parameter if it exists
+    const callbackUrl = new URL('/auth/callback', request.url);
+    if (redirectTo && redirectTo !== '/') {
+      callbackUrl.searchParams.set('redirect_to', redirectTo);
+    }
+    
+    return NextResponse.redirect(callbackUrl);
   } catch (error) {
     console.error('Error in auth callback route:', error);
     return NextResponse.redirect(new URL('/login?error=auth_callback_error', request.url));

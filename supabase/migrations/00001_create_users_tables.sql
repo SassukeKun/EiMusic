@@ -165,12 +165,20 @@ CREATE POLICY users_select ON users
 CREATE POLICY users_update ON users
   FOR UPDATE USING (auth.uid() = id);
 
+-- Adiciona política de INSERT para users
+CREATE POLICY users_insert ON users
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Políticas RLS para artistas (podem ver/editar apenas seus próprios dados)
 CREATE POLICY artists_select ON artists
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY artists_update ON artists
   FOR UPDATE USING (auth.uid() = id);
+
+-- Adiciona política de INSERT para artists
+CREATE POLICY artists_insert ON artists
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Políticas RLS para conteúdo
 CREATE POLICY content_select ON content

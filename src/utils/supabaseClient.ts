@@ -20,6 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: true, // automatically refreshes the token
     detectSessionInUrl: true, // checks for auth tokens in the URL
     storageKey: 'sb-auth-token', // key to use for localStorage
+    flowType: 'pkce', // Use PKCE flow for better security
   }
 });
 
