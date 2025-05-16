@@ -150,24 +150,34 @@ export function useAuth() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { session, user: userData } = await authService.signInUser(email, password);
-      setUser(session?.user || null);
+
+      if (!session || !session.refresh_token) {
+        setError('Falha na autenticação: token de sessão inválido ou ausente. Tente novamente.');
+        return null;
+      }
+
+      setUser(session.user || null);
       setIsArtist(false);
-      
+
       // Verificar se o email está confirmado
-      if (session?.user) {
+      if (session.user) {
         const emailVerified = await authService.isEmailVerified();
         setIsEmailVerified(emailVerified);
-        
-        // Redirecionar para página inicial após login bem-sucedido
-        router.push('/');
+
+        // Redirecionar imediatamente após login e verificação de email
+        if (emailVerified) {
+          router.replace('/dashboard');
+        } else {
+          // Se não verificado, pode mostrar tela de verificação
+        }
       }
-      
+
       return userData;
     } catch (err: any) {
-      console.error('Erro de login:', err);
-      setError(err.message || 'Falha ao realizar login');
+      // Removed detailed error log to avoid showing sensitive info
+      setError('Erro de autenticação: Credenciais inválidas ou conta de usuário não encontrada');
       return null;
     } finally {
       setLoading(false);
@@ -179,20 +189,30 @@ export function useAuth() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { session, user: artistData } = await authService.signInArtist(email, password);
-      setUser(session?.user || null);
+
+      if (!session || !session.refresh_token) {
+        setError('Falha na autenticação: token de sessão inválido ou ausente. Tente novamente.');
+        return null;
+      }
+
+      setUser(session.user || null);
       setIsArtist(true);
-      
+
       // Verificar se o email está confirmado
-      if (session?.user) {
+      if (session.user) {
         const emailVerified = await authService.isEmailVerified();
         setIsEmailVerified(emailVerified);
-        
-        // Redirecionar para página inicial após login bem-sucedido
-        router.push('/');
+
+        // Redirecionar imediatamente após login e verificação de email
+        if (emailVerified) {
+          router.replace('/artist/dashboard');
+        } else {
+          // Se não verificado, pode mostrar tela de verificação
+        }
       }
-      
+
       return artistData;
     } catch (err: any) {
       console.error('Erro de login (artista):', err);
@@ -331,4 +351,4 @@ export function useAuth() {
   };
 }
 
-export default useAuth; 
+export default useAuth;
