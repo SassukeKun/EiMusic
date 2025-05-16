@@ -19,8 +19,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-PT">
-      <body className={inter.className}>
-        <ClientLayout>{children}</ClientLayout>
+      <head />
+      <body className={isAuthPage ? '' : 'pb-24 bg-gray-50'}>
+        <Providers>
+          {isAuthPage ? (
+            children
+          ) : (
+            <div className="flex">
+              <Sidebar />
+              <main className="flex-1 max-w-7xl px-4 pb-14">
+                {children}
+              </main>
+            </div>
+          )}
+
+          {!isAuthPage && <PlayerBar />}
+        </Providers>
       </body>
     </html>
   );

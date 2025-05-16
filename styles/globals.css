@@ -1,3 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.content-with-player {
+  padding-bottom: 3.5rem; /* 56px - equivalente a h-14 */
+}
