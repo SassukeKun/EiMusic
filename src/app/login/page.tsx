@@ -1,5 +1,5 @@
 // src/app/login/page.tsx
-'use client'                                    // ← isto TEM de vir antes de *todos* os imports
+'use client'// ← isto TEM de vir antes de *todos* os imports
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -65,7 +65,7 @@ export default function LoginPage() {
         const result = await loginArtist(data.email, data.password);
         if (result) {
           console.log('Login de artista bem-sucedido, redirecionando...');
-          router.push('/artist/dashboard');
+          router.replace('/artist/dashboard'); // changed from push to replace
         } else {
           setAuthError('Credenciais inválidas ou conta de artista não encontrada');
         }
@@ -73,7 +73,7 @@ export default function LoginPage() {
         const result = await loginUser(data.email, data.password);
         if (result) {
           console.log('Login de usuário bem-sucedido, redirecionando...');
-          router.push('/dashboard');
+          router.replace('/'); // changed from push to replace
         } else {
           setAuthError('Credenciais inválidas ou conta de usuário não encontrada');
         }

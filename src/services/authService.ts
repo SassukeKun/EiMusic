@@ -27,6 +27,11 @@ const authService = {
     if (error) {
       throw error;
     }
+
+    // Check for valid refresh token
+    if (!data.session?.refresh_token) {
+      throw new Error('Invalid Refresh Token: Refresh Token Not Found');
+    }
     
     // Buscar dados extras do usuario (tabela users)
     const { data: userData, error: userError } = await supabase
@@ -94,6 +99,11 @@ const authService = {
     
     if (error) {
       throw error;
+    }
+
+    // Check for valid refresh token
+    if (!data.session?.refresh_token) {
+      throw new Error('Invalid Refresh Token: Refresh Token Not Found');
     }
     
     // Buscar dados extras do artista (tabela artists)
@@ -598,4 +608,4 @@ const authService = {
   }
 };
 
-export default authService; 
+export default authService;
