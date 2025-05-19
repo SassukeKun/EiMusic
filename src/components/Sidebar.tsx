@@ -21,7 +21,10 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaUserCircle,
-  FaSignOutAlt
+  FaSignOutAlt,
+  FaMusic,
+  FaMicrophone,
+  FaHeadphones
 } from 'react-icons/fa'
 
 export default function Sidebar() {
@@ -79,27 +82,30 @@ export default function Sidebar() {
     { icon: <FaHome />, label: 'Home', href: '/' },
     { icon: <FaChartLine />, label: 'Trending', href: '/trending' },
     { icon: <FaCompass />, label: 'Explore', href: '/explore' },
+    { icon: <FaMusic />, label: 'Músicas', href: '/musicas' },
     { icon: <FaVideo />, label: 'Vídeos', href: '/videos' },
     { icon: <FaUsers />, label: 'Comunidades', href: '/communities' },
-    { icon: <FaCalendarAlt />, label: 'Eventos', href: '/events' },
+    { icon: <FaCalendarAlt />, label: 'Eventos', href: '/eventos' },
     { icon: <FaListUl />, label: 'Playlists', href: '/playlists' },
-    { icon: <FaBook />, label: 'Library', href: '/library' },
+    { icon: <FaHeadphones />, label: 'Minha Biblioteca', href: '/library' },
+    { icon: <FaMicrophone />, label: 'Artistas', href: '/artistas' },
     { icon: <FaUpload />, label: 'Upload', href: '/upload' }
   ]
 
   // Classes para a sidebar baseadas no estado
   const sidebarClasses = `
-    fixed z-40 h-full bg-gray text-gray-700 flex flex-col border-r transition-all duration-300
+    fixed z-40 h-full flex flex-col transition-all duration-300
     ${isMobile 
       ? `${isOpen ? 'left-0' : '-left-full'} w-64 shadow-lg` 
       : `top-0 ${isCollapsed ? 'w-16' : 'w-64'} left-0`}
+    bg-[#111111] text-[#ededed]
   `
 
   // Botão de toggle para desktop
   const ToggleButton = () => (
     <button 
       onClick={toggleSidebar}
-      className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md text-gray-500 hover:text-gray-700"
+      className="absolute -right-3 top-20 bg-[#222222] border border-[#333333] rounded-full p-1 shadow-md text-[#ededed] hover:bg-[#333333]"
       aria-label="Toggle sidebar"
     >
       {isCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
@@ -110,7 +116,7 @@ export default function Sidebar() {
   const MobileMenuButton = () => (
     <button 
       onClick={toggleSidebar}
-      className="fixed top-4 left-4 z-50 bg-white p-2 rounded-md shadow-md text-gray-700"
+      className="fixed top-4 left-4 z-50 bg-[#222222] p-2 rounded-md shadow-md text-[#ededed]"
       aria-label="Menu"
     >
       <FaBars />
@@ -120,7 +126,7 @@ export default function Sidebar() {
   // Backdrop para fechar o menu no mobile quando clicado fora
   const Backdrop = () => (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 z-30 transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 bg-black bg-opacity-70 z-30 transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       onClick={toggleSidebar}
     />
   )
@@ -130,11 +136,11 @@ export default function Sidebar() {
     if (loading) {
       return (
         <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-          <div className="h-10 w-10 rounded-full bg-gray-300 animate-pulse"></div>
+          <div className="h-10 w-10 rounded-full bg-[#222222] animate-pulse"></div>
           {(!isCollapsed || (isMobile && isOpen)) && (
             <div className="space-y-2">
-              <div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div>
-              <div className="h-3 w-20 bg-gray-300 rounded animate-pulse"></div>
+              <div className="h-4 w-24 bg-[#222222] rounded animate-pulse"></div>
+              <div className="h-3 w-20 bg-[#222222] rounded animate-pulse"></div>
             </div>
           )}
         </div>
@@ -145,12 +151,12 @@ export default function Sidebar() {
       return (
         <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
           <div className="relative h-10 w-10 flex-shrink-0">
-            <FaUserCircle className="h-10 w-10 text-gray-400" />
-            <div className="absolute bottom-0 right-0 h-3 w-3 bg-gray-300 rounded-full border-2 border-white"></div>
+            <FaUserCircle className="h-10 w-10 text-[#ededed]" />
+            <div className="absolute bottom-0 right-0 h-3 w-3 bg-gray-500 rounded-full border-2 border-[#111111]"></div>
           </div>
           {(!isCollapsed || (isMobile && isOpen)) && (
             <div>
-              <Link href="/login" className="text-sm font-semibold text-gray-500 hover:text-green-500">Entrar</Link>
+              <Link href="/login" className="text-sm font-semibold text-[#ededed] hover:text-yellow-400">Entrar</Link>
               <p className="text-xs text-gray-400">Visitante</p>
             </div>
           )}
@@ -167,24 +173,26 @@ export default function Sidebar() {
     return (
       <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
         {imgError ? (
-          <div className="h-10 w-10 flex-shrink-0 bg-gray-200 rounded-full flex items-center justify-center">
-            <FaUserCircle className="h-8 w-8 text-gray-400" />
+          <div className="h-10 w-10 flex-shrink-0 bg-[#222222] rounded-full flex items-center justify-center">
+            <FaUserCircle className="h-8 w-8 text-[#ededed]" />
           </div>
         ) : (
-          <Image
-            src={avatarUrl}
-            alt="Avatar"
-            width={40}
-            height={40}
-            className="rounded-full"
-            priority
-            onError={() => setImgError(true)}
-          />
+          <div className="h-10 w-10 rounded-full border-2 border-[#333333] overflow-hidden">
+            <Image
+              src={avatarUrl}
+              alt="Avatar"
+              width={40}
+              height={40}
+              className="rounded-full"
+              priority
+              onError={() => setImgError(true)}
+            />
+          </div>
         )}
         {(!isCollapsed || (isMobile && isOpen)) && (
           <div>
-            <p className="text-sm font-semibold">{userName}</p>
-            <p className="text-xs text-gray-500">{userEmail}</p>
+            <p className="text-sm font-semibold text-[#ededed]">{userName}</p>
+            <p className="text-xs text-gray-400">{userEmail}</p>
           </div>
         )}
       </div>
@@ -202,25 +210,43 @@ export default function Sidebar() {
         {/* Topo: logo + nome + icons */}
         <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between'} p-4`}>
           <div className="flex items-center space-x-2">
-            <Image src="/musicSS.svg" alt="EiMusic" width={32} height={32} priority />
+            <div className="relative w-8 h-8 flex-shrink-0">
+              <Image 
+                src="/musicSS.svg" 
+                alt="EiMusic" 
+                width={32} 
+                height={32}
+                className="drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" 
+                priority 
+              />
+            </div>
             {(!isCollapsed || (isMobile && isOpen)) && (
-              <span className="text-xl font-bold">EiMusic</span>
+              <span className="text-xl font-bold text-[#FFDF00]">
+                EiMusic
+              </span>
             )}
           </div>
           
           {(!isCollapsed || (isMobile && isOpen)) && (
-            <div className="flex items-center space-x-3 text-gray-500">
-              <FaCog className="text-xl hover:text-gray-700 cursor-pointer transition" />
-              <FaBell className="text-xl hover:text-gray-700 cursor-pointer transition" />
+            <div className="flex items-center space-x-3 text-[#ededed]">
+              <FaCog className="text-xl hover:text-yellow-400 cursor-pointer transition" />
+              <div className="relative">
+                <FaBell className="text-xl hover:text-yellow-400 cursor-pointer transition" />
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
+                  2
+                </span>
+              </div>
             </div>
           )}
         </div>
 
         {/* User Info Component */}
-        <UserInfo />
+        <div className="mt-4">
+          <UserInfo />
+        </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-2 space-y-1 overflow-y-auto scrollbar-hide py-2">
           {menuItems.map(item => {
             const isActive = pathname === item.href
             return (
@@ -230,12 +256,14 @@ export default function Sidebar() {
                 className={`
                   flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-3'} py-2 rounded-lg transition
                   ${isActive
-                    ? 'bg-gradient-to-r from-[#006600] via-[#FFDF00] to-[#FF0000] text-white'
-                    : 'hover:bg-gray-100'}
+                    ? 'bg-gradient-to-r from-[#FF0000] via-[#FFDF00] to-[#FF6600] text-white shadow-md'
+                    : 'text-[#ededed] hover:bg-[#222222]'}
                 `}
                 title={isCollapsed && !isMobile ? item.label : ''}
               >
-                <span className={`text-lg ${!isCollapsed || (isMobile && isOpen) ? 'mr-3' : ''}`}>{item.icon}</span>
+                <span className={`text-lg ${!isCollapsed || (isMobile && isOpen) ? 'mr-3' : ''}`}>
+                  {item.icon}
+                </span>
                 {(!isCollapsed || (isMobile && isOpen)) && (
                   <span>{item.label}</span>
                 )}
@@ -243,6 +271,11 @@ export default function Sidebar() {
             )
           })}
         </nav>
+
+        {/* Divider */}
+        <div className="px-3 py-2">
+          <div className="h-px bg-[#222222]"></div>
+        </div>
 
         {/* Logout Button - Only show when authenticated */}
         {isAuthenticated && (
@@ -252,13 +285,13 @@ export default function Sidebar() {
               disabled={isLoggingOut}
               className={`
                 w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-3'} py-2 rounded-lg transition
-                text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed
+                text-red-400 hover:bg-[#331111] disabled:opacity-50 disabled:cursor-not-allowed
               `}
               title={isCollapsed && !isMobile ? 'Sair' : ''}
             >
               <span className={`text-lg ${!isCollapsed || (isMobile && isOpen) ? 'mr-3' : ''}`}>
                 {isLoggingOut ? (
-                  <div className="animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent"></div>
+                  <div className="animate-spin h-5 w-5 border-2 border-red-400 rounded-full border-t-transparent"></div>
                 ) : (
                   <FaSignOutAlt />
                 )}
@@ -272,7 +305,9 @@ export default function Sidebar() {
 
         {/* Footer */}
         {(!isCollapsed || (isMobile && isOpen)) && (
-          <div className="p-4 text-sm text-gray-500">© 2025 EiMusic</div>
+          <div className="p-4 text-sm text-gray-500">
+            © 2025 EiMusic
+          </div>
         )}
       </aside>
       
