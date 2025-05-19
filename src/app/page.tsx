@@ -194,7 +194,7 @@ export default function HomePage() {
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="relative overflow-hidden rounded-lg bg-gray-800 aspect-square mb-1 group-hover:shadow-md w-full max-w-[400px]">
+                <div className="relative overflow-hidden rounded-lg bg-gray-800 aspect-square mb-1 group-hover:shadow-md w-full max-w-[300px]">
                   <Image
                     src={release.image}
                     alt={release.title}
