@@ -1,159 +1,294 @@
+// src/app/page.tsx
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { FaPlay, FaHeart } from 'react-icons/fa'
 
 export default function HomePage() {
-  const featuredRelease = {
-    title: "Futuro Brilhante",
-    artist: "Lana Neto",
-    tag: "NOVO LANÇAMENTO"
-  }
+  // Dados simulados para a página inicial com suas imagens
+  const featuredArtist = {
+    id: "1",
+    name: "Mc Mastoni",
+    image: "https://i.ytimg.com/vi/rMqsjbG5Yr4/hq720.jpg?sqp=-oaymwE7CK4FEIIDSFryq4qpAy0IARUAAAAAGAElAADIQj0AgKJD8AEB-AH-CYAC0AWKAgwIABABGDogZShkMA8=&rs=AOn4CLBxlwFnsRq3dQx-QxXAmhv9DS1Tug",
+    title: "ARTISTA EM DESTAQUE",
+    description: "Nova música 'No chapa' já disponível"
+  };
 
-  const weeklyHighlights = [
-    { id: 1, title: "Liberdade",        image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&h=300&q=80" },
-    { id: 2, title: "Cidade Quente",    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=300&h=300&q=80" },
-    { id: 3, title: "Vibes Tranquilas", image: "https://images.unsplash.com/photo-1542327897-52198a75037b?auto=format&fit=crop&w=300&h=300&q=80" },
-    { id: 4, title: "Energia Positiva", image: "https://images.unsplash.com/photo-1497032628192-86f99b0c8ec6?auto=format&fit=crop&w=300&h=300&q=80" },
-    { id: 5, title: "Ao Vivo na Cidade",image: "https://images.unsplash.com/photo-1486189407619-2a90d28b5842?auto=format&fit=crop&w=300&h=300&q=80" },
-    { id: 6, title: "Melodia Urbana",   image: "https://images.unsplash.com/photo-1464375117522-1311dd699451?auto=format&fit=crop&w=300&h=300&q=80" },
-    { id: 7, title: "Sons do Verão",    image: "https://images.unsplash.com/photo-1470229722913-7cfd64a0600d?auto=format&fit=crop&w=300&h=300&q=80" },
-  ]
+  const recentReleases = [
+    {
+      id: "1",
+      title: "Nunca tou no Place",
+      artist: "Hernâni & Laylizzy",
+      image: "https://xigubo.com/wp-content/uploads/2022/11/231FEECC-35CF-4DEB-ABC8-621482F88F92-e1669184204697.jpeg",
+      tags: ["Rap"]
+    },
+    {
+      id: "2",
+      title: "Distância",
+      artist: "Nirvana",
+      image: "https://i1.sndcdn.com/artworks-775MIadN8jaJDuCt-JXiSdA-t240x240.jpg",
+      tags: ["Trapsoul"]
+    },
+    {
+      id: "3",
+      title: "Não voltar atrás",
+      artist: "7th Streetz Boyz",
+      image: "https://i1.sndcdn.com/artworks-Ixlqm1BQlHbPwJii-jcEjzA-t240x240.jpg",
+      tags: ["R&B"]
+    },
+    {
+      id: "4",
+      title: "Rivais",
+      artist: "Twenty Fingers",
+      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREBLiwM6nJd2WU594U5jUYr8VG4BVm2CMoLg&s",
+      tags: ["Lovesong"]
+    },
+    {
+      id: "5",
+      title: "Vanabela",
+      artist: "Wizzi Massuke",
+      image: "https://i.ytimg.com/vi/TQpjgrkl19U/maxresdefault.jpg",
+      tags: ["Marabenta"]
+    },
+  ];
 
-  const risingArtists = [
-    { id: 1, name: "Sofia Lima",    image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&h=200&q=80" },
-    { id: 2, name: "Ricardo Luz",   image: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=200&h=200&q=80" },
-    { id: 3, name: "Marina Sol",    image: "https://images.unsplash.com/photo-1502720705749-3c5204b2c3f0?auto=format&fit=crop&w=200&h=200&q=80" },
-    { id: 4, name: "Bruno Dias",    image: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&h=200&q=80" },
-    { id: 5, name: "Carla Rocha",   image: "https://images.unsplash.com/photo-1544725176-7c40e5a2c9f7?auto=format&fit=crop&w=200&h=200&q=80" },
-    { id: 6, name: "Daniel Costa",  image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&h=200&q=80" },
-    { id: 7, name: "Juliana Melo",  image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&h=200&q=80" },
-    { id: 8, name: "Fernando Cruz", image: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?auto=format&fit=crop&w=200&h=200&q=80" },
-  ]
+  const topPlaylists = [
+    {
+      id: "1",
+      title: "Hits Moçambicanos",
+      image: "https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=600&q=80",
+      count: "32 músicas"
+    },
+    {
+      id: "2",
+      title: "Pura Energia",
+      image: "https://images.unsplash.com/photo-1550184916-c630464fd404?auto=format&fit=crop&w=600&q=80",
+      count: "24 músicas"
+    },
+    {
+      id: "3",
+      title: "Clássicos Africanos",
+      image: "https://images.unsplash.com/photo-1532953593254-4af21ac275b3?auto=format&fit=crop&w=600&q=80",
+      count: "40 músicas"
+    },
+    {
+      id: "4",
+      title: "Tardes Tranquilas",
+      image: "https://images.unsplash.com/photo-1531384370053-61af8bee95e3?auto=format&fit=crop&w=600&q=80",
+      count: "18 músicas"
+    },
+  ];
 
-  const featuredPlaylists = [
-    { id: 1, title: "Domingo Relax",     image: "https://images.unsplash.com/photo-1511974035430-5de47d3b95da?auto=format&fit=crop&w=300&h=300&q=80", color: "bg-yellow-400" },
-    { id: 2, title: "Hits do Momento",   image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&h=300&q=80", color: "bg-green-600" },
-    { id: 3, title: "Noite Eletrônica",  image: "https://images.unsplash.com/photo-1508921912186-1d1a45ebb3c1?auto=format&fit=crop&w=300&h=300&q=80", color: "bg-blue-500" },
-    { id: 4, title: "Vibes Acústicas",   image: "https://images.unsplash.com/photo-1511376777868-611b54f68947?auto=format&fit=crop&w=300&h=300&q=80", color: "bg-amber-200" },
-    { id: 5, title: "Inspiração Diária", image: "https://images.unsplash.com/photo-1504198458649-3128b932f49b?auto=format&fit=crop&w=300&h=300&q=80", color: "bg-orange-300" },
-  ]
+  const topArtists = [
+    {
+      id: "1",
+      name: "DJ Manuel",
+      image: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      id: "2",
+      name: "Sofia Lima",
+      image: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      id: "3",
+      name: "Ricardo Luz",
+      image: "https://images.unsplash.com/photo-1539701938214-0d9736e1c16b?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      id: "4",
+      name: "Marina Sol",
+      image: "https://images.unsplash.com/photo-1581881067989-7e3eaf45f4b7?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      id: "5",
+      name: "Bruno Dias",
+      image: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      id: "6",
+      name: "Carla Rocha",
+      image: "https://images.unsplash.com/photo-1542787781-5f7ddd8c4a99?auto=format&fit=crop&w=400&q=80"
+    },
+  ];
 
-  const upcomingEvents = [
-    { id: 1, title: "Festival de Verão", date: "25 de Maio", image: "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&w=400&h=200&q=80" },
-    { id: 2, title: "Show na Praia",    date: "6 de Junho", image: "https://images.unsplash.com/photo-1507874457470-272b3c8d8ee2?auto=format&fit=crop&w=400&h=200&q=80" },
-    { id: 3, title: "Noite de Jazz",     date: "15 de Junho",image: "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&w=400&h=200&q=80" },
-    { id: 4, title: "Festival Urbano",   date: "1 de Julho", image: "https://images.unsplash.com/photo-1519889013711-089f0e6237a3?auto=format&fit=crop&w=400&h=200&q=80" },
-  ]
+  // Animação de entrada para os elementos da página
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5 }
+    }
+  };
 
   return (
-    <div className="py-6">
-      {/* Hero Banner */}
-      <div className="relative w-full h-40 sm:h-48 md:h-56 lg:h-72 rounded-xl overflow-hidden mb-6 sm:mb-8 lg:mb-12">
+    <motion.div
+      className="text-gray-100 w-full pb-16"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* Artista em Destaque */}
+      <motion.div
+        className="relative w-full h-80 md:h-[400px] overflow-hidden mb-8"
+        variants={itemVariants}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30 z-10"></div>
         <Image
-          src="https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=1600&q=80"
-          alt="Futuro Brilhante - Lana Neto"
+          src={featuredArtist.image}
+          alt={featuredArtist.name}
           fill
           className="object-cover"
           unoptimized
+          sizes="100vw"
           priority
         />
-        <div className="absolute inset-0 bg-black/25" />
-        <div className="absolute top-0 left-0 px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-lg text-white">
-          <p className="uppercase text-xs font-semibold mb-1">{featuredRelease.tag}</p>
-          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold leading-tight mb-1 sm:mb-2">{featuredRelease.title}</h1>
-          <p className="text-sm sm:text-base">{featuredRelease.artist}</p>
+        <div className="absolute bottom-0 left-0 p-8 z-20 w-full md:w-2/3">
+          <span className="text-xs uppercase tracking-wider text-gray-300 mb-3 block font-medium">
+            {featuredArtist.title}
+          </span>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2">{featuredArtist.name}</h1>
+          <p className="text-base text-gray-300 mb-6">{featuredArtist.description}</p>
+          <div className="flex space-x-4">
+            <button className="px-5 py-2.5 bg-indigo-700 hover:bg-indigo-600 rounded-full flex items-center text-base font-medium transition-colors">
+              <FaPlay className="mr-2" /> Ouvir Agora
+            </button>
+            <button className="p-2.5 rounded-full bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 transition-colors">
+              <FaHeart />
+            </button>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Novidades da Semana */}
-      <section className="mb-8 sm:mb-10 lg:mb-12">
-        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Novidades da Semana</h2>
-        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-3 sm:pb-4 scrollbar-hide">
-          {weeklyHighlights.map(item => (
-            <a key={item.id} href={`/playlist/${item.id}`} className="flex flex-col items-center flex-shrink-0">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-lg overflow-hidden mb-2 shadow-md">
-                <Image
-                  src={item.image}
-                  alt={item.title}
-                  width={300}
-                  height={300}
-                  className="object-cover"
-                  unoptimized
-                />
-              </div>
-              <span className="text-xs sm:text-sm font-medium text-center max-w-[80px] sm:max-w-[96px] md:max-w-[112px] truncate">{item.title}</span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* Artistas em Ascensão */}
-      <section className="mb-8 sm:mb-10 lg:mb-12">
-        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Artistas em Ascensão</h2>
-        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-3 sm:pb-4 scrollbar-hide">
-          {risingArtists.map(artist => (
-            <a key={artist.id} href={`/artist/${artist.id}`} className="flex flex-col items-center flex-shrink-0">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2 shadow-md">
-                <Image
-                  src={artist.image}
-                  alt={artist.name}
-                  width={200}
-                  height={200}
-                  className="object-cover"
-                  unoptimized
-                />
-              </div>
-              <span className="text-xs sm:text-sm font-medium text-center max-w-[64px] sm:max-w-[80px] md:max-w-[96px] truncate">{artist.name}</span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* Playlist Destaque */}
-      <section className="mb-8 sm:mb-10 lg:mb-12">
-        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Playlist Destaque</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-          {featuredPlaylists.map(pl => (
-            <a key={pl.id} href={`/playlist/${pl.id}`} className="block">
-              <div className={`w-full aspect-square rounded-lg mb-2 relative overflow-hidden shadow-lg ${pl.color}`}>
-                <Image
-                  src={pl.image}
-                  alt={pl.title}
-                  fill
-                  className="object-cover rounded-lg"
-                  unoptimized
-                />
-              </div>
-              <span className="text-xs sm:text-sm font-medium truncate">{pl.title}</span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* Próximos Eventos */}
-      <section className="mb-6 sm:mb-8 lg:mb-10">
-        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Próximos Eventos</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-          {upcomingEvents.map(ev => (
-            <a key={ev.id} href={`/event/${ev.id}`} className="block">
-              <div className="w-full h-20 sm:h-24 md:h-28 rounded-lg overflow-hidden mb-2 relative shadow-lg">
-                <Image
-                  src={ev.image}
-                  alt={ev.title}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <span className="text-white font-medium text-xs sm:text-sm">{ev.date}</span>
+      {/* Conteúdo principal com padding */}
+      <div className="px-8 pb-10">
+        {/* Lançamentos Recentes - tamanho reduzido */}
+        <motion.section className="mb-10" variants={itemVariants}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Lançamentos Recentes</h2>
+            <Link href="/releases" className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
+              Ver Todos
+            </Link>
+          </div>
+          <div className="grid grid-cols-5 gap-4">
+            {recentReleases.map((release) => (
+              <motion.div
+                key={release.id}
+                className="group"
+                whileHover={{ y: -3 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="relative overflow-hidden rounded-lg bg-gray-800 aspect-square mb-1 group-hover:shadow-md w-full max-w-[400px]">
+                  <Image
+                    src={release.image}
+                    alt={release.title}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <button className="bg-indigo-600 hover:bg-indigo-500 p-1.5 rounded-full shadow-xl transform scale-0 group-hover:scale-100 transition-transform">
+                      <FaPlay size={10} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <span className="text-xs sm:text-sm font-medium">{ev.title}</span>
-            </a>
-          ))}
-        </div>
-      </section>
-    </div>
-  )
+                <h3 className="font-medium text-xs truncate">{release.title}</h3>
+                <p className="text-gray-400 text-xs truncate">{release.artist}</p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* Playlists em Destaque */}
+        <motion.section className="mb-10" variants={itemVariants}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Playlists em Destaque</h2>
+            <Link href="/playlists" className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
+              Ver Todas
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {topPlaylists.map((playlist) => (
+              <motion.div
+                key={playlist.id}
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden p-4 border border-gray-800 hover:border-gray-700 transition-colors"
+                whileHover={{ y: -3 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex space-x-4">
+                  <div className="w-20 h-20 bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative">
+                    <Image
+                      src={playlist.image}
+                      alt={playlist.title}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                      sizes="80px"
+                    />
+                  </div>
+                  <div className="flex flex-col justify-between flex-grow">
+                    <div>
+                      <h3 className="font-bold text-sm">{playlist.title}</h3>
+                      <p className="text-gray-400 text-xs">{playlist.count}</p>
+                    </div>
+                    <button className="bg-indigo-600 hover:bg-indigo-500 w-10 h-10 rounded-full flex items-center justify-center shadow-lg self-end transition-colors">
+                      <FaPlay size={14} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* Artistas Populares */}
+        <motion.section variants={itemVariants}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Artistas Populares</h2>
+            <Link href="/artists" className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors">
+              Ver Todos
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+            {topArtists.map((artist) => (
+              <motion.div
+                key={artist.id}
+                className="text-center group"
+                whileHover={{ y: -3 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="w-20 h-20 mx-auto relative rounded-full overflow-hidden mb-2 border-2 border-transparent group-hover:border-indigo-500 transition-colors">
+                  <Image
+                    src={artist.image}
+                    alt={artist.name}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                    sizes="80px"
+                  />
+                </div>
+                <h3 className="font-medium text-sm truncate">{artist.name}</h3>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+      </div>
+    </motion.div>
+  );
 }
