@@ -148,6 +148,16 @@ export function useAuth() {
   // Login usuário regular
   const loginUser = useCallback(async (email: string, password: string) => {
     try {
+      // Limpar possíveis tokens corrompidos antes de tentar login
+      if (typeof window !== 'undefined') {
+        // Limpar tokens específicos do Supabase
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+      
       setLoading(true);
       setError(null);
 
@@ -168,16 +178,34 @@ export function useAuth() {
 
         // Redirecionar imediatamente após login e verificação de email
         if (emailVerified) {
-          router.replace('/dashboard');
+          // Redirecionando para a página inicial em vez de dashboard
+          router.replace('/');
         } else {
-          // Se não verificado, pode mostrar tela de verificação
+          // Se não verificado, redirecionar para tela de verificação
+          router.replace(`/auth/verification?email=${encodeURIComponent(email)}&type=user`);
         }
       }
 
       return userData;
     } catch (err: any) {
-      // Removed detailed error log to avoid showing sensitive info
-      setError('Erro de autenticação: Credenciais inválidas ou conta de usuário não encontrada');
+      // Tratamento de erros específicos
+      if (err?.message?.includes('Invalid login credentials')) {
+        setError('Credenciais inválidas. Verifique seu email e senha.');
+      } else if (err?.message?.includes('Email not confirmed')) {
+        setError('Seu email ainda não foi verificado. Verifique sua caixa de entrada.');
+        // Redirecionar para tela de verificação
+        router.replace(`/auth/verification?email=${encodeURIComponent(email)}&type=user`);
+      } else if (err?.message?.includes('User not found')) {
+        setError('Usuário não encontrado. Verifique seu email ou crie uma conta.');
+      } else if (err?.message?.includes('Refresh Token')) {
+        setError('Problema com a autenticação. Tente novamente.');
+        // Limpar tokens corrompidos
+        if (typeof window !== 'undefined') {
+          localStorage.clear();
+        }
+      } else {
+        setError(err.message || 'Erro de autenticação. Tente novamente mais tarde.');
+      }
       return null;
     } finally {
       setLoading(false);
@@ -187,10 +215,22 @@ export function useAuth() {
   // Login artista
   const loginArtist = useCallback(async (email: string, password: string) => {
     try {
+      // Limpar possíveis tokens corrompidos antes de tentar login
+      if (typeof window !== 'undefined') {
+        // Limpar tokens específicos do Supabase
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+      
       setLoading(true);
       setError(null);
 
+      console.log('Iniciando login de artista...');
       const { session, user: artistData } = await authService.signInArtist(email, password);
+      console.log('Resposta do login de artista:', { session: !!session, userData: !!artistData });
 
       if (!session || !session.refresh_token) {
         setError('Falha na autenticação: token de sessão inválido ou ausente. Tente novamente.');
@@ -204,18 +244,30 @@ export function useAuth() {
       if (session.user) {
         const emailVerified = await authService.isEmailVerified();
         setIsEmailVerified(emailVerified);
+        console.log('Email verificado:', emailVerified);
 
         // Redirecionar imediatamente após login e verificação de email
         if (emailVerified) {
-          router.replace('/artist/dashboard');
+          console.log('Redirecionando para página inicial...');
+          // Redirecionando para a página inicial em vez de artist/dashboard
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          } else {
+            router.replace('/');
+          }
         } else {
-          // Se não verificado, pode mostrar tela de verificação
+          // Se não verificado, redirecionar para tela de verificação
+          console.log('Redirecionando para verificação de email...');
+          if (typeof window !== 'undefined') {
+            window.location.href = `/auth/verification?email=${encodeURIComponent(email)}&type=artist`;
+          } else {
+            router.replace(`/auth/verification?email=${encodeURIComponent(email)}&type=artist`);
+          }
         }
       }
 
       return artistData;
     } catch (err: any) {
-      console.error('Erro de login (artista):', err);
       setError(err.message || 'Falha ao realizar login como artista');
       return null;
     } finally {
@@ -252,9 +304,15 @@ export function useAuth() {
       setIsArtist(false);
       setIsEmailVerified(false); // Email recém-registrado não está verificado ainda
       
-      // Redirecionar para página inicial após registro bem-sucedido
+      // Verificar se precisa de verificação de email e redirecionar
+      if (data.needsEmailVerification && data.verificationUrl) {
+        router.push(data.verificationUrl);
+        return data;
+      }
+      
+      // Se não precisa de verificação ou se não temos URL, comportamento padrão
       if (data.user) {
-        router.push('/');
+        router.push('/dashboard');
       }
       
       return data;
@@ -288,9 +346,15 @@ export function useAuth() {
       setIsArtist(true);
       setIsEmailVerified(false); // Email recém-registrado não está verificado ainda
       
-      // Redirecionar para página inicial após registro bem-sucedido
+      // Verificar se precisa de verificação de email e redirecionar
+      if (data.needsEmailVerification && data.verificationUrl) {
+        router.push(data.verificationUrl);
+        return data;
+      }
+      
+      // Se não precisa de verificação ou se não temos URL, comportamento padrão
       if (data.user) {
-        router.push('/');
+        router.push('/artist/dashboard');
       }
       
       return data;

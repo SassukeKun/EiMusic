@@ -27,10 +27,14 @@ const authService = {
     if (error) {
       throw error;
     }
-
+    
     // Check for valid refresh token
     if (!data.session?.refresh_token) {
       throw new Error('Invalid Refresh Token: Refresh Token Not Found');
+    }
+    // Verificar se é artista - se for, não permitir login como usuário regular
+    if (data.user?.user_metadata?.is_artist === true) {
+      throw new Error('Esta conta pertence a um artista. Por favor, use a área de login de artista.');
     }
     
     // Buscar dados extras do usuario (tabela users)
@@ -43,8 +47,6 @@ const authService = {
     if (userError) {
       // Se o erro for que nenhuma linha foi encontrada, vamos tentar criar o registro
       if (userError.code === 'PGRST116' || userError.message?.includes('rows returned')) {
-        console.log('Usuário existe na autenticação mas não na tabela users. Criando registro...');
-        
         // Extrair dados dos metadados de autenticação para criar o registro
         const userMetadata = data.user.user_metadata || {};
         
@@ -64,7 +66,6 @@ const authService = {
           .single();
           
         if (insertError) {
-          console.error('Falha ao criar registro de usuário na tabela:', insertError);
           throw new Error('Falha ao acessar perfil de usuário. Por favor, contate o suporte.');
         }
         
@@ -74,7 +75,7 @@ const authService = {
         };
       } else {
         // Se for outro tipo de erro, lançar normalmente
-        throw userError;
+      throw userError;
       }
     }
     
@@ -106,6 +107,14 @@ const authService = {
       throw new Error('Invalid Refresh Token: Refresh Token Not Found');
     }
     
+    // Verificar se é realmente um artista - deve ter is_artist = true nos metadados
+    // Isso é a verificação primária mais confiável
+    const isArtistFromMetadata = data.user.user_metadata?.is_artist === true;
+    
+    if (!isArtistFromMetadata) {
+      throw new Error('Esta conta não pertence a um artista. Por favor, use a área de login de usuário regular.');
+    }
+    
     // Buscar dados extras do artista (tabela artists)
     const { data: artistData, error: artistError } = await supabase
       .from('artists')
@@ -116,8 +125,6 @@ const authService = {
     if (artistError) {
       // Se o erro for que nenhuma linha foi encontrada, vamos tentar criar o registro
       if (artistError.code === 'PGRST116' || artistError.message?.includes('rows returned')) {
-        console.log('Artista existe na autenticação mas não na tabela artists. Criando registro...');
-        
         // Extrair dados dos metadados de autenticação para criar o registro
         const userMetadata = data.user.user_metadata || {};
         
@@ -140,8 +147,21 @@ const authService = {
           .single();
           
         if (insertError) {
-          console.error('Falha ao criar registro de artista na tabela:', insertError);
-          throw new Error('Falha ao acessar perfil de artista. Por favor, contate o suporte.');
+          // Apenas logamos o erro mas permitimos prosseguir, pois temos os metadados corretos
+          console.error('Erro ao criar registro de artista:', insertError.message);
+          
+          // Criamos um objeto temporário para retornar ao usuário mesmo sem registro no DB
+          const tempArtistData = {
+            id: data.user.id,
+            email: data.user.email,
+            name: userMetadata.name || data.user.email?.split('@')[0] || 'Artista',
+            is_artist: true
+          };
+          
+          return {
+            session: data.session,
+            user: tempArtistData as any
+          };
         }
         
         return {
@@ -150,7 +170,7 @@ const authService = {
         };
       } else {
         // Se for outro tipo de erro, lançar normalmente
-        throw artistError;
+      throw artistError;
       }
     }
     
@@ -189,6 +209,42 @@ const authService = {
    * @returns Dados da sessao de autenticacao ou erro
    */
   async signUpUser(userData: CreateUserInput) {
+    // Verificar se o email já existe
+    try {
+      const { data: existingUser, error: checkError } = await supabase
+        .from('auth_email_check_view')
+        .select('email, is_artist')
+        .eq('email', userData.email)
+        .maybeSingle();
+
+      if (existingUser) {
+        if (existingUser.is_artist) {
+          throw new Error('Este email já está registrado como artista. Use um email diferente ou faça login como artista.');
+        } else {
+          throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
+        }
+      }
+    } catch (viewError) {
+      // Fallback - vamos tentar fazer login sem senha para ver se o email existe
+      // Essa abordagem não é ideal, mas funciona para verificar se um email está cadastrado
+      const { error: existingUserError } = await supabase.auth.signInWithOtp({
+        email: userData.email,
+        options: {
+          shouldCreateUser: false // Não criar usuário se não existir
+        }
+      });
+      
+      // Se não retornar "User not found", significa que o email existe
+      if (!existingUserError || !existingUserError.message.includes('User not found')) {
+        throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
+      }
+    }
+    
+    // Simplificamos o URL de redirecionamento para enviar direto para a home
+    // Não usamos mais a rota /auth/callback para evitar problemas com PKCE
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const redirectUrl = `${origin}/dashboard`;
+    
     // Cadastrar novo usuario com o Supabase auth
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
@@ -199,27 +255,17 @@ const authService = {
           payment_method: userData.payment_method || null,
           has_active_subscription: userData.has_active_subscription || false,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: redirectUrl,
       }
     });
     
     if (error) {
-      console.error('Erro no Supabase Auth signUp:', error);
       throw error;
     }
     
     // Inserir dados adicionais na tabela users
     if (data.user) {
       try {
-        // Log do payload para debug
-        console.log('Tentando inserir na tabela users:', {
-          id: data.user.id,
-          name: userData.name,
-          email: userData.email,
-          payment_method: userData.payment_method,
-          has_active_subscription: userData.has_active_subscription || false,
-        });
-        
         // Garantir que estamos utilizando a sessão para autenticação
         // Isso é crucial para que as políticas RLS funcionem
         if (data.session) {
@@ -227,50 +273,41 @@ const authService = {
           
           // Criar um novo cliente com o token da sessão para garantir autenticação
           const authenticatedSupabase = supabase;
-          
-          // Criando o objeto com todos os campos possíveis que podem ser necessários
-          const userRecord = {
-            id: data.user.id,
-            name: userData.name,
-            email: userData.email,
-            payment_method: userData.payment_method || null,
-            has_active_subscription: userData.has_active_subscription || false,
+        
+        // Criando o objeto com todos os campos possíveis que podem ser necessários
+        const userRecord = {
+          id: data.user.id,
+          name: userData.name,
+          email: userData.email,
+          payment_method: userData.payment_method || null,
+          has_active_subscription: userData.has_active_subscription || false,
             created_at: new Date().toISOString(), // Adicionando campo de data se for necessário
-          };
-          
+        };
+        
           // Tentativa com upsert usando o cliente autenticado
           const { error: profileError } = await authenticatedSupabase
-            .from('users')
-            .upsert(userRecord, { onConflict: 'id' });
+          .from('users')
+          .upsert(userRecord, { onConflict: 'id' });
           
-          if (profileError) {
-            // Se falhou, armazenamos os dados nos metadados do usuário para acesso posterior
-            console.warn('Não foi possível inserir na tabela users devido a políticas RLS. Os dados do usuário foram armazenados apenas nos metadados de autenticação.');
-            
-            // Log detalhado do erro
-            console.error('Erro ao inserir dados na tabela users:', profileError);
-            console.error('Código do erro:', profileError.code);
-            console.error('Detalhes do erro:', profileError.details);
-            console.error('Mensagem do erro:', profileError.message);
-            console.error('Hint:', profileError.hint);
-            
-            // Continuamos sem erro, já que os dados principais estão nos metadados
-            console.info('Procedendo com autenticação usando apenas os metadados do Auth. Configure RLS nas tabelas para habilitar inserção completa.');
+        if (profileError) {
+            // Tratamento silencioso de erro com política RLS
           }
-        } else {
-          console.warn('Não há sessão disponível para autenticação ao inserir na tabela users.');
         }
       } catch (err) {
-        console.error('Exceção ao tentar criar perfil de usuário:', err);
         // Não lançamos erro aqui para permitir que o login prossiga,
         // já que armazenamos os metadados do usuário no Auth
-        console.warn('Prosseguindo com autenticação usando apenas os metadados do Auth.');
       }
     } else {
       throw new Error('Falha ao criar usuário: dados do usuário não retornados pelo Supabase');
     }
     
-    return data;
+    // Adicionando flag para indicar que a verificação de email é necessária
+    // e redirecionar para a página de verificação
+    return {
+      ...data,
+      needsEmailVerification: true,
+      verificationUrl: `/auth/verification?email=${encodeURIComponent(userData.email)}&type=user`
+    };
   },
   
   /**
@@ -279,6 +316,42 @@ const authService = {
    * @returns Dados da sessao de autenticacao ou erro
    */
   async signUpArtist(artistData: CreateArtistInput) {
+    // Verificar se o email já existe
+    try {
+      const { data: existingUser, error: checkError } = await supabase
+        .from('auth_email_check_view')
+        .select('email, is_artist')
+        .eq('email', artistData.email)
+        .maybeSingle();
+
+      if (existingUser) {
+        if (!existingUser.is_artist) {
+          throw new Error('Este email já está registrado como usuário regular. Use um email diferente ou faça login como usuário.');
+        } else {
+          throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
+        }
+      }
+    } catch (viewError) {
+      // Fallback - vamos tentar fazer login sem senha para ver se o email existe
+      // Essa abordagem não é ideal, mas funciona para verificar se um email está cadastrado
+      const { error: existingUserError } = await supabase.auth.signInWithOtp({
+        email: artistData.email,
+        options: {
+          shouldCreateUser: false // Não criar usuário se não existir
+        }
+      });
+      
+      // Se não retornar "User not found", significa que o email existe
+      if (!existingUserError || !existingUserError.message.includes('User not found')) {
+        throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
+      }
+    }
+    
+    // Simplificamos o URL de redirecionamento para enviar direto para a home do artista
+    // Não usamos mais a rota /auth/callback para evitar problemas com PKCE
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const redirectUrl = `${origin}/artist/dashboard`;
+    
     // Cadastrar novo artista com o Supabase auth
     const { data, error } = await supabase.auth.signUp({
       email: artistData.email,
@@ -293,30 +366,17 @@ const authService = {
           social_links: artistData.social_links || null,
           is_artist: true,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: redirectUrl,
       }
     });
     
     if (error) {
-      console.error('Erro no Supabase Auth signUp (artista):', error);
       throw error;
     }
     
     // Inserir dados adicionais na tabela artists
     if (data.user) {
       try {
-        // Log do payload para debug
-        console.log('Tentando inserir na tabela artists:', {
-          id: data.user.id,
-          name: artistData.name,
-          email: artistData.email,
-          bio: artistData.bio,
-          phone: artistData.phone,
-          monetization_plan_id: artistData.monetization_plan_id,
-          profile_image_url: artistData.profile_image_url,
-          social_links: artistData.social_links,
-        });
-        
         // Garantir que estamos utilizando a sessão para autenticação
         // Isso é crucial para que as políticas RLS funcionem
         if (data.session) {
@@ -324,53 +384,44 @@ const authService = {
           
           // Criar um novo cliente com o token da sessão para garantir autenticação
           const authenticatedSupabase = supabase;
-          
-          // Criando o objeto com todos os campos possíveis que podem ser necessários
-          const artistRecord = {
-            id: data.user.id,
-            name: artistData.name,
-            email: artistData.email,
-            bio: artistData.bio || null,
-            phone: artistData.phone || null,
-            monetization_plan_id: artistData.monetization_plan_id || null,
-            profile_image_url: artistData.profile_image_url || null,
-            social_links: artistData.social_links || null,
-            created_at: new Date().toISOString(),  // Adicionando campo de data se for necessário
-          };
-          
+        
+        // Criando o objeto com todos os campos possíveis que podem ser necessários
+        const artistRecord = {
+          id: data.user.id,
+          name: artistData.name,
+          email: artistData.email,
+          bio: artistData.bio || null,
+          phone: artistData.phone || null,
+          monetization_plan_id: artistData.monetization_plan_id || null,
+          profile_image_url: artistData.profile_image_url || null,
+          social_links: artistData.social_links || null,
+          created_at: new Date().toISOString(),  // Adicionando campo de data se for necessário
+        };
+        
           // Tentativa com upsert usando o cliente autenticado
           const { error: profileError } = await authenticatedSupabase
-            .from('artists')
-            .upsert(artistRecord, { onConflict: 'id' });
-            
-          if (profileError) {
-            // Se falhou, armazenamos os dados nos metadados do usuário para acesso posterior
-            console.warn('Não foi possível inserir na tabela artists devido a políticas RLS. Os dados do artista foram armazenados apenas nos metadados de autenticação.');
-            
-            // Log detalhado do erro
-            console.error('Erro ao inserir dados na tabela artists:', profileError);
-            console.error('Código do erro:', profileError.code);
-            console.error('Detalhes do erro:', profileError.details);
-            console.error('Mensagem do erro:', profileError.message);
-            console.error('Hint:', profileError.hint);
-            
-            // Continuamos sem erro, já que os dados principais estão nos metadados
-            console.info('Procedendo com autenticação usando apenas os metadados do Auth. Configure RLS nas tabelas para habilitar inserção completa.');
+          .from('artists')
+          .upsert(artistRecord, { onConflict: 'id' });
+          
+        if (profileError) {
+            // Tratamento silencioso de erro com política RLS
           }
-        } else {
-          console.warn('Não há sessão disponível para autenticação ao inserir na tabela artists.');
         }
       } catch (err) {
-        console.error('Exceção ao tentar criar perfil de artista:', err);
         // Não lançamos erro aqui para permitir que o login prossiga,
         // já que armazenamos os metadados do usuário no Auth
-        console.warn('Prosseguindo com autenticação usando apenas os metadados do Auth.');
       }
     } else {
       throw new Error('Falha ao criar artista: dados do usuário não retornados pelo Supabase');
     }
     
-    return data;
+    // Adicionando flag para indicar que a verificação de email é necessária
+    // e redirecionar para a página de verificação
+    return {
+      ...data,
+      needsEmailVerification: true,
+      verificationUrl: `/auth/verification?email=${encodeURIComponent(artistData.email)}&type=artist`
+    };
   },
   
   /**
@@ -395,12 +446,10 @@ const authService = {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-        console.error("Erro ao obter sessão:", sessionError.message);
         return null;
       }
       
       if (!sessionData.session) {
-        console.log("Nenhuma sessão ativa encontrada");
         return null;
       }
       
@@ -408,13 +457,11 @@ const authService = {
       const { data, error } = await supabase.auth.getUser();
       
       if (error) {
-        console.error("Erro ao obter usuário:", error.message);
         return null;
       }
       
       return data.user;
     } catch (error) {
-      console.error("Exceção ao obter usuário:", error);
       return null;
     }
   },
@@ -458,11 +505,8 @@ const authService = {
             await supabase
               .from('artists')
               .upsert(artistRecord, { onConflict: 'id' });
-              
-            console.log('Registro de artista criado a partir dos metadados de autenticação');
           }
         } catch (syncError) {
-          console.warn('Não foi possível sincronizar dados de artista com a tabela:', syncError);
           // Continua considerando como artista mesmo se falhar a sincronização
         }
         
@@ -476,7 +520,6 @@ const authService = {
         .eq('id', user.user.id);
         
       if (error) {
-        console.error("Erro ao verificar artista no banco:", error.message);
         // Fallback to user metadata if DB query fails
         return !!(user.user.user_metadata && user.user.user_metadata.is_artist);
       }
@@ -484,7 +527,6 @@ const authService = {
       // Check if count is greater than 0 to determine if user is an artist
       return count !== null && count > 0;
     } catch (error) {
-      console.error("Exceção ao verificar artista:", error);
       return false;
     }
   },
@@ -499,12 +541,10 @@ const authService = {
       // Primeiro, verificar se existe uma sessão ativa
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
-        console.log("Nenhuma sessão ativa para verificar o email");
         return false;
       }
       
       if (!sessionData.session) {
-        console.log("Usuário não está autenticado, não é possível verificar o email");
         return false;
       }
       
@@ -513,13 +553,11 @@ const authService = {
       if (userId) {
         // Se um ID específico foi fornecido, tente buscar esse usuário via admin (não implementado)
         // Isso só seria possível com funções Edge/Server pelo Supabase
-        console.warn('Verificação de email para ID específico não implementada');
         return false;
       } else {
         // Buscar usuário atual
         const { data, error } = await supabase.auth.getUser();
         if (error) {
-          console.log("Erro ao verificar status do email:", error.message);
           return false;
         }
         user = data.user;
@@ -530,7 +568,6 @@ const authService = {
       // O Supabase define email_confirmed_at quando o email é verificado
       return user.email_confirmed_at !== null;
     } catch (error) {
-      console.log("Exceção ao verificar status do email:", error);
       return false;
     }
   },
@@ -548,13 +585,11 @@ const authService = {
       });
       
       if (error) {
-        console.error("Erro ao reenviar email de verificação:", error.message);
         return { success: false, error: error.message };
       }
       
       return { success: true };
     } catch (error: any) {
-      console.error("Exceção ao reenviar email de verificação:", error);
       return { success: false, error: error.message || 'Erro desconhecido' };
     }
   },
@@ -608,4 +643,4 @@ const authService = {
   }
 };
 
-export default authService;
+export default authService; 

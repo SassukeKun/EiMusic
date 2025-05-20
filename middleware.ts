@@ -5,13 +5,21 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   
+  try {
   // Create a Supabase client for the middleware
   const supabase = createMiddlewareClient({ req, res });
   
   // Refresh the session if it exists
   const {
     data: { session },
+      error,
   } = await supabase.auth.getSession();
+
+    if (error) {
+      console.error('Error refreshing session:', error);
+      // If there's an error refreshing the session, redirect to login
+      return NextResponse.redirect(new URL('/login?error=session_refresh_failed', req.url));
+    }
 
   // Protected routes that require authentication
   const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings'];
@@ -49,6 +57,11 @@ export async function middleware(req: NextRequest) {
   }
   
   return res;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // In case of any error, redirect to login
+    return NextResponse.redirect(new URL('/login?error=middleware_error', req.url));
+  }
 }
 
 // Match all routes except API routes, static files, and _next
