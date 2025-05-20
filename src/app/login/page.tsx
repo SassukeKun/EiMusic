@@ -45,12 +45,59 @@ export default function LoginPage() {
   useEffect(() => {
     if (searchParams) {
       const errorParam = searchParams.get('error');
+      const errorMessage = searchParams.get('message');
+      const clearCookies = searchParams.get('clear_cookies') === 'true';
+      
+      // Se tiver a flag clear_cookies, limpar todos os tokens do Supabase
+      if (clearCookies && typeof window !== 'undefined') {
+        console.log('Limpando cookies e localStorage devido a problema de autenticação');
+        
+        // Limpar localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Limpar sessionStorage
+        Object.keys(sessionStorage || {}).forEach(key => {
+          if (key.startsWith('sb-')) {
+            sessionStorage.removeItem(key);
+          }
+        });
+        
+        // Limpar cookies relacionados ao Supabase
+        document.cookie.split(';').forEach(cookie => {
+          const [name] = cookie.trim().split('=');
+          if (name && (name.includes('sb-') || name.includes('auth'))) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+          }
+        });
+      }
+      
       if (errorParam) {
         const errorMessages: Record<string, string> = {
           'auth_callback_error': 'Erro ao processar autenticação. Tente novamente.',
           'no_session': 'Sessão não encontrada. Tente fazer login novamente.',
+          'no_code': 'Erro no código de autenticação. Por favor, tente fazer login novamente.',
+          'invalid_code': 'Código de autenticação inválido ou expirado. Tente novamente.',
+          'session_expired': 'Sua sessão expirou. Por favor, faça login novamente.',
+          'pkce_error': 'Erro de verificação no processo de autenticação. Por favor, tente novamente.',
+          'auth_error': errorMessage || 'Erro de autenticação. Tente novamente mais tarde.',
           'callback_processing': 'Erro ao processar callback de autenticação.',
         };
+
+        // Limpar storage em caso de erros relacionados à sessão
+        if (['session_expired', 'no_code', 'invalid_code', 'pkce_error'].includes(errorParam)) {
+          if (typeof window !== 'undefined') {
+            // Limpar tokens específicos do Supabase
+            Object.keys(localStorage).forEach(key => {
+              if (key.startsWith('sb-')) {
+                localStorage.removeItem(key);
+              }
+            });
+          }
+        }
 
         setAuthError(errorMessages[errorParam] || 'Erro ao processar autenticação.');
       }
@@ -65,7 +112,6 @@ export default function LoginPage() {
       if (userType === 'artist') {
         const result = await loginArtist(data.email, data.password);
         if (result) {
-          console.log('Login de artista bem-sucedido, redirecionando...');
           router.replace('/artist/dashboard');
         } else {
           setAuthError('Credenciais inválidas ou conta de artista não encontrada');
@@ -73,14 +119,12 @@ export default function LoginPage() {
       } else {
         const result = await loginUser(data.email, data.password);
         if (result) {
-          console.log('Login de usuário bem-sucedido, redirecionando...');
           router.replace('/');
         } else {
           setAuthError('Credenciais inválidas ou conta de usuário não encontrada');
         }
       }
     } catch (err: any) {
-      console.error('Erro detalhado de login:', err);
       setAuthError(err.message || 'Falha ao realizar login. Verifique suas credenciais.');
     }
   };
