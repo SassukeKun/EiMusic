@@ -1,318 +1,219 @@
+// src/components/Sidebar.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
-import {
-  FaHome,
-  FaChartLine,
-  FaCompass,
-  FaVideo,
-  FaUsers,
-  FaCalendarAlt,
-  FaListUl,
-  FaBook,
-  FaUpload,
-  FaCog,
-  FaBell,
-  FaBars,
-  FaChevronLeft,
-  FaChevronRight,
-  FaUserCircle,
+import { motion } from 'framer-motion'
+
+// Importações de ícones
+import { 
+  FaHome, 
+  FaChartLine, 
+  FaCompass, 
+  FaVideo, 
+  FaUsers, 
+  FaCalendarAlt, 
+  FaList, 
+  FaBook, 
+  FaUpload, 
   FaSignOutAlt,
-  FaMusic,
-  FaMicrophone,
-  FaHeadphones
+  FaBars,
+  FaTimes
 } from 'react-icons/fa'
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
-  const { user, loading, isAuthenticated, logout } = useAuth()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Detecta se a tela é móvel e configura o estado inicial
-  useEffect(() => {
-    const checkScreenSize = () => {
-      if (window.innerWidth <= 768) {
-        setIsMobile(true)
-        setIsCollapsed(true)
-      } else {
-        setIsMobile(false)
-        setIsCollapsed(false)
-      }
-    }
-
-    // Verificação inicial
-    checkScreenSize()
-
-    // Adiciona event listener para mudanças de tamanho da tela
-    window.addEventListener('resize', checkScreenSize)
-
-    // Cleanup do event listener
-    return () => window.removeEventListener('resize', checkScreenSize)
-  }, [])
-
-  const toggleSidebar = () => {
-    if (isMobile) {
-      setIsOpen(!isOpen)
-    } else {
-      setIsCollapsed(!isCollapsed)
-    }
-  }
-
-  // Função para fazer logout
-  const handleSignOut = async () => {
-    try {
-      setIsLoggingOut(true)
-      await logout()
-      // Não precisa redirecionar, pois o hook useAuth já faz isso
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error)
-    } finally {
-      setIsLoggingOut(false)
-    }
-  }
-
-  const menuItems = [
-    { icon: <FaHome />, label: 'Home', href: '/' },
-    { icon: <FaChartLine />, label: 'Trending', href: '/trending' },
-    { icon: <FaCompass />, label: 'Explore', href: '/explore' },
-    { icon: <FaMusic />, label: 'Músicas', href: '/musicas' },
-    { icon: <FaVideo />, label: 'Vídeos', href: '/videos' },
-    { icon: <FaUsers />, label: 'Comunidades', href: '/communities' },
-    { icon: <FaCalendarAlt />, label: 'Eventos', href: '/eventos' },
-    { icon: <FaListUl />, label: 'Playlists', href: '/playlists' },
-    { icon: <FaHeadphones />, label: 'Minha Biblioteca', href: '/library' },
-    { icon: <FaMicrophone />, label: 'Artistas', href: '/artistas' },
-    { icon: <FaUpload />, label: 'Upload', href: '/upload' }
+  // Lista de itens da navegação - agora com "Sair" incluído na mesma lista
+  const navItems = [
+    { name: 'Home', href: '/', icon: <FaHome /> },
+    { name: 'Trending', href: '/trending', icon: <FaChartLine /> },
+    { name: 'Explore', href: '/explore', icon: <FaCompass /> },
+    { name: 'Videos', href: '/videos', icon: <FaVideo /> },
+    { name: 'Comunidades', href: '/communities', icon: <FaUsers /> },
+    { name: 'Eventos', href: '/events', icon: <FaCalendarAlt /> },
+    { name: 'Playlists', href: '/playlists', icon: <FaList /> },
+    { name: 'Library', href: '/library', icon: <FaBook /> },
+    { name: 'Upload', href: '/upload', icon: <FaUpload /> },
   ]
 
-  // Classes para a sidebar baseadas no estado
-  const sidebarClasses = `
-    fixed z-40 h-full flex flex-col transition-all duration-300
-    ${isMobile 
-      ? `${isOpen ? 'left-0' : '-left-full'} w-64 shadow-lg` 
-      : `top-0 ${isCollapsed ? 'w-16' : 'w-64'} left-0`}
-    bg-[#111111] text-[#ededed]
-  `
-
-  // Botão de toggle para desktop
-  const ToggleButton = () => (
-    <button 
-      onClick={toggleSidebar}
-      className="absolute -right-3 top-20 bg-[#222222] border border-[#333333] rounded-full p-1 shadow-md text-[#ededed] hover:bg-[#333333]"
-      aria-label="Toggle sidebar"
-    >
-      {isCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
-    </button>
-  )
-
-  // Botão de hambúrguer para mobile
-  const MobileMenuButton = () => (
-    <button 
-      onClick={toggleSidebar}
-      className="fixed top-4 left-4 z-50 bg-[#222222] p-2 rounded-md shadow-md text-[#ededed]"
-      aria-label="Menu"
-    >
-      <FaBars />
-    </button>
-  )
-
-  // Backdrop para fechar o menu no mobile quando clicado fora
-  const Backdrop = () => (
-    <div 
-      className={`fixed inset-0 bg-black bg-opacity-70 z-30 transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-      onClick={toggleSidebar}
-    />
-  )
-
-  // Renderiza informações do usuário baseado no estado de autenticação
-  const UserInfo = () => {
-    if (loading) {
-      return (
-        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-          <div className="h-10 w-10 rounded-full bg-[#222222] animate-pulse"></div>
-          {(!isCollapsed || (isMobile && isOpen)) && (
-            <div className="space-y-2">
-              <div className="h-4 w-24 bg-[#222222] rounded animate-pulse"></div>
-              <div className="h-3 w-20 bg-[#222222] rounded animate-pulse"></div>
-            </div>
-          )}
-        </div>
-      )
+  // Função para verificar se um link está ativo
+  const isActive = (href: string) => {
+    if (href === '/') {
+      return pathname === '/'
     }
+    return pathname?.startsWith(href)
+  }
 
-    if (!isAuthenticated) {
-      return (
-        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-          <div className="relative h-10 w-10 flex-shrink-0">
-            <FaUserCircle className="h-10 w-10 text-[#ededed]" />
-            <div className="absolute bottom-0 right-0 h-3 w-3 bg-gray-500 rounded-full border-2 border-[#111111]"></div>
-          </div>
-          {(!isCollapsed || (isMobile && isOpen)) && (
-            <div>
-              <Link href="/login" className="text-sm font-semibold text-[#ededed] hover:text-yellow-400">Entrar</Link>
-              <p className="text-xs text-gray-400">Visitante</p>
-            </div>
-          )}
-        </div>
-      )
-    }
+  // Manipulador para alternar o estado de collapse
+  const toggleCollapse = () => {
+    setCollapsed(!collapsed)
+  }
 
-    // Dados do usuário autenticado
-    const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Usuário';
-    const userEmail = user?.email || '';
-    const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/avatar.svg';
-    const [imgError, setImgError] = useState(false);
+  // Manipulador para alternar a barra lateral em dispositivos móveis
+  const toggleMobileSidebar = () => {
+    setMobileOpen(!mobileOpen)
+  }
 
-    return (
-      <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-        {imgError ? (
-          <div className="h-10 w-10 flex-shrink-0 bg-[#222222] rounded-full flex items-center justify-center">
-            <FaUserCircle className="h-8 w-8 text-[#ededed]" />
-          </div>
-        ) : (
-          <div className="h-10 w-10 rounded-full border-2 border-[#333333] overflow-hidden">
-            <Image
-              src={avatarUrl}
-              alt="Avatar"
-              width={40}
-              height={40}
-              className="rounded-full"
-              priority
-              onError={() => setImgError(true)}
-            />
-          </div>
-        )}
-        {(!isCollapsed || (isMobile && isOpen)) && (
-          <div>
-            <p className="text-sm font-semibold text-[#ededed]">{userName}</p>
-            <p className="text-xs text-gray-400">{userEmail}</p>
-          </div>
-        )}
-      </div>
-    )
+  // Animação para o botão de hamburger em dispositivos móveis
+  const mobileButtonVariants = {
+    open: { rotate: 0 },
+    closed: { rotate: 180 },
   }
 
   return (
     <>
-      {isMobile && <MobileMenuButton />}
-      {isMobile && <Backdrop />}
-      
-      <aside className={sidebarClasses}>
-        {!isMobile && <ToggleButton />}
-        
-        {/* Topo: logo + nome + icons */}
-        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between'} p-4`}>
-          <div className="flex items-center space-x-2">
-            <div className="relative w-8 h-8 flex-shrink-0">
-              <Image 
-                src="/musicSS.svg" 
-                alt="EiMusic" 
-                width={32} 
-                height={32}
-                className="drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" 
-                priority 
-              />
-            </div>
-            {(!isCollapsed || (isMobile && isOpen)) && (
-              <span className="text-xl font-bold text-[#FFDF00]">
-                EiMusic
-              </span>
-            )}
-          </div>
-          
-          {(!isCollapsed || (isMobile && isOpen)) && (
-            <div className="flex items-center space-x-3 text-[#ededed]">
-              <FaCog className="text-xl hover:text-yellow-400 cursor-pointer transition" />
-              <div className="relative">
-                <FaBell className="text-xl hover:text-yellow-400 cursor-pointer transition" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                  2
-                </span>
+      {/* Botão de menu para dispositivos móveis */}
+      <button 
+        onClick={toggleMobileSidebar}
+        className="fixed top-4 left-4 z-50 bg-gray-800 p-2 rounded-full md:hidden text-white shadow-lg"
+      >
+        <motion.div
+          animate={mobileOpen ? "open" : "closed"}
+          variants={mobileButtonVariants}
+          transition={{ duration: 0.3 }}
+        >
+          {mobileOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+        </motion.div>
+      </button>
+
+      {/* Sidebar principal */}
+      <motion.div 
+        className={`
+          fixed top-0 left-0 h-screen z-40 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 border-r border-gray-800
+          transition-all duration-300 ease-in-out shadow-xl flex flex-col
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${collapsed ? 'w-20' : 'w-64'}
+          md:relative md:block
+        `}
+      >
+        {/* Logo e cabeçalho */}
+        <div className={`p-5 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+          <Link href="/" className="flex items-center">
+            {collapsed ? (
+              <div className="w-10 h-10 relative">
+                <Image 
+                  src="/musicSS.svg"
+                  alt="EiMusic"
+                  fill
+                  className="rounded-full object-contain"
+                />
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center">
+                <div className="w-10 h-10 relative mr-3">
+                  <Image 
+                    src="/musicSS.svg"
+                    alt="EiMusic"
+                    fill
+                    className="rounded-full object-contain"
+                  />
+                </div>
+                <span className="text-lg font-bold text-white">EiMusic</span>
+              </div>
+            )}
+          </Link>
+          
+          {!collapsed && (
+            <button 
+              onClick={toggleCollapse}
+              className="text-gray-400 hover:text-white transition-colors hidden md:block"
+            >
+              <FaBars />
+            </button>
           )}
         </div>
 
-        {/* User Info Component */}
-        <div className="mt-4">
-          <UserInfo />
-        </div>
+        {/* Informações do usuário */}
+        {!collapsed && (
+          <div className="px-5 py-3 border-b border-gray-800">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 relative">
+                <Image 
+                  src="https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=400&q=80"
+                  alt="User"
+                  fill
+                  className="rounded-full object-cover"
+                  unoptimized
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-medium text-white truncate">Wen Xuan</h3>
+                <p className="text-xs text-gray-400 truncate">daiwenxuam78@gmail.com</p>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Navigation */}
-        <nav className="flex-1 px-2 space-y-1 overflow-y-auto scrollbar-hide py-2">
-          {menuItems.map(item => {
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
+        {/* Links de navegação */}
+        <nav className="px-3 py-4 flex-grow overflow-y-auto">
+          <ul className="space-y-1.5">
+            {navItems.map((item) => (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  className={`
+                    flex items-center px-3 py-2.5 rounded-lg transition-colors
+                    ${isActive(item.href) 
+                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-800 text-white shadow-md' 
+                      : 'text-gray-400 hover:bg-gray-800/60 hover:text-white'}
+                    ${collapsed ? 'justify-center' : ''}
+                  `}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  {!collapsed && <span className="ml-3">{item.name}</span>}
+                </Link>
+              </li>
+            ))}
+
+            {/* Botão Sair incluído diretamente na lista de navegação */}
+            <li className="mt-3">
+              <button
                 className={`
-                  flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-3'} py-2 rounded-lg transition
-                  ${isActive
-                    ? 'bg-gradient-to-r from-[#FF0000] via-[#FFDF00] to-[#FF6600] text-white shadow-md'
-                    : 'text-[#ededed] hover:bg-[#222222]'}
+                  w-full flex items-center px-3 py-2.5 rounded-lg transition-colors
+                  text-gray-400 hover:bg-gray-800/60 hover:text-white
+                  ${collapsed ? 'justify-center' : ''}
                 `}
-                title={isCollapsed && !isMobile ? item.label : ''}
               >
-                <span className={`text-lg ${!isCollapsed || (isMobile && isOpen) ? 'mr-3' : ''}`}>
-                  {item.icon}
-                </span>
-                {(!isCollapsed || (isMobile && isOpen)) && (
-                  <span>{item.label}</span>
-                )}
-              </Link>
-            )
-          })}
+                <span className="text-lg"><FaSignOutAlt /></span>
+                {!collapsed && <span className="ml-3">Sair</span>}
+              </button>
+            </li>
+          </ul>
         </nav>
 
-        {/* Divider */}
-        <div className="px-3 py-2">
-          <div className="h-px bg-[#222222]"></div>
-        </div>
-
-        {/* Logout Button - Only show when authenticated */}
-        {isAuthenticated && (
-          <div className="px-2 pb-4">
-            <button
-              onClick={handleSignOut}
-              disabled={isLoggingOut}
-              className={`
-                w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-3'} py-2 rounded-lg transition
-                text-red-400 hover:bg-[#331111] disabled:opacity-50 disabled:cursor-not-allowed
-              `}
-              title={isCollapsed && !isMobile ? 'Sair' : ''}
-            >
-              <span className={`text-lg ${!isCollapsed || (isMobile && isOpen) ? 'mr-3' : ''}`}>
-                {isLoggingOut ? (
-                  <div className="animate-spin h-5 w-5 border-2 border-red-400 rounded-full border-t-transparent"></div>
-                ) : (
-                  <FaSignOutAlt />
-                )}
-              </span>
-              {(!isCollapsed || (isMobile && isOpen)) && (
-                <span>{isLoggingOut ? 'Saindo...' : 'Sair'}</span>
-              )}
-            </button>
-          </div>
+        {/* Botão de expandir/colapsar visível apenas quando colapsado */}
+        {collapsed && (
+          <button 
+            onClick={toggleCollapse}
+            className="absolute top-5 right-[-12px] bg-gray-800 p-1 rounded-full text-gray-400 hover:text-white transition-colors border border-gray-700 hidden md:block"
+          >
+            <FaBars size={12} />
+          </button>
         )}
 
-        {/* Footer */}
-        {(!isCollapsed || (isMobile && isOpen)) && (
-          <div className="p-4 text-sm text-gray-500">
-            © 2025 EiMusic
+        {/* Gradiente especial para o link "Home" */}
+        {isActive('/') && !collapsed && (
+          <div className="absolute left-0 top-[125px] w-full h-14 overflow-hidden pointer-events-none">
+            <div className="absolute left-0 w-[5px] h-10 bg-gradient-to-b from-indigo-500 to-indigo-700 rounded-r-md"></div>
           </div>
         )}
-      </aside>
+        
+        {/* Efeito gradiente mais escuro na parte inferior da sidebar */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none"></div>
+      </motion.div>
       
-      {/* Espaçador para empurrar o conteúdo para a direita */}
-      <div className={`${isMobile ? 'hidden' : `block transition-all duration-300 ${isCollapsed ? 'ml-16' : 'ml-64'}`}`} />
+      {/* Overlay para fechar a barra lateral em dispositivos móveis */}
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-30 md:hidden" 
+          onClick={toggleMobileSidebar}
+        />
+      )}
     </>
   )
 }
