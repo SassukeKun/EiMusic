@@ -32,7 +32,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
-  const { user, loading, isAuthenticated, logout } = useAuth()
+  const { user, loading, isAuthenticated, logout, isArtist } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // Detecta se a tela é móvel e configura o estado inicial
@@ -78,7 +78,8 @@ export default function Sidebar() {
     }
   }
 
-  const menuItems = [
+  // Lista base de itens do menu
+  const baseMenuItems = [
     { icon: <FaHome />, label: 'Home', href: '/' },
     { icon: <FaChartLine />, label: 'Trending', href: '/trending' },
     { icon: <FaCompass />, label: 'Explore', href: '/explore' },
@@ -89,8 +90,15 @@ export default function Sidebar() {
     { icon: <FaListUl />, label: 'Playlists', href: '/playlists' },
     { icon: <FaHeadphones />, label: 'Minha Biblioteca', href: '/library' },
     { icon: <FaMicrophone />, label: 'Artistas', href: '/artistas' },
-    { icon: <FaUpload />, label: 'Upload', href: '/upload' }
   ]
+  
+  // Adicionar o item de upload apenas se o usuário for um artista
+  const uploadMenuItem = { icon: <FaUpload />, label: 'Upload', href: '/upload' }
+  
+  // Menu final filtrado baseado no tipo de usuário
+  const menuItems = isArtist 
+    ? [...baseMenuItems, uploadMenuItem] 
+    : baseMenuItems;
 
   // Classes para a sidebar baseadas no estado
   const sidebarClasses = `
@@ -178,15 +186,15 @@ export default function Sidebar() {
           </div>
         ) : (
           <div className="h-10 w-10 rounded-full border-2 border-[#333333] overflow-hidden">
-            <Image
-              src={avatarUrl}
-              alt="Avatar"
-              width={40}
-              height={40}
-              className="rounded-full"
-              priority
-              onError={() => setImgError(true)}
-            />
+          <Image
+            src={avatarUrl}
+            alt="Avatar"
+            width={40}
+            height={40}
+            className="rounded-full"
+            priority
+            onError={() => setImgError(true)}
+          />
           </div>
         )}
         {(!isCollapsed || (isMobile && isOpen)) && (
@@ -242,7 +250,7 @@ export default function Sidebar() {
 
         {/* User Info Component */}
         <div className="mt-4">
-          <UserInfo />
+        <UserInfo />
         </div>
 
         {/* Navigation */}
