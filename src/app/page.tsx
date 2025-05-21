@@ -58,26 +58,26 @@ export default function HomePage() {
   const topPlaylists = [
     {
       id: "1",
-      title: "Hits Moçambicanos",
-      image: "https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=600&q=80",
+      title: "O melhor de Sofala",
+      image: "https://www.rm.co.mz/wp-content/uploads/2024/03/beira10-chiveve-post-1.jpg",
       count: "32 músicas"
     },
     {
       id: "2",
-      title: "Pura Energia",
-      image: "https://images.unsplash.com/photo-1550184916-c630464fd404?auto=format&fit=crop&w=600&q=80",
+      title: "Rap Made in Moz",
+      image: "https://pbs.twimg.com/media/EjTqR5xXYAAwBcx.jpg",
       count: "24 músicas"
     },
     {
       id: "3",
-      title: "Clássicos Africanos",
-      image: "https://images.unsplash.com/photo-1532953593254-4af21ac275b3?auto=format&fit=crop&w=600&q=80",
+      title: "O melhor da Kizomba",
+      image: "https://clubofmozambique.com/wp-content/uploads/2018/10/Kizomba-summer.jpg",
       count: "40 músicas"
     },
     {
       id: "4",
-      title: "Tardes Tranquilas",
-      image: "https://images.unsplash.com/photo-1531384370053-61af8bee95e3?auto=format&fit=crop&w=600&q=80",
+      title: "Novos Talentos",
+      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmnalGg3MI76X0GZFLbidqFjgbWbl898P7Fw&s",
       count: "18 músicas"
     },
   ];
@@ -85,33 +85,33 @@ export default function HomePage() {
   const topArtists = [
     {
       id: "1",
-      name: "DJ Manuel",
-      image: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=400&q=80"
+      name: "Dygo Boy",
+      image: "https://cdn-images.dzcdn.net/images/artist/3aaab98520e6fe7449f3e0b564cb1cee/1900x1900-000000-80-0-0.jpg"
     },
     {
       id: "2",
-      name: "Sofia Lima",
-      image: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&w=400&q=80"
+      name: "Lil Skuizy",
+      image: "../Allen.jpeg"
     },
     {
       id: "3",
-      name: "Ricardo Luz",
-      image: "https://images.unsplash.com/photo-1539701938214-0d9736e1c16b?auto=format&fit=crop&w=400&q=80"
+      name: "Liloca",
+      image: "https://i0.wp.com/mozentretenimento.co.mz/wp-content/uploads/2023/03/Cancelamento-tira-Liloca-da-lista-de-artistas-com-1-milhao-de-seguidores-no-Instagram-e1679389005343.jpg?ssl=1"
     },
     {
       id: "4",
-      name: "Marina Sol",
-      image: "https://images.unsplash.com/photo-1581881067989-7e3eaf45f4b7?auto=format&fit=crop&w=400&q=80"
+      name: "Lizha James",
+      image: "https://akamai.sscdn.co/uploadfile/letras/fotos/a/e/e/e/aeeec14f22bada173a4e6b348630f7fa.jpg"
     },
     {
       id: "5",
-      name: "Bruno Dias",
-      image: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=400&q=80"
+      name: "Humberto Luís",
+      image: "https://cdn-images.dzcdn.net/images/artist/20e9b99ff5f70336a8573d91df03c1ec/1900x1900-000000-80-0-0.jpg"
     },
     {
       id: "6",
-      name: "Carla Rocha",
-      image: "https://images.unsplash.com/photo-1542787781-5f7ddd8c4a99?auto=format&fit=crop&w=400&q=80"
+      name: "Shabba Wonder",
+      image: "https://i1.sndcdn.com/artworks-jGbBVD7etHG5pycL-r7qUoA-t500x500.jpg"
     },
   ];
 
@@ -232,14 +232,14 @@ export default function HomePage() {
                 transition={{ duration: 0.2 }}
               >
                 <div className="flex space-x-4">
-                  <div className="w-20 h-20 bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative">
+                  <div className="w-40 h-40 bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative">
                     <Image
                       src={playlist.image}
                       alt={playlist.title}
                       fill
                       className="object-cover"
                       unoptimized
-                      sizes="80px"
+                      sizes="90px"
                     />
                   </div>
                   <div className="flex flex-col justify-between flex-grow">
@@ -273,7 +273,7 @@ export default function HomePage() {
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="w-20 h-20 mx-auto relative rounded-full overflow-hidden mb-2 border-2 border-transparent group-hover:border-indigo-500 transition-colors">
+                <div className="w-40 h-40 mx-auto relative rounded-full overflow-hidden mb-2 border-2 border-transparent group-hover:border-indigo-500 transition-colors">
                   <Image
                     src={artist.image}
                     alt={artist.name}

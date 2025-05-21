@@ -212,7 +212,7 @@ export default function UploadPage() {
                 <motion.div animate={iconControls}>
                   <FaCloudUploadAlt className="text-4xl md:text-5xl text-indigo-400" />
                 </motion.div>
-                <h1 className="text-3xl md:text-4xl font-bold ml-4 text-white">Upload Your Music</h1>
+                <h1 className="text-3xl md:text-4xl font-bold ml-4 text-white">Publique sua arte</h1>
               </div>
             </div>
             
