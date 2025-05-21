@@ -19,7 +19,7 @@ export async function middleware(req: NextRequest) {
       // Se houver erro na sessão nas rotas protegidas, redirecionar para login
       // Mas somente se for uma rota protegida
       const path = req.nextUrl.pathname;
-      const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings'];
+      const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
       
       if (protectedRoutes.some(route => path.startsWith(route))) {
         return NextResponse.redirect(new URL('/login?error=session_refresh_failed', req.url));
@@ -29,7 +29,7 @@ export async function middleware(req: NextRequest) {
     }
 
     // Protected routes that require authentication
-    const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings'];
+    const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
     
     // Auth routes (login, register)
     const authRoutes = ['/login', '/register'];
@@ -40,6 +40,22 @@ export async function middleware(req: NextRequest) {
     // Se estamos numa página de dashboard ou perfil sem sessão, redirecionar para login
     if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
       return NextResponse.redirect(new URL('/login', req.url));
+    }
+    
+    // Rota de upload: verificar se o usuário é artista
+    if (path.startsWith('/upload')) {
+      // Se temos sessão, verificar se é artista
+      if (session) {
+        const { data: userData } = await supabase.auth.getUser();
+        const isArtist = userData?.user?.user_metadata?.is_artist === true;
+        
+        // Se não for artista, redirecionar para a página inicial
+        if (!isArtist) {
+          return NextResponse.redirect(new URL('/', req.url));
+        }
+      } else {
+        // Se não temos sessão, já redirecionamos para login acima
+      }
     }
     
     // Se o usuário já está autenticado (com sessão válida) e tenta acessar login ou registro,
