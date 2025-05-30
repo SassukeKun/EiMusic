@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { createFolderStructure, getUploadPath } from '@/utils/cloudinary/folderStructure';
+import { createFolderStructure, generateCloudinaryPublicId } from '@/utils/cloudinary/folderStructure';
 import { uploadSignedFile, uploadMetadata, CloudinaryUploadResponse } from '@/utils/cloudinary/signedUpload';
 import { VideoMetadata, AudioMetadata } from '@/models/cloudinary/mediaTypes';
 import { CLOUDINARY_FOLDERS, getArtistMediaPath } from '@/utils/cloudinary/config';
@@ -41,20 +41,26 @@ const uploadService = {
     coverArt?: File
   ) {
     try {
-      // Obter o título da música
       const songTitle = metadata?.title || file.name.split('.')[0];
-      const folders = createFolderStructure(artistName, 'single', songTitle);
+      // 1. Create the folder structure object. This defines the base path to the 'ficheiros' directory.
+      const structure = createFolderStructure(artistName, 'single', songTitle);
       
-      // Gerar ID único para a faixa
       const trackId = uuidv4();
+      const commonTags = [`artist_${artistId}`, `track_${trackId}`, 'single'];
+      if (metadata?.genre) commonTags.push(`genre_${metadata.genre.toLowerCase()}`);
+      if (metadata?.tags) commonTags.push(...metadata.tags);
+
+      // 2. Generate public_id for the main audio file.
+      const audioPublicId = generateCloudinaryPublicId(structure, `track_main_${trackId}`);
       
       // Upload do arquivo de áudio
       const audioResult = await uploadSignedFile(
         file, 
-        getUploadPath(folders, `track_${trackId}`, 'main'),
+        "", // Folder argument is empty as public_id dictates the path
         {
+          publicId: audioPublicId,
           resourceType: 'auto',
-          tags: [`artist_${artistId}`, `track_${trackId}`, 'single'],
+          tags: commonTags,
           uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
           context: {
             alt: metadata?.title,
@@ -65,7 +71,7 @@ const uploadService = {
               tags: metadata?.tags,
               visibility: metadata?.visibility || 'public',
               uploadDate: new Date().toISOString(),
-              isOriginal: true,
+              isOriginal: true, // Assuming it's original, adjust if needed
               isExplicit: metadata?.isExplicit || false,
               description: metadata?.description,
               artist_id: artistId,
@@ -76,30 +82,39 @@ const uploadService = {
         }
       );
 
-      // Se houver uma imagem de capa, fazer upload também
       let coverArtResult = null;
       if (coverArt) {
+        // Generate public_id for the cover art file.
+        const coverArtPublicId = generateCloudinaryPublicId(structure, `cover_art_${trackId}`);
         coverArtResult = await uploadSignedFile(
           coverArt,
-          getUploadPath(folders, `cover_${trackId}`, 'cover'),
+          "", // Folder argument is empty
           {
+            publicId: coverArtPublicId,
             resourceType: 'image',
-            tags: [`artist_${artistId}`, `track_${trackId}`, 'cover'],
+            tags: [...commonTags, 'cover_art'],
             uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
           }
         );
       }
 
-      // Upload de metadados como JSON
+      // Generate public_id for the metadata JSON file.
+      const metadataPublicId = generateCloudinaryPublicId(structure, `metadata_info_${trackId}`);
       await uploadMetadata(
         {
           artistId,
+          artistName, // Storing artistName in metadata might be useful
           trackId,
-          coverArt: coverArtResult ? coverArtResult.public_id : null,
-          audio: audioResult.public_id
+          title: songTitle,
+          ...metadata, // Spread other provided metadata
+          audio_public_id: audioResult.public_id,
+          cover_art_public_id: coverArtResult ? coverArtResult.public_id : null,
+          uploadDate: new Date().toISOString(),
+          // Add any other relevant metadata fields here
         },
-        getUploadPath(folders, `metadata_${trackId}`, 'metadata'),
-        `artist_${artistId},track_${trackId},single` // Fix: Convert array to comma-separated string
+        "", // Folder argument is empty for uploadMetadata as well
+        metadataPublicId, 
+        commonTags.join(',')
       );
 
       return {
@@ -122,13 +137,15 @@ const uploadService = {
   /**
    * Upload de um arquivo de vídeo para o Cloudinary
    * @param artistId - ID do artista fazendo upload do vídeo
+   * @param artistName - Nome do artista (para estrutura de pastas)
    * @param file - Arquivo de vídeo a ser subido
    * @param metadata - Metadados opcionais do vídeo
    * @param thumbnail - Arquivo opcional de thumbnail
    * @returns Objeto com URLs e informações do arquivo subido
    */
   async uploadVideo(
-    artistId: string, 
+    artistId: string,
+    artistName: string,
     file: File,
     metadata?: {
       title?: string;
@@ -142,15 +159,73 @@ const uploadService = {
     thumbnail?: File
   ) {
     try {
-      // Obter o título do vídeo
       const videoTitle = metadata?.title || file.name.split('.')[0];
-      const folders = createFolderStructure(artistId, 'video', videoTitle);
+      // 1. Create the folder structure object.
+      const structure = createFolderStructure(artistName, 'video', videoTitle);
       
-      // Gerar ID único para o vídeo
-      const videoId = uuidv4();
+      const clipId = uuidv4();
       
-      // Metadados do vídeo
-      const videoMetadata: Partial<VideoMetadata> = {
+      const commonTags = [`artist_${artistId}`, `clip_${clipId}`, 'video'];
+      if (metadata?.genre) commonTags.push(`genre_${metadata.genre.toLowerCase()}`);
+      if (metadata?.tags) commonTags.push(...metadata.tags);
+      if (metadata?.isVideoClip) commonTags.push('video_clip');
+
+      // 2. Generate public_id for the main video file.
+      const videoPublicId = generateCloudinaryPublicId(structure, `video_main_${clipId}`);
+
+      // Upload do arquivo de vídeo
+      const videoResult = await uploadSignedFile(
+        file,
+        "", // Folder argument is empty as public_id dictates the path
+        {
+          publicId: videoPublicId,
+          resourceType: 'video',
+          tags: commonTags,
+          uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+          context: {
+            alt: metadata?.title || videoTitle,
+            caption: metadata?.description || '',
+            custom: {
+              title: metadata?.title || videoTitle,
+              genre: metadata?.genre,
+              tags: metadata?.tags,
+              visibility: metadata?.visibility || 'public',
+              uploadDate: new Date().toISOString(),
+              isVideoClip: metadata?.isVideoClip ?? true,
+              description: metadata?.description,
+              director: metadata?.director,
+              artist_id: artistId,
+              clip_id: clipId,
+              media_type: 'video'
+            }
+          }
+        }
+      );
+
+      let thumbnailResult = null;
+      if (thumbnail) {
+        // Generate public_id for the thumbnail file.
+        const thumbnailPublicId = generateCloudinaryPublicId(structure, `thumbnail_main_${clipId}`);
+        thumbnailResult = await uploadSignedFile(
+          thumbnail,
+          "", // Folder argument is empty
+          {
+            publicId: thumbnailPublicId,
+            resourceType: 'image',
+            tags: [...commonTags, 'thumbnail'],
+            uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+          }
+        );
+      }
+
+      // Generate public_id for the metadata JSON file.
+      const metadataPublicId = generateCloudinaryPublicId(structure, `metadata_info_${clipId}`);
+      
+      // Metadados do vídeo para o arquivo JSON
+      const videoMetadataToUpload: Partial<VideoMetadata> & { artistId: string; artistName: string; clipId: string; video_public_id: string; thumbnail_public_id: string | null; duration?: number; format: string; } = {
+        artistId,
+        artistName,
+        clipId,
         title: videoTitle,
         genre: metadata?.genre,
         tags: metadata?.tags,
@@ -158,77 +233,22 @@ const uploadService = {
         uploadDate: new Date().toISOString(),
         isVideoClip: metadata?.isVideoClip ?? true,
         description: metadata?.description,
-        director: metadata?.director
+        director: metadata?.director,
+        video_public_id: videoResult.public_id,
+        thumbnail_public_id: thumbnailResult ? thumbnailResult.public_id : null,
+        duration: videoResult.duration,
+        format: videoResult.format
       };
       
-      // Tags para categorização no Cloudinary
-      const tags = [
-        `artist_${artistId}`,
-        `video_${videoId}`,
-        ...(videoMetadata.isVideoClip ? ['video_clip'] : ['video'])
-      ];
-      
-      if (metadata?.genre) {
-        tags.push(`genre_${metadata.genre.toLowerCase()}`);
-      }
-      
-      if (metadata?.tags) {
-        tags.push(...metadata.tags);
-      }
-      
-      // Configurações de transformação para vídeo
-      const eager = [
-        { width: 1280, height: 720, crop: 'scale' },
-        { width: 854, height: 480, crop: 'scale' },
-        { width: 640, height: 360, crop: 'scale' }
-      ];
-      
-      // Upload do arquivo de vídeo
-      const videoResult = await uploadSignedFile(file, getUploadPath(folders, `video_${videoId}`, 'main'), {
-        resourceType: 'video',
-        tags,
-        eager,
-        eager_async: true,
-        context: {
-          alt: videoMetadata.title,
-          caption: videoMetadata.description || '',
-          custom: {
-            ...videoMetadata,
-            artist_id: artistId,
-            video_id: videoId,
-            media_type: 'video'
-          }
-        }
-      });
-      
-      // Se houver um thumbnail personalizado, fazer upload também
-      let thumbnailResult = null;
-      if (thumbnail) {
-        thumbnailResult = await uploadSignedFile(
-          thumbnail,
-          getUploadPath(folders, `thumbnail_${videoId}`, 'thumbnail'),
-          {
-            resourceType: 'image',
-            tags: [...tags, 'thumbnail']
-          }
-        );
-      }
-      
-      // Upload de metadados como JSON
       await uploadMetadata(
-        {
-          ...videoMetadata,
-          artistId,
-          videoId,
-          thumbnail: thumbnailResult ? thumbnailResult.public_id : null,
-          video: videoResult.public_id
-        },
-        getUploadPath(folders, `metadata_${videoId}`, 'metadata'),
-        tags.join(',') // Convert array to string
+        videoMetadataToUpload,
+        "", // Folder argument is empty
+        metadataPublicId,
+        commonTags
       );
-      
+
       return {
-        videoId,
+        clipId,
         url: videoResult.secure_url,
         publicId: videoResult.public_id,
         format: videoResult.format,
@@ -324,8 +344,9 @@ const uploadService = {
   },
   
   /**
-   * Upload de um álbum completo para o Cloudinary
+   * Upload de um álbum completo para o Cloudinary com organização de diretórios
    * @param artistId - ID do artista fazendo upload do álbum
+   * @param artistName - Nome do artista (para estrutura de pastas)
    * @param coverArtFile - Arquivo de capa do álbum
    * @param audioFiles - Array de arquivos de áudio
    * @param albumMetadata - Metadados do álbum
@@ -333,6 +354,7 @@ const uploadService = {
    */
   async uploadAlbum(
     artistId: string,
+    artistName: string, 
     coverArtFile: File,
     audioFiles: File[],
     albumMetadata: {
@@ -346,8 +368,8 @@ const uploadService = {
     }
   ) {
     try {
-      // Pasta para o álbum no Cloudinary (eimusic/artistname/album/album_name)
-      const albumFolder = getArtistMediaPath(artistId, MEDIA_TYPES.ALBUM, albumMetadata.title);
+      // 1. Criar a estrutura de pastas para o álbum
+      const structure = createFolderStructure(artistName, 'album', albumMetadata.title);
       
       // Gerar ID único para o álbum
       const albumId = uuidv4();
@@ -367,19 +389,30 @@ const uploadService = {
         commonTags.push(...albumMetadata.tags);
       }
       
+      // 2. Gerar public_id para a capa do álbum
+      const coverArtPublicId = generateCloudinaryPublicId(structure, `cover_art_${albumId}`);
+      
       // Upload da capa do álbum
-      const coverArtResult = await uploadSignedFile(coverArtFile, `${albumFolder}/${MEDIA_TYPES.COVER}`, {
-        resourceType: 'image',
-        tags: [...commonTags, 'cover-art'],
-        context: {
-          alt: `${albumMetadata.title} - Cover Art`,
-          caption: albumMetadata.description || '',
-          custom: {
-            album_id: albumId,
-            album_title: albumMetadata.title
+      const coverArtResult = await uploadSignedFile(
+        coverArtFile, 
+        "", // Folder argument is empty as public_id dictates the path
+        {
+          publicId: coverArtPublicId,
+          resourceType: 'image',
+          tags: [...commonTags, 'cover-art'],
+          uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+          context: {
+            alt: `${albumMetadata.title} - Cover Art`,
+            caption: albumMetadata.description || '',
+            custom: {
+              album_id: albumId,
+              album_title: albumMetadata.title,
+              artist_id: artistId,
+              media_type: 'album'
+            }
           }
         }
-      });
+      );
       
       // Upload de cada faixa do álbum
       const tracks = [];
@@ -391,6 +424,9 @@ const uploadService = {
         
         // Extrair nome da faixa do nome do arquivo
         const trackName = file.name.split('.')[0];
+        
+        // 3. Gerar public_id para cada faixa do álbum
+        const trackPublicId = generateCloudinaryPublicId(structure, `track_${trackNumber}_${trackId}`);
         
         // Metadados da faixa
         const trackMetadata = {
@@ -405,20 +441,27 @@ const uploadService = {
         };
         
         // Upload da faixa
-        const trackResult = await uploadSignedFile(file, `${albumFolder}/tracks`, {
-          resourceType: 'auto',
-          tags: [...commonTags, `track_${trackId}`, `track_number_${trackNumber}`],
-          publicId: `track_${trackNumber}_${trackId}`,
-          context: {
-            alt: trackName,
-            caption: `Track ${trackNumber} from ${albumMetadata.title}`,
-            custom: {
-              ...trackMetadata,
-              artist_id: artistId,
-              media_type: 'single'
+        const trackResult = await uploadSignedFile(
+          file, 
+          "", // Folder argument is empty as public_id dictates the path
+          {
+            publicId: trackPublicId,
+            resourceType: 'auto',
+            tags: [...commonTags, `track_${trackId}`, `track_number_${trackNumber}`],
+            uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+            context: {
+              alt: trackName,
+              caption: `Track ${trackNumber} from ${albumMetadata.title}`,
+              custom: {
+                ...trackMetadata,
+                artist_id: artistId,
+                artist_name: artistName,
+                track_id: trackId,
+                media_type: 'album_track'
+              }
             }
           }
-        });
+        );
         
         tracks.push({
           trackId,
@@ -431,11 +474,15 @@ const uploadService = {
         });
       }
       
+      // 4. Gerar public_id para os metadados do álbum
+      const metadataPublicId = generateCloudinaryPublicId(structure, `metadata_info_${albumId}`);
+      
       // Upload de metadados do álbum como JSON
       await uploadMetadata(
         {
           ...albumMetadata,
           artistId,
+          artistName, 
           albumId,
           coverArt: coverArtResult.public_id,
           trackCount: audioFiles.length,
@@ -445,11 +492,12 @@ const uploadService = {
             title: track.title,
             publicId: track.publicId,
             duration: track.duration
-          }))
+          })),
+          uploadDate: new Date().toISOString()
         },
-        `${albumFolder}/${CLOUDINARY_FOLDERS.METADATA}`,
-        `metadata_${albumId}`,
-        commonTags
+        "", // Folder argument is empty as public_id dictates the path
+        metadataPublicId,
+        commonTags 
       );
       
       return {

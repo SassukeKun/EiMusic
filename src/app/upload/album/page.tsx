@@ -149,60 +149,60 @@ export default function AlbumUploadPage() {
   
   // Manipulador para iniciar upload
   const handleStartUpload = async () => {
-    if (!albumTitle.trim()) {
-      setError('O título do álbum é obrigatório');
+    if (!coverArtFile || trackFiles.length === 0 || !albumTitle.trim()) {
+      setError('Preencha todos os campos obrigatórios');
       return;
     }
     
-    if (!coverArtFile) {
-      setError('A capa do álbum é obrigatória');
-      return;
-    }
+    setUploadStep('uploading');
+    setUploadProgress(0);
     
-    if (trackFiles.length === 0) {
-      setError('Adicione pelo menos uma faixa ao álbum');
-      return;
-    }
+    // Incrementar o progresso gradualmente para feedback visual
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        // Limitamos a 90% - os últimos 10% serão quando o upload for realmente concluído
+        return prev < 90 ? prev + 1 : prev;
+      });
+    }, 500);
+    
+    // Metadados para o álbum
+    const albumMetadata = {
+      title: albumTitle,
+      description: albumDescription,
+      genre: albumGenre,
+      visibility: albumVisibility,
+      isExplicit,
+      tags: tags.length > 0 ? tags : undefined,
+      releaseDate: new Date().toISOString()
+    };
     
     try {
-      setError(null);
-      setUploadStep('uploading');
-      setUploadProgress(0);
-      
-      // Metadados do álbum
-      const albumMetadata = {
-        title: albumTitle,
-        description: albumDescription,
-        genre: albumGenre,
-        visibility: albumVisibility,
-        isExplicit,
-        tags
-      };
-      
-      // Simular progresso (em uma implementação real, usaríamos eventos de progresso)
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 95) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          return prev + Math.floor(Math.random() * 5) + 1;
-        });
-      }, 300);
-      
       // Fazer upload do álbum
+      // Verificar se o usuário está autenticado
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      // Usamos o nome de exibição do usuário ou um nome padrão para o artista
+      // Para o Supabase, usamos user.user_metadata para dados personalizados
+      const artistName = 
+        (user.user_metadata?.full_name as string) || 
+        (user.user_metadata?.name as string) || 
+        (user.email?.split('@')[0] as string) || 
+        `artist_${user.id}_${Date.now()}`;
+        
+      const artistId = user.id;
+      
       const result = await uploadService.uploadAlbum(
-        user?.id || '',
+        artistId,
+        artistName, // Adicionado o nome do artista para a estrutura de pastas correta
         coverArtFile,
         trackFiles,
         albumMetadata
       );
       
-      // Limpar intervalo e definir progresso como 100%
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
-      // Definir resultado e mudar para sucesso
       setUploadResult(result);
       setUploadStep('success');
     } catch (err: any) {

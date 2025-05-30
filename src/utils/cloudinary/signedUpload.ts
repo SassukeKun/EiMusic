@@ -111,12 +111,20 @@ export async function uploadSignedFile(
     // Adicionar parâmetros obrigatórios
     formData.append('file', file);
     formData.append('upload_preset', options.uploadPreset || process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
-    formData.append('folder', folder);
-    
-    // Adicionar public_id se fornecido
+
+    // Se publicId é fornecido nas opções, ele dita o caminho completo (relativo ao asset_folder do preset).
+    // Nesse caso, não devemos enviar o parâmetro 'folder' avulso, pois pode causar conflito ou duplicação de caminho.
     if (options.publicId) {
       formData.append('public_id', options.publicId);
+    } else {
+      // Se publicId não for fornecido, usamos o parâmetro 'folder' para especificar o diretório de destino.
+      formData.append('folder', folder);
     }
+    
+    // Adicionar public_id se fornecido (esta duplicata foi removida, o bloco acima já trata disso)
+    // if (options.publicId) {
+    //   formData.append('public_id', options.publicId);
+    // }
 
     // Definir o tipo de recurso
     const resourceType = options.resourceType || 'auto';
@@ -181,14 +189,16 @@ export function createJsonFile(data: any, filename = 'metadata.json'): File {
  */
 export async function uploadMetadata(
   data: any,
-  folder: string,
-  publicId: string,
+  folder: string, // This folder argument is now less relevant if publicId is always used for metadata's full path
+  publicId: string, // This should be the full public_id for the metadata file
   tags?: string | string[]
 ): Promise<CloudinaryUploadResponse> {
-  const metadataFile = createJsonFile(data);
+  const metadataFile = createJsonFile(data, `${publicId.split('/').pop() || 'metadata'}.json`); // Use part of publicId for filename
   const tagsToUse = Array.isArray(tags) ? tags.join(',') : tags;
   
-  return uploadSignedFile(metadataFile, folder, {
+  // Pass an empty string for 'folder' because publicId dictates the full path
+  return uploadSignedFile(metadataFile, "", { // MODIFIED: folder is now ""
+    publicId: publicId, // Ensure publicId is passed in options
     resourceType: 'raw',
     tags: tagsToUse
   });
