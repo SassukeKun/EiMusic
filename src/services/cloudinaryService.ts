@@ -49,8 +49,8 @@ const cloudinaryService = {
    */
   getUploadConfig() {
     return {
-      cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-      uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+      cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'ddyuofu2d',
+      uploadPreset: 'eimusic_upload_preset', // Usar o preset diretamente em vez da variável de ambiente
       apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
       folder: 'eimusic/temp/uploads'
     };
@@ -68,14 +68,19 @@ const cloudinaryService = {
       // Gerar ID único para a faixa
       const trackId = uuidv4();
       
-      // Definir pasta de destino no Cloudinary
-      const folder = `eimusic/artists/${artistId}/audio/${trackId}`;
+      // Definir pasta de destino no Cloudinary seguindo a estrutura correta
+      // eimusic/artista/single/nome_da_single/ficheiros
+      const cleanTitle = metadata.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Usa public_id para garantir a estrutura de pastas correta
+      // O arquivo principal da faixa é nomeado como 'track'
+      const publicId = `${artistId}/single/${cleanTitle}/track`;
       
       // Upload via upload widget ou API do Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
-      formData.append('folder', folder);
+      formData.append('upload_preset', 'eimusic_upload_preset');
+      formData.append('public_id', publicId); // Define o caminho completo inclusive o nome do arquivo
       formData.append('resource_type', 'auto');
       
       // Adicionar metadados como tags estruturados
@@ -150,23 +155,24 @@ const cloudinaryService = {
       // Gerar ID único para o vídeo
       const clipId = uuidv4();
       
-      // Definir pasta de destino no Cloudinary
-      const folder = `eimusic/artists/${artistId}/video/${clipId}`;
+      // Definir pasta de destino no Cloudinary seguindo a estrutura correta
+      const cleanTitle = metadata.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
       
-      // Upload via upload widget ou API do Cloudinary
+      // Public ID completo para o arquivo de vídeo
+      const publicId = `${artistId}/video/${cleanTitle}/video`;
+      
+      // Upload via API do Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
-      formData.append('folder', folder);
+      formData.append('upload_preset', 'eimusic_upload_preset');
+      formData.append('public_id', publicId);
       formData.append('resource_type', 'video');
       
       // Configurações para gerar thumbnail automaticamente
       if (!thumbnailFile) {
         formData.append('eager', JSON.stringify([
-          { format: 'jpg', transformation: [
-            { width: 640, height: 360, crop: 'fill' },
-            { quality: 'auto' }
-          ]}
+          { width: 640, height: 360, crop: 'fill', quality: 'auto' },
+          { width: 1280, height: 720, crop: 'fill', quality: 'auto' }
         ]));
       }
       
@@ -211,7 +217,7 @@ const cloudinaryService = {
       
       // Se foi fornecido um thumbnail personalizado, fazer upload
       if (thumbnailFile) {
-        await this.uploadThumbnail(artistId, clipId, thumbnailFile);
+        await this.uploadThumbnail(artistId, clipId, thumbnailFile, metadata.title);
       }
       
       // Salvar metadados completos em um arquivo JSON no mesmo local
@@ -240,24 +246,22 @@ const cloudinaryService = {
    * @param file - Arquivo de imagem
    * @returns Resultado do upload
    */
-  async uploadCoverArt(artistId: string, trackId: string, file: File): Promise<CloudinaryUploadResult> {
+  async uploadCoverArt(artistId: string, trackId: string, file: File, trackTitle: string = ''): Promise<CloudinaryUploadResult> {
     try {
-      // Definir pasta de destino no Cloudinary
-      const folder = `eimusic/artists/${artistId}/cover-art`;
-      const publicId = `${folder}/${trackId}_cover`;
+      // Definir pasta de destino no Cloudinary usando a estrutura correta
+      const cleanTitle = trackTitle.toLowerCase().replace(/[^a-z0-9]/g, '_') || trackId;
+      
+      // O public_id define o caminho completo inclusive o nome do arquivo
+      const publicId = `${artistId}/single/${cleanTitle}/cover`;
       
       // Upload via API do Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
-      formData.append('public_id', publicId);
+      formData.append('upload_preset', 'eimusic_upload_preset');
+      formData.append('public_id', publicId); // Caminho completo
       formData.append('resource_type', 'image');
       
-      // Adicionar transformações para diferentes resoluções
-      formData.append('eager', JSON.stringify([
-        { width: 300, height: 300, crop: 'fill', quality: 'auto' },
-        { width: 600, height: 600, crop: 'fill', quality: 'auto' }
-      ]));
+      // Removemos as transformações para evitar erros
       
       // Tags para facilitar busca
       formData.append('tags', `artist_${artistId},track_${trackId},cover`);
@@ -297,26 +301,25 @@ const cloudinaryService = {
    * @param artistId - ID do artista
    * @param clipId - ID do vídeo
    * @param file - Arquivo de imagem para thumbnail
+   * @param videoTitle - Título do vídeo
    * @returns Resultado do upload
    */
-  async uploadThumbnail(artistId: string, clipId: string, file: File): Promise<CloudinaryUploadResult> {
+  async uploadThumbnail(artistId: string, clipId: string, file: File, videoTitle: string = ''): Promise<CloudinaryUploadResult> {
     try {
       // Definir pasta de destino no Cloudinary
-      const folder = `eimusic/artists/${artistId}/video/${clipId}`;
-      const publicId = `${folder}/thumbnail`;
+      const cleanTitle = videoTitle.toLowerCase().replace(/[^a-z0-9]/g, '_') || clipId;
+      
+      // Public ID completo para o thumbnail
+      const publicId = `${artistId}/video/${cleanTitle}/thumbnail`;
       
       // Upload via API do Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
+      formData.append('upload_preset', 'eimusic_upload_preset');
       formData.append('public_id', publicId);
       formData.append('resource_type', 'image');
       
-      // Transformações para diferentes resoluções
-      formData.append('eager', JSON.stringify([
-        { width: 640, height: 360, crop: 'fill', quality: 'auto' },
-        { width: 1280, height: 720, crop: 'fill', quality: 'auto' }
-      ]));
+      // Não usar transformações eager para evitar erros
       
       // Tags para facilitar busca
       formData.append('tags', `artist_${artistId},clip_${clipId},thumbnail`);
@@ -364,30 +367,17 @@ const cloudinaryService = {
     type: 'avatar' | 'banner'
   ): Promise<CloudinaryUploadResult> {
     try {
-      // Definir pasta de destino no Cloudinary
-      const folder = `eimusic/artists/${artistId}/profile`;
-      const publicId = `${folder}/${type}`;
+      // Public ID completo para o arquivo de imagem de perfil
+      const publicId = `${artistId}/profile/${type}`;
       
       // Upload via API do Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
+      formData.append('upload_preset', 'eimusic_upload_preset');
       formData.append('public_id', publicId);
       formData.append('resource_type', 'image');
       
-      // Transformações específicas para cada tipo de imagem
-      if (type === 'avatar') {
-        formData.append('eager', JSON.stringify([
-          { width: 150, height: 150, crop: 'fill', quality: 'auto' },
-          { width: 300, height: 300, crop: 'fill', quality: 'auto' }
-        ]));
-      } else {
-        // Banner
-        formData.append('eager', JSON.stringify([
-          { width: 800, height: 250, crop: 'fill', quality: 'auto' },
-          { width: 1600, height: 500, crop: 'fill', quality: 'auto' }
-        ]));
-      }
+      // Não vamos usar transformações eager para evitar problemas
       
       // Tags para facilitar busca
       formData.append('tags', `artist_${artistId},profile,${type}`);
@@ -436,25 +426,28 @@ const cloudinaryService = {
     metadata: AudioMetadata | VideoMetadata
   ): Promise<void> {
     try {
-      // Criar um texto JSON dos metadados
-      const jsonContent = JSON.stringify(metadata, null, 2);
+      // Determinar o caminho correto com base no tipo de mídia e título
+      const cleanTitle = metadata.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const mediaFolder = mediaType === 'audio' ? 'single' : 'video';
       
-      // Converter para um Blob
-      const blob = new Blob([jsonContent], { type: 'application/json' });
-      const file = new File([blob], 'metadata.json', { type: 'application/json' });
+      // Public ID completo para o arquivo de metadados
+      const publicId = `${artistId}/${mediaFolder}/${cleanTitle}/metadata`;
       
-      // Definir pasta de destino no Cloudinary
-      const folder = `eimusic/artists/${artistId}/${mediaType}/${mediaId}`;
-      const publicId = `${folder}/metadata`;
+      // Converter metadados para string JSON
+      const metadataBlob = new Blob(
+        [JSON.stringify(metadata, null, 2)], 
+        { type: 'application/json' }
+      );
       
-      // Upload via API do Cloudinary
+      // Criar um arquivo a partir do Blob
+      const metadataFile = new File([metadataBlob], 'metadata.json', { type: 'application/json' });
+      
+      // Upload do arquivo JSON
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
+      formData.append('file', metadataFile);
+      formData.append('upload_preset', 'eimusic_upload_preset');
       formData.append('public_id', publicId);
-      formData.append('resource_type', 'raw');
-      
-      // Tags para facilitar busca
+      formData.append('resource_type', 'raw'); // Tipo de recurso raw para arquivos JSON
       formData.append('tags', `artist_${artistId},${mediaType === 'audio' ? 'track' : 'clip'}_${mediaId},metadata`);
       
       // Fazer o upload para o Cloudinary

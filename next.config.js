@@ -1,14 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      'images.unsplash.com', 
-      'picsum.photos',
-      'lh3.googleusercontent.com',  // Google user profile pictures
-      'googleusercontent.com',      // Alternative Google domain
-      'storage.googleapis.com',     // Google Cloud Storage
-    ]
+    domains: ['res.cloudinary.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/ddyuofu2d/image/upload/**',
+      },
+    ],
   },
+  output: 'standalone',
   async redirects() {
     return [
       // Redirecionar de links de confirmação que chegam à raiz
@@ -40,4 +42,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

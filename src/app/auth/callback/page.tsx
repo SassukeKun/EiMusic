@@ -1,122 +1,134 @@
-'use client'
+/* eslint-disable react-hooks/exhaustive-deps */
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import supabase from '@/utils/supabaseClient'
-import { FaSpinner, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa'
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import LoadingSpinner from "@/components/LoadingSpinner";
+import ErrorAlert from "@/components/ErrorAlert";
+import { trackError } from "@/utils/trackError";
+import { handleOAuthCallback, PKCE_STORAGE_KEY } from '@/utils/supabaseOAuth';
 
-export default function AuthCallbackPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [message, setMessage] = useState<string>('Autenticando...')
+function AuthCallbackContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Função para processar o retorno da autenticação
-    async function handleAuthCallback() {
-      try {
-        // Verificar se existe um redirect_to nos parâmetros
-        const redirectTo = searchParams?.get('redirect_to') || '/'
-        
-        // Recupera a sessão
-        const { data, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Erro ao processar callback de autenticação:', error)
-          setStatus('error')
-          setMessage('Falha na autenticação. Por favor, tente novamente.')
-          // Redirecionar após 2 segundos
-          setTimeout(() => router.push('/login?error=auth_callback_failed'), 2000)
-          return
-        }
-        
-        if (data?.session) {
-          // Verificar se o email está confirmado
-          const { data: userData } = await supabase.auth.getUser()
-          
-          if (!userData?.user?.email_confirmed_at) {
-            // Email não confirmado, redirecionar para a página de verificação
-            setStatus('error')
-            setMessage('Email ainda não verificado. Por favor, verifique sua caixa de entrada.')
-            
-            // Redirecionar para a página de verificação após 2 segundos
-            setTimeout(() => {
-              const email = userData?.user?.email
-              const isArtist = userData?.user?.user_metadata?.is_artist
-              const type = isArtist ? 'artist' : 'user'
-              
-              if (email) {
-                router.push(`/auth/verification?email=${encodeURIComponent(email)}&type=${type}`)
-              } else {
-                router.push('/login')
-              }
-            }, 2000)
-            return
-          }
-          
-          // Email confirmado, verificar se é artista
-          setStatus('success')
-          setMessage('Autenticação concluída com sucesso!')
-          
-          // Redirecionar para a página apropriada após 1 segundo
-          setTimeout(() => {
-            if (userData?.user?.user_metadata?.is_artist) {
-              router.push(redirectTo !== '/' ? redirectTo : '/artist/dashboard')
-          } else {
-              router.push(redirectTo !== '/' ? redirectTo : '/dashboard')
-          }
-          }, 1000)
-          return
-        }
-        
-        // Se não tem sessão, redirecionar para login
-        setStatus('error')
-        setMessage('Sessão não encontrada. Por favor, faça login novamente.')
-        setTimeout(() => router.push('/login'), 2000)
-      } catch (error) {
-        console.error('Exceção ao processar callback de autenticação:', error)
-        setStatus('error')
-        setMessage('Ocorreu um erro inesperado. Por favor, tente novamente.')
-        setTimeout(() => router.push('/login?error=auth_callback_exception'), 2000)
+    const processAuthCallback = async () => {
+      setIsLoading(true);
+      
+      // Add null check for searchParams
+      if (!searchParams) {
+        console.warn('searchParams is null in auth callback. Waiting for hydration or this is an issue.');
+        return;
       }
-    }
 
-    handleAuthCallback()
-  }, [router, searchParams])
+      const code = searchParams.get('code');
+      const errorParam = searchParams.get('error');
+      const errorDescription = searchParams.get('error_description');
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-green-900 to-black">
-      <div className="bg-black bg-opacity-20 backdrop-blur-sm rounded-lg p-8 shadow-lg max-w-md w-full">
-        {status === 'loading' && (
-          <>
-            <div className="text-4xl text-yellow-500 animate-spin mb-4 flex justify-center">
-              <FaSpinner />
-            </div>
-            <h1 className="text-xl text-white font-medium text-center">{message}</h1>
-            <p className="text-gray-300 mt-2 text-center">Você será redirecionado automaticamente.</p>
-          </>
-        )}
+      console.log('Auth callback received:', {
+        hasCode: !!code,
+        hasError: !!errorParam,
+        errorParam,
+        errorDescription
+      });
+
+      // Debug the PKCE state
+      console.log(`PKCE verifier in callback: ${sessionStorage.getItem(PKCE_STORAGE_KEY) ? 'Present' : 'Missing'}`);
+      
+      // Handle OAuth errors from the provider
+      if (errorParam) {
+        let errorMessage = errorDescription || 'Erro desconhecido durante a autenticação OAuth.';
+        if (errorParam === 'access_denied') {
+          errorMessage = 'Acesso negado pelo provedor de autenticação.';
+        } else if (errorParam === 'pkce_error' || errorDescription?.includes('PKCE')) {
+          errorMessage = 'Erro de verificação PKCE. Por favor, tente fazer login novamente em uma nova janela ou guia privativa.';
+          router.push(`/login?error=pkce_error&message=${encodeURIComponent(errorMessage)}&clear_cookies=true`);
+          return;
+        }
+        trackError(new Error(`OAuth Error: ${errorParam}`), { context: 'AuthCallback', errorDescription });
+        setError(errorMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!code) {
+        setError('Código de autorização ausente. Não é possível prosseguir.');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Trocando código por sessão...');
+      
+      try {
+        // Use our new utility to handle the OAuth callback
+        const result = await handleOAuthCallback(code);
         
-        {status === 'success' && (
-          <>
-            <div className="text-4xl text-green-500 mb-4 flex justify-center">
-              <FaCheckCircle />
-            </div>
-            <h1 className="text-xl text-white font-medium text-center">{message}</h1>
-            <p className="text-gray-300 mt-2 text-center">Redirecionando para sua área...</p>
-          </>
-        )}
+        if (!result.success) {
+          console.error('Auth callback error:', result.error);
+          trackError(result.error as Error, { context: 'AuthCallback-ExchangeCode' });
+          
+          // Check if this is a PKCE error
+          const errorMessage = result.error instanceof Error ? result.error.message : String(result.error);
+          if (errorMessage.includes('PKCE') || errorMessage.includes('code verifier')) {
+            const detailedMessage = 'Erro de verificação PKCE ao trocar o código. O code_verifier pode estar ausente ou inválido. Tente novamente.';
+            router.push(`/login?error=pkce_error&message=${encodeURIComponent(detailedMessage)}&clear_cookies=true`);
+            return;
+          }
+          
+          setError(`Erro ao trocar código por sessão: ${errorMessage}`);
+          setIsLoading(false);
+          return;
+        }
         
-        {status === 'error' && (
-          <>
-            <div className="text-4xl text-red-500 mb-4 flex justify-center">
-              <FaExclamationTriangle />
-            </div>
-            <h1 className="text-xl text-white font-medium text-center">{message}</h1>
-            <p className="text-gray-300 mt-2 text-center">Redirecionando...</p>
-          </>
-        )}
+        // Success! Redirect based on user type
+        console.log('Sessão obtida com sucesso');
+        
+        // Redirect based on user type from the callback result
+        if (result.userType === 'artist') {
+          router.push('/artist/dashboard');
+        } else {
+          router.push('/');
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+        console.error('Exception in auth callback:', errorMessage);
+        setError(`Ocorreu um erro inesperado: ${errorMessage}`);
+        setIsLoading(false);
+      }
+    };
+
+    processAuthCallback();
+  }, [router, searchParams]);
+
+  if (isLoading) {
+    return <LoadingSpinner message="Processando autenticação..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
+        <ErrorAlert title="Erro de Autenticação" message={error} />
+        <button 
+          onClick={() => router.push('/login')}
+          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+        >
+          Voltar para Login
+        </button>
       </div>
-    </div>
-  )
-} 
+    );
+  }
+
+  // Em caso de sucesso, o redirecionamento já ocorreu no useEffect
+  return null; 
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner message="Carregando callback..." />}>
+      <AuthCallbackContent />
+    </Suspense>
+  );
+}

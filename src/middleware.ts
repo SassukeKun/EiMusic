@@ -5,6 +5,25 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   
+  // Verificar se há erros de OAuth na URL
+  const url = req.nextUrl;
+  const error = url.searchParams.get('error');
+  const errorCode = url.searchParams.get('error_code');
+  
+  // Interceptar erros de OAuth e redirecionar para a página de login
+  if (error && (errorCode === 'bad_oauth_state' || error === 'invalid_request')) {
+    console.error('Erro OAuth detectado no middleware:', error, errorCode);
+    const errorDescription = url.searchParams.get('error_description') || 'Erro na autenticação OAuth';
+    
+    // Redirecionar para a página de login com a mensagem de erro
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('error', 'oauth_error');
+    loginUrl.searchParams.set('message', errorDescription.replace(/\+/g, ' '));
+    loginUrl.searchParams.set('clear_cookies', 'true');
+    
+    return NextResponse.redirect(loginUrl);
+  }
+  
   try {
     // Create a Supabase client for the middleware
     const supabase = createMiddlewareClient({ req, res });
