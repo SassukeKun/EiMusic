@@ -276,19 +276,44 @@ export function useAuth() {
   }, [router]);
 
   // Login com OAuth
-  const loginWithOAuth = useCallback(async (provider: 'google' | 'facebook' | 'twitter') => {
+  const loginWithOAuth = useCallback(async (provider: 'google' | 'facebook' | 'twitter', userType: 'user' | 'artist') => {
     try {
       setLoading(true);
       setError(null);
       
-      const { url } = await authService.signInWithOAuth(provider);
-      if (url) {
-        window.location.href = url;
-      }
+      console.log(`Iniciando processo de login com ${provider} como ${userType}...`);
+      
+      // Notificar o usuário que o processo está em andamento
+      setError('Preparando autenticação, aguarde...');
+      
+      // Importar dinâmicamente o utilitário OAuth
+      const { initiateOAuthSignIn } = await import('../utils/supabaseOAuth');
+      
+      // Iniciar o fluxo de autenticação OAuth
+      // Esta função redirecionará o usuário para o provedor OAuth
+      await initiateOAuthSignIn(provider, userType);
+      
+      // Se chegarmos aqui, é porque o redirecionamento não aconteceu
+      // (por exemplo, em um ambiente de teste ou simulação)
+      console.log('Aviso: O redirecionamento OAuth não ocorreu como esperado');
+      setError(null); // Limpar a mensagem de "aguarde"
+      
+      return true;
     } catch (err: any) {
       console.error('Erro ao iniciar login OAuth:', err);
-      setError(err.message || 'Falha ao iniciar login com provedor externo');
+      
+      // Exibir mensagem de erro amigável
+      if (err.message && err.message.includes('network')) {
+        setError('Erro de conexão. Verifique sua internet e tente novamente.');
+      } else if (err.message && err.message.includes('configuration')) {
+        setError('Erro de configuração do provedor de autenticação. Entre em contato com o suporte.');
+      } else {
+        setError('Erro ao iniciar login com ' + provider + '. Tente novamente mais tarde.');
+      }
+      
+      return false;
     } finally {
+      // Remover o estado de loading
       setLoading(false);
     }
   }, []);

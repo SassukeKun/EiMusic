@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { FaGoogle, FaEye, FaEyeSlash } from 'react-icons/fa'
+import { FaEye, FaEyeSlash } from 'react-icons/fa'
 
 // Schema para validação do formulário
 const registerSchema = z.object({
@@ -85,10 +85,8 @@ export default function RegisterPage() {
     }
   };
 
-  // Cadastro com Google
-  const handleGoogleLogin = async () => {
-    await loginWithOAuth('google');
-  };
+  // Nota: Cadastro com Google foi removido pois essa funcionalidade já está disponível na página de login
+  // e funciona tanto para cadastro quanto para login
 
   // Navegação programática para login
   const navigateToLogin = () => {
@@ -289,26 +287,7 @@ export default function RegisterPage() {
                 </motion.button>
               </form>
 
-              {/* Divisor "OU" */}
-              <div className="my-6 flex items-center">
-                <hr className="flex-grow border-gray-700" />
-                <span className="mx-4 text-gray-500 text-sm">OU</span>
-                <hr className="flex-grow border-gray-700" />
-              </div>
-
-              {/* Botão do Google */}
-              <motion.button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="w-full py-3 rounded-lg bg-gray-800 text-gray-200 font-medium 
-                         border border-gray-700 shadow
-                         flex items-center justify-center hover:bg-gray-700 transition"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <FaGoogle className="mr-2 text-red-500" />
-                Cadastrar com Google
-              </motion.button>
+              {/* Botão do Google foi removido pois essa funcionalidade já está disponível na página de login */}
 
               {/* Link para Login - CORRIGIDO */}
               <p className="mt-6 text-center text-gray-500 text-sm relative z-20">

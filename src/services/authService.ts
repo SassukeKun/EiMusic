@@ -1,11 +1,36 @@
 import { User, CreateUserInput } from '../models/user';
 import { Artist, CreateArtistInput } from '../models/artist';
-import supabase from '../utils/supabaseClient';
+import { getSupabaseBrowserClient } from '../utils/supabaseClient';
 
-// Remove a criação local do cliente Supabase para usar a instância centralizada
-// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-// const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-// const supabase = createClient(supabaseUrl, supabaseKey);
+// Helper for logging sessionStorage
+const PKCE_VERIFIER_KEY_PREFIX = 'sb-';
+const PKCE_VERIFIER_KEY_SUFFIX = '-auth-session-code-verifier';
+const PROJECT_REF = "rayacnytyvuytjmlklot"; // Hardcoded from user's Supabase URL
+const EXPECTED_PKCE_KEY = `${PKCE_VERIFIER_KEY_PREFIX}${PROJECT_REF}${PKCE_VERIFIER_KEY_SUFFIX}`;
+
+const logSessionStoragePkceVerifier = (context: string) => {
+  console.log(`[SessionStorage PKCE Check - ${context}]`);
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    const verifierValue = sessionStorage.getItem(EXPECTED_PKCE_KEY);
+    if (verifierValue) {
+      console.log(`  FOUND PKCE verifier key '${EXPECTED_PKCE_KEY}'. Value (first 50 chars): ${verifierValue.substring(0, 50)}`);
+    } else {
+      console.log(`  PKCE verifier key '${EXPECTED_PKCE_KEY}' NOT FOUND.`);
+    }
+    // Log all sessionStorage keys for broader context
+    const allKeys = Object.keys(sessionStorage);
+    console.log(`  All sessionStorage keys (${allKeys.length}): [${allKeys.join(', ')}]`);
+    if (allKeys.length > 0 && !verifierValue) {
+        allKeys.forEach(key => {
+            if (key.includes('verifier') || key.includes('pkce')) {
+                console.log(`  Other potential PKCE/verifier related key found: ${key} = ${sessionStorage.getItem(key)?.substring(0,50)}...`);
+            }
+        });
+    }
+  } else {
+    console.log('  sessionStorage not available or window is undefined.');
+  }
+};
 
 /**
  * Servico para operacoes de autenticacao
@@ -18,8 +43,10 @@ const authService = {
    * @returns Dados da sessao de autenticacao ou erro
    */
   async signInUser(email: string, password: string) {
+    const supabaseClient = getSupabaseBrowserClient();
+    
     // Autenticar usuario com o Supabase auth
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password,
     });
@@ -38,7 +65,7 @@ const authService = {
     }
     
     // Buscar dados extras do usuario (tabela users)
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: userError } = await supabaseClient
       .from('users')
       .select('*')
       .eq('id', data.user.id)
@@ -59,7 +86,7 @@ const authService = {
           has_active_subscription: userMetadata.has_active_subscription || false,
         };
         
-        const { data: newUserData, error: insertError } = await supabase
+        const { data: newUserData, error: insertError } = await supabaseClient
           .from('users')
           .upsert(userRecord, { onConflict: 'id' })
           .select()
@@ -92,8 +119,10 @@ const authService = {
    * @returns Dados da sessao de autenticacao ou erro
    */
   async signInArtist(email: string, password: string) {
+    const supabaseClient = getSupabaseBrowserClient();
+    
     // Autenticar artista com o Supabase auth
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password,
     });
@@ -116,7 +145,7 @@ const authService = {
     }
     
     // Buscar dados extras do artista (tabela artists)
-    const { data: artistData, error: artistError } = await supabase
+    const { data: artistData, error: artistError } = await supabaseClient
       .from('artists')
       .select('*')
       .eq('id', data.user.id)
@@ -140,7 +169,7 @@ const authService = {
           social_links: userMetadata.social_links || null,
         };
         
-        const { data: newArtistData, error: insertError } = await supabase
+        const { data: newArtistData, error: insertError } = await supabaseClient
           .from('artists')
           .upsert(artistRecord, { onConflict: 'id' })
           .select()
@@ -183,24 +212,81 @@ const authService = {
   /**
    * Login com provedor OAuth (Google, etc)
    * @param provider - Nome do provedor OAuth
+   * @param userType - Tipo de usuário ('user' ou 'artist')
    * @returns URL de redirecionamento
    */
-  async signInWithOAuth(provider: 'google' | 'facebook' | 'twitter') {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: {
-          redirect_to: `${window.location.origin}/`
-        }
+  async signInWithOAuth(provider: 'google' | 'facebook' | 'twitter', userType: 'user' | 'artist' = 'user') {
+    try {
+      if (typeof window === 'undefined') {
+        // This function should only run on the client
+        throw new Error('signInWithOAuth can only be called on the client side.');
       }
-    });
-    
-    if (error) {
+
+      // AGGRESSIVE STORAGE CLEARING
+      console.log('[signInWithOAuth] Aggressively clearing all localStorage and sessionStorage items...');
+      Object.keys(localStorage).forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`  localStorage: Removed item with key: ${key}`);
+      });
+      Object.keys(sessionStorage).forEach(key => {
+        sessionStorage.removeItem(key);
+        console.log(`  sessionStorage: Removed item with key: ${key}`);
+      });
+      console.log('[signInWithOAuth] Finished aggressive storage clearing.');
+      // End of aggressive clearing
+
+      // The userType parameter is kept for now, but not stored in localStorage temporarily
+      console.log('Iniciando autenticação com', provider /*, 'como', userType (temporarily removed from log) */);
+      logSessionStoragePkceVerifier('signInWithOAuth - Start (after aggressive clear)');
+
+      const supabaseClient = getSupabaseBrowserClient();
+
+      await supabaseClient.auth.signOut();
+      console.log('Sessão Supabase anterior encerrada.');
+      logSessionStoragePkceVerifier('signInWithOAuth - After signOut');
+
+      // Temporarily remove setting oauth_user_type in localStorage
+      // localStorage.setItem('oauth_user_type', userType);
+      // console.log('oauth_user_type definido no localStorage:', userType);
+      
+      const origin = window.location.origin;
+      const callbackUrl = `${origin}/auth/callback`;
+      console.log('Callback URL configurada:', callbackUrl);
+      
+      logSessionStoragePkceVerifier('signInWithOAuth - Before supabaseClient.auth.signInWithOAuth call');
+      const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: callbackUrl,
+        }
+      });
+      logSessionStoragePkceVerifier('signInWithOAuth - After supabaseClient.auth.signInWithOAuth call');
+      
+      if (error) {
+        console.error('Erro ao iniciar OAuth:', error);
+        logSessionStoragePkceVerifier('signInWithOAuth - OAuth Error Occurred');
+        throw error;
+      }
+      
+      if (!data?.url) {
+        console.error('URL de autenticação ausente na resposta');
+        logSessionStoragePkceVerifier('signInWithOAuth - No Auth URL in Response');
+        throw new Error('Falha ao gerar URL de autenticação');
+      }
+      
+      console.log('URL de redirecionamento recebida:', data.url);
+      console.log('Redirecionando AGORA para URL de autenticação...');
+      // IMPORTANT: Log one last time just before the actual redirect
+      logSessionStoragePkceVerifier('signInWithOAuth - Immediately before redirect');
+      window.location.href = data.url;
+      
+      return data;
+    } catch (error) {
+      console.error('Exceção no signInWithOAuth:', error);
+      logSessionStoragePkceVerifier('signInWithOAuth - Catch Block');
+      // Garantir que o erro seja propagado para tratamento na UI, se necessário
       throw error;
     }
-    
-    return data;
   },
   
   /**
@@ -209,9 +295,11 @@ const authService = {
    * @returns Dados da sessao de autenticacao ou erro
    */
   async signUpUser(userData: CreateUserInput) {
+    const supabaseClient = getSupabaseBrowserClient();
+    
     // Verificar se o email já existe
     try {
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: existingUser, error: checkError } = await supabaseClient
         .from('auth_email_check_view')
         .select('email, is_artist')
         .eq('email', userData.email)
@@ -227,7 +315,7 @@ const authService = {
     } catch (viewError) {
       // Fallback - vamos tentar fazer login sem senha para ver se o email existe
       // Essa abordagem não é ideal, mas funciona para verificar se um email está cadastrado
-      const { error: existingUserError } = await supabase.auth.signInWithOtp({
+      const { error: existingUserError } = await supabaseClient.auth.signInWithOtp({
         email: userData.email,
         options: {
           shouldCreateUser: false // Não criar usuário se não existir
@@ -242,11 +330,11 @@ const authService = {
     
     // Simplificamos o URL de redirecionamento para enviar direto para a home
     // Não usamos mais a rota /auth/callback para evitar problemas com PKCE
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const origin = window.location.origin;
     const redirectUrl = `${origin}/dashboard`;
     
     // Cadastrar novo usuario com o Supabase auth
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email: userData.email,
       password: userData.password,
       options: {
@@ -269,10 +357,10 @@ const authService = {
         // Garantir que estamos utilizando a sessão para autenticação
         // Isso é crucial para que as políticas RLS funcionem
         if (data.session) {
-          await supabase.auth.setSession(data.session);
+          await supabaseClient.auth.setSession(data.session);
           
           // Criar um novo cliente com o token da sessão para garantir autenticação
-          const authenticatedSupabase = supabase;
+          const authenticatedSupabase = supabaseClient;
         
         // Criando o objeto com todos os campos possíveis que podem ser necessários
         const userRecord = {
@@ -316,9 +404,11 @@ const authService = {
    * @returns Dados da sessao de autenticacao ou erro
    */
   async signUpArtist(artistData: CreateArtistInput) {
+    const supabaseClient = getSupabaseBrowserClient();
+    
     // Verificar se o email já existe
     try {
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: existingUser, error: checkError } = await supabaseClient
         .from('auth_email_check_view')
         .select('email, is_artist')
         .eq('email', artistData.email)
@@ -334,7 +424,7 @@ const authService = {
     } catch (viewError) {
       // Fallback - vamos tentar fazer login sem senha para ver se o email existe
       // Essa abordagem não é ideal, mas funciona para verificar se um email está cadastrado
-      const { error: existingUserError } = await supabase.auth.signInWithOtp({
+      const { error: existingUserError } = await supabaseClient.auth.signInWithOtp({
         email: artistData.email,
         options: {
           shouldCreateUser: false // Não criar usuário se não existir
@@ -349,11 +439,11 @@ const authService = {
     
     // Simplificamos o URL de redirecionamento para enviar direto para a home do artista
     // Não usamos mais a rota /auth/callback para evitar problemas com PKCE
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const origin = window.location.origin;
     const redirectUrl = `${origin}/artist/dashboard`;
     
     // Cadastrar novo artista com o Supabase auth
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email: artistData.email,
       password: artistData.password || '',
       options: {
@@ -380,10 +470,10 @@ const authService = {
         // Garantir que estamos utilizando a sessão para autenticação
         // Isso é crucial para que as políticas RLS funcionem
         if (data.session) {
-          await supabase.auth.setSession(data.session);
+          await supabaseClient.auth.setSession(data.session);
           
           // Criar um novo cliente com o token da sessão para garantir autenticação
-          const authenticatedSupabase = supabase;
+          const authenticatedSupabase = supabaseClient;
         
         // Criando o objeto com todos os campos possíveis que podem ser necessários
         const artistRecord = {
@@ -429,106 +519,100 @@ const authService = {
    * @returns void
    */
   async signOut() {
-    const { error } = await supabase.auth.signOut();
-    
+    const supabaseClient = getSupabaseBrowserClient();
+    const { error } = await supabaseClient.auth.signOut();
     if (error) {
       throw error;
     }
   },
-  
+
   /**
    * Obter o usuario logado atualmente
    * @returns A sessao do usuario atual
    */
   async getCurrentUser() {
-    try {
-      // Primeiro verifica se há uma sessão ativa
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        return null;
-      }
-      
-      if (!sessionData.session) {
-        return null;
-      }
-      
-      // Agora que sabemos que há uma sessão, obtém os dados do usuário
-      const { data, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        return null;
-      }
-      
-      return data.user;
-    } catch (error) {
+    const supabaseClient = getSupabaseBrowserClient();
+    // Primeiro verifica se há uma sessão ativa
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    
+    if (sessionError) {
       return null;
     }
+    
+    if (!sessionData.session) {
+      return null;
+    }
+    
+    // Agora que sabemos que há uma sessão, obtém os dados do usuário
+    const { data, error } = await supabaseClient.auth.getUser();
+    
+    if (error) {
+      return null;
+    }
+    
+    return data.user;
   },
-  
+
   /**
    * Verificar se o usuário atual é um artista
    * @returns Boolean indicando se é artista
    */
   async isArtist() {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      
-      if (!user.user) return false;
-      
-      // First check if the is_artist flag is set in user metadata
-      if (user.user.user_metadata && user.user.user_metadata.is_artist === true) {
-        // Se é artista conforme metadados, vamos garantir que exista na tabela
-        try {
-          // Verificar se já existe na tabela
-          const { count, error } = await supabase
+    const supabaseClient = getSupabaseBrowserClient();
+    const { data: user } = await supabaseClient.auth.getUser();
+    
+    if (!user.user) return false;
+    
+    // First check if the is_artist flag is set in user metadata
+    if (user.user.user_metadata && user.user.user_metadata.is_artist === true) {
+      // Se é artista conforme metadados, vamos garantir que exista na tabela
+      try {
+        // Verificar se já existe na tabela
+        const { count, error } = await supabaseClient
+          .from('artists')
+          .select('id', { count: 'exact' })
+          .eq('id', user.user.id);
+            
+        // Se não existe e não houve erro de permissão, criar o registro
+        if (count === 0 && !error) {
+          const userMetadata = user.user.user_metadata || {};
+            
+          // Criar registro na tabela artists
+          const artistRecord = {
+            id: user.user.id,
+            name: userMetadata.name || user.user.email?.split('@')[0] || 'Artista',
+            email: user.user.email,
+            bio: userMetadata.bio || null,
+            phone: userMetadata.phone || null,
+            monetization_plan_id: userMetadata.monetization_plan_id || null,
+            profile_image_url: userMetadata.profile_image_url || null,
+            social_links: userMetadata.social_links || null,
+          };
+            
+          await supabaseClient
             .from('artists')
-            .select('id', { count: 'exact' })
-            .eq('id', user.user.id);
-            
-          // Se não existe e não houve erro de permissão, criar o registro
-          if (count === 0 && !error) {
-            const userMetadata = user.user.user_metadata || {};
-            
-            // Criar registro na tabela artists
-            const artistRecord = {
-              id: user.user.id,
-              name: userMetadata.name || user.user.email?.split('@')[0] || 'Artista',
-              email: user.user.email,
-              bio: userMetadata.bio || null,
-              phone: userMetadata.phone || null,
-              monetization_plan_id: userMetadata.monetization_plan_id || null,
-              profile_image_url: userMetadata.profile_image_url || null,
-              social_links: userMetadata.social_links || null,
-            };
-            
-            await supabase
-              .from('artists')
-              .upsert(artistRecord, { onConflict: 'id' });
-          }
-        } catch (syncError) {
-          // Continua considerando como artista mesmo se falhar a sincronização
+            .upsert(artistRecord, { onConflict: 'id' });
         }
-        
-        return true;
+      } catch (syncError) {
+        // Continua considerando como artista mesmo se falhar a sincronização
       }
-      
-      // Verificar na tabela de artistas
-      const { count, error } = await supabase
-        .from('artists')
-        .select('id', { count: 'exact' })
-        .eq('id', user.user.id);
         
-      if (error) {
-        // Fallback to user metadata if DB query fails
-        return !!(user.user.user_metadata && user.user.user_metadata.is_artist);
-      }
-      
-      // Check if count is greater than 0 to determine if user is an artist
-      return count !== null && count > 0;
-    } catch (error) {
-      return false;
+      return true;
     }
+    
+    // Verificar na tabela de artistas
+    const { count, error } = await supabaseClient
+      .from('artists')
+      .select('id', { count: 'exact' })
+      .eq('id', user.user.id);
+        
+    if (error) {
+      // Fallback to user metadata if DB query fails
+      return !!(user.user.user_metadata && user.user.user_metadata.is_artist);
+    }
+    
+    // Check if count is greater than 0 to determine if user is an artist
+    return count !== null && count > 0;
   },
 
   /**
@@ -537,39 +621,36 @@ const authService = {
    * @returns Boolean indicando se o email está confirmado
    */
   async isEmailVerified(userId?: string) {
-    try {
-      // Primeiro, verificar se existe uma sessão ativa
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        return false;
-      }
-      
-      if (!sessionData.session) {
-        return false;
-      }
-      
-      let user;
-      
-      if (userId) {
-        // Se um ID específico foi fornecido, tente buscar esse usuário via admin (não implementado)
-        // Isso só seria possível com funções Edge/Server pelo Supabase
-        return false;
-      } else {
-        // Buscar usuário atual
-        const { data, error } = await supabase.auth.getUser();
-        if (error) {
-          return false;
-        }
-        user = data.user;
-      }
-
-      if (!user) return false;
-      
-      // O Supabase define email_confirmed_at quando o email é verificado
-      return user.email_confirmed_at !== null;
-    } catch (error) {
+    const supabaseClient = getSupabaseBrowserClient();
+    // Primeiro, verificar se existe uma sessão ativa
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError) {
       return false;
     }
+    
+    if (!sessionData.session) {
+      return false;
+    }
+    
+    let user;
+    
+    if (userId) {
+      // Se um ID específico foi fornecido, tente buscar esse usuário via admin (não implementado)
+      // Isso só seria possível com funções Edge/Server pelo Supabase
+      return false;
+    } else {
+      // Buscar usuário atual
+      const { data, error } = await supabaseClient.auth.getUser();
+      if (error) {
+        return false;
+      }
+      user = data.user;
+    }
+
+    if (!user) return false;
+    
+    // O Supabase define email_confirmed_at quando o email é verificado
+    return user.email_confirmed_at !== null;
   },
 
   /**
@@ -578,20 +659,17 @@ const authService = {
    * @returns Status da operação
    */
   async resendVerificationEmail(email: string) {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-      
-      if (error) {
-        return { success: false, error: error.message };
-      }
-      
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Erro desconhecido' };
+    const supabaseClient = getSupabaseBrowserClient();
+    const { error } = await supabaseClient.auth.resend({
+      type: 'signup',
+      email: email,
+    });
+    
+    if (error) {
+      return { success: false, error: error.message };
     }
+    
+    return { success: true };
   },
 
   /**
@@ -600,47 +678,43 @@ const authService = {
    * @returns Status da operação
    */
   async configureRlsPolicies() {
-    try {
-      // Verifica se o usuário atual tem privilégios de admin
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user || !user.user.app_metadata || !user.user.app_metadata.role || user.user.app_metadata.role !== 'admin') {
-        throw new Error('Você não tem permissão para configurar políticas RLS');
-      }
-
-      // Execute SQL para criar políticas RLS para usuários
-      const { error: usersError } = await supabase.rpc('execute_sql', {
-        sql: `
-          DROP POLICY IF EXISTS users_insert ON users;
-          CREATE POLICY users_insert ON users 
-            FOR INSERT WITH CHECK (auth.uid() = id);
-        `
-      });
-
-      if (usersError) {
-        console.error('Erro ao configurar política RLS para usuários:', usersError);
-        return { success: false, error: usersError };
-      }
-
-      // Execute SQL para criar políticas RLS para artistas
-      const { error: artistsError } = await supabase.rpc('execute_sql', {
-        sql: `
-          DROP POLICY IF EXISTS artists_insert ON artists;
-          CREATE POLICY artists_insert ON artists 
-            FOR INSERT WITH CHECK (auth.uid() = id);
-        `
-      });
-
-      if (artistsError) {
-        console.error('Erro ao configurar política RLS para artistas:', artistsError);
-        return { success: false, error: artistsError };
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Exceção ao configurar políticas RLS:', error);
-      return { success: false, error };
+    const supabaseClient = getSupabaseBrowserClient();
+    // Verifica se o usuário atual tem privilégios de admin
+    const { data: user } = await supabaseClient.auth.getUser();
+    if (!user.user || !user.user.app_metadata || !user.user.app_metadata.role || user.user.app_metadata.role !== 'admin') {
+      throw new Error('Você não tem permissão para configurar políticas RLS');
     }
+
+    // Execute SQL para criar políticas RLS para usuários
+    const { error: usersError } = await supabaseClient.rpc('execute_sql', {
+      sql: `
+        DROP POLICY IF EXISTS users_insert ON users;
+        CREATE POLICY users_insert ON users 
+          FOR INSERT WITH CHECK (auth.uid() = id);
+      `
+    });
+
+    if (usersError) {
+      console.error('Erro ao configurar política RLS para usuários:', usersError);
+      return { success: false, error: usersError };
+    }
+
+    // Execute SQL para criar políticas RLS para artistas
+    const { error: artistsError } = await supabaseClient.rpc('execute_sql', {
+      sql: `
+        DROP POLICY IF EXISTS artists_insert ON artists;
+        CREATE POLICY artists_insert ON artists 
+          FOR INSERT WITH CHECK (auth.uid() = id);
+      `
+    });
+
+    if (artistsError) {
+      console.error('Erro ao configurar política RLS para artistas:', artistsError);
+      return { success: false, error: artistsError };
+    }
+
+    return { success: true };
   }
 };
 
-export default authService; 
+export default authService;
