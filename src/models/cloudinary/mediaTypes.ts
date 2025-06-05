@@ -28,7 +28,8 @@ export interface AudioMetadata extends MediaMetadata {
 
 // Video-specific metadata
 export interface VideoMetadata extends MediaMetadata {
-  isVideoClip: boolean;
+  isVideoClip?: boolean;
+
   director?: string;
   featuredArtists?: string[];
 }
@@ -117,4 +118,4 @@ export interface MediaAsset {
   transformedUrls: Record<string, string>;
   metadata: MediaMetadata | AudioMetadata | VideoMetadata | ImageMetadata;
   type: 'audio' | 'video' | 'image';
-} 
+}

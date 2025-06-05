@@ -48,31 +48,23 @@ export default function LoginPage() {
       const errorMessage = searchParams.get('message');
       const clearCookies = searchParams.get('clear_cookies') === 'true';
       
-      // Se tiver a flag clear_cookies, limpar todos os tokens do Supabase
+      // Se tiver a flag clear_cookies, limpar apenas os tokens necessários do Supabase
+      // Abordagem mais seletiva para evitar lentidão
       if (clearCookies && typeof window !== 'undefined') {
-        console.log('Limpando cookies e localStorage devido a problema de autenticação');
+        console.log('Limpando tokens de autenticação específicos');
         
-        // Limpar localStorage
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('sb-')) {
-            localStorage.removeItem(key);
-          }
-        });
+        // Obter o prefixo específico do projeto Supabase
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const projectId = supabaseUrl.match(/https:\/\/([^.]+)\./)?.[1] || 'unknown';
+        const storagePrefix = `sb-${projectId}`;
         
-        // Limpar sessionStorage
-        Object.keys(sessionStorage || {}).forEach(key => {
-          if (key.startsWith('sb-')) {
-            sessionStorage.removeItem(key);
-          }
-        });
+        // Limpar apenas os tokens de autenticação específicos
+        const authTokenKey = `${storagePrefix}-auth-token`;
+        localStorage.removeItem(authTokenKey);
+        sessionStorage?.removeItem(authTokenKey);
         
-        // Limpar cookies relacionados ao Supabase
-        document.cookie.split(';').forEach(cookie => {
-          const [name] = cookie.trim().split('=');
-          if (name && (name.includes('sb-') || name.includes('auth'))) {
-            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-          }
-        });
+        // Limpar apenas o cookie de autenticação específico
+        document.cookie = `${authTokenKey}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
       }
       
       if (errorParam) {
@@ -90,12 +82,23 @@ export default function LoginPage() {
         // Limpar storage em caso de erros relacionados à sessão
         if (['session_expired', 'no_code', 'invalid_code', 'pkce_error'].includes(errorParam)) {
           if (typeof window !== 'undefined') {
-            // Limpar tokens específicos do Supabase
+            // Limpar tokens específicos do Supabase de localStorage para todos estes erros
             Object.keys(localStorage).forEach(key => {
               if (key.startsWith('sb-')) {
                 localStorage.removeItem(key);
               }
             });
+
+            // Para sessionStorage, limpar todos os itens 'sb-' APENAS se NÃO for pkce_error.
+            // Para pkce_error, o 'clear_cookies=true' já lida com o 'sb-...-auth-token' em sessionStorage,
+            // e não queremos remover um novo 'code_verifier' que possa ter sido definido.
+            if (errorParam !== 'pkce_error') {
+              Object.keys(sessionStorage).forEach(key => { 
+                if (key.startsWith('sb-')) {
+                  sessionStorage.removeItem(key);
+                }
+              });
+            }
           }
         }
 
@@ -131,7 +134,25 @@ export default function LoginPage() {
 
   // Login com Google
   const handleGoogleLogin = async () => {
-    await loginWithOAuth('google');
+    try {
+      // Clear any previous error messages
+      setAuthError(null);
+      
+      // Import our OAuth utility dynamically
+      const { initiateOAuthSignIn } = await import('@/utils/supabaseOAuth');
+      
+      console.log(`Iniciando login com Google como ${userType}...`);
+      
+      // Call our direct OAuth utility
+      // This will handle localStorage, sessionStorage cleaning, and the redirect
+      await initiateOAuthSignIn('google', userType);
+      
+      // If we reach this point, the redirect didn't happen (which shouldn't occur in normal operation)
+      console.warn('Redirecionamento OAuth não ocorreu como esperado');
+    } catch (error) {
+      console.error('Erro ao iniciar login com Google:', error);
+      setAuthError('Erro ao iniciar login com Google. Tente novamente.');
+    }
   };
 
   // Alternar visibilidade da senha
@@ -332,7 +353,7 @@ useEffect(() => {
                 <hr className="flex-grow border-gray-700" />
               </div>
 
-              {/* Botão do Google */}
+              {/* Botão do Google
               <motion.button
                 type="button"
                 onClick={handleGoogleLogin}
@@ -344,7 +365,7 @@ useEffect(() => {
               >
                 <FaGoogle className="mr-2 text-red-500" />
                 Entrar com Google
-              </motion.button>
+              </motion.button> */}
 
               {/* Link para Registro */}
               <p className="mt-6 text-center text-gray-500 text-sm">

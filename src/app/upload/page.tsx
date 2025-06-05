@@ -23,7 +23,10 @@ import {
   FaHeadphones,
   FaQuestion,
   FaSearch,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaCompactDisc,
+  FaVideo,
+  FaArrowRight
 } from 'react-icons/fa'
 
 export default function UploadPage() {
@@ -33,6 +36,9 @@ export default function UploadPage() {
     uploadAudio, 
     resetUploadState 
   } = useCloudinaryUpload();
+  
+  // Estado para controlar se estamos na tela de seleção ou no upload
+  const [uploadMode, setUploadMode] = useState<'select' | 'single' | 'album' | 'video'>('select');
 
   // Estados para gerenciar o upload e formulário
   const [uploadStep, setUploadStep] = useState<'initial' | 'details' | 'success' | 'error'>('initial')
@@ -103,7 +109,7 @@ export default function UploadPage() {
     }
   }, [uploadState]);
   
-  // Loading state
+  // Loading state for auth check
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -115,6 +121,77 @@ export default function UploadPage() {
     );
   }
 
+  // Upload in progress state
+  if (uploadState.isUploading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full bg-gray-800/80 rounded-xl p-8 shadow-lg border border-gray-700">
+          {/* Progress bar */}
+          <div className="relative w-full h-3 bg-gray-700 rounded-full mb-6 overflow-hidden">
+            <div 
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-300 ease-out"
+              style={{ width: `${uploadState.progress}%` }}
+            />
+            {/* Progress markers */}
+            <div className="absolute top-0 left-0 w-full h-full flex justify-between px-[2px]">
+              <div className={`h-full w-0.5 ${uploadState.progress >= 25 ? 'bg-white/30' : 'bg-gray-600'} rounded-full`} style={{ left: '25%' }}></div>
+              <div className={`h-full w-0.5 ${uploadState.progress >= 50 ? 'bg-white/30' : 'bg-gray-600'} rounded-full`} style={{ left: '50%' }}></div>
+              <div className={`h-full w-0.5 ${uploadState.progress >= 75 ? 'bg-white/30' : 'bg-gray-600'} rounded-full`} style={{ left: '75%' }}></div>
+            </div>
+          </div>
+          
+          {/* Animated spinner */}
+          <div className="flex flex-col items-center">
+            <div className="relative w-24 h-24 mb-6">
+              <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+              <div className="absolute inset-2 rounded-full border-4 border-indigo-300 border-b-transparent animate-spin-reverse"></div>
+              <div className="absolute inset-4 rounded-full border-4 border-indigo-400 border-l-transparent animate-pulse"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-bold text-white">{uploadState.progress}%</span>
+              </div>
+            </div>
+            
+            {/* Upload stage indicators */}
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-2">Enviando seu arquivo...</h2>
+              <p className="text-gray-300 mb-4">
+                {uploadState.progress < 30 && "Preparando arquivos..."}
+                {uploadState.progress >= 30 && uploadState.progress < 60 && "Enviando para o servidor..."}
+                {uploadState.progress >= 60 && uploadState.progress < 90 && "Processando mídia..."}
+                {uploadState.progress >= 90 && "Finalizando upload..."}
+              </p>
+            </div>
+            
+            {/* File details */}
+            <div className="w-full bg-gray-700/50 rounded-lg p-4 mb-4 text-left">
+              <div className="flex items-center mb-2">
+                <div className="w-8 h-8 bg-indigo-600/30 rounded-full flex items-center justify-center mr-3">
+                  <FaMusic className="text-indigo-400" />
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-medium text-white truncate">{title || audioName}</p>
+                  <p className="text-xs text-gray-400">{audioFile?.size ? `${(audioFile.size / (1024 * 1024)).toFixed(2)} MB` : ''}</p>
+                </div>
+              </div>
+              {coverImageFile && (
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-indigo-600/30 rounded-full flex items-center justify-center mr-3">
+                    <FaImage className="text-indigo-400" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="font-medium text-white truncate">Capa</p>
+                    <p className="text-xs text-gray-400">{coverImageFile?.size ? `${(coverImageFile.size / (1024 * 1024)).toFixed(2)} MB` : ''}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-sm text-gray-500">Por favor, não feche esta janela durante o upload.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   // Verificação de artista
   if (!isArtist) {
     return (
@@ -132,6 +209,68 @@ export default function UploadPage() {
     );
   }
   
+  // Tela de seleção do tipo de upload
+  if (uploadMode === 'select') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white py-12">
+        <div className="max-w-4xl mx-auto p-6 bg-gray-800 rounded-xl shadow-lg">
+          <h1 className="text-3xl font-bold mb-8 text-center">Fazer Upload</h1>
+          
+          <p className="text-gray-300 mb-8 text-center">
+            Escolha o tipo de conteúdo que você deseja compartilhar com seus fãs.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {/* Opção de música individual */}
+            <div onClick={() => setUploadMode('single')} className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105">
+              <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
+                <FaMusic className="text-4xl text-indigo-400" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Música</h2>
+              <p className="text-gray-400 text-center mb-4">Upload de uma faixa individual com capa personalizada.</p>
+              <button className="flex items-center text-indigo-400 hover:text-indigo-300">
+                <span>Começar</span>
+                <FaArrowRight className="ml-2" />
+              </button>
+            </div>
+            
+            {/* Opção de álbum */}
+            <div className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105">
+              <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
+                <FaCompactDisc className="text-4xl text-indigo-400" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Álbum</h2>
+              <p className="text-gray-400 text-center mb-4">Upload de um álbum completo com múltiplas faixas.</p>
+              <Link href="/upload/album" className="flex items-center text-indigo-400 hover:text-indigo-300">
+                <span>Começar</span>
+                <FaArrowRight className="ml-2" />
+              </Link>
+            </div>
+            
+            {/* Opção de vídeo */}
+            <div onClick={() => setUploadMode('video')} className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105">
+              <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
+                <FaVideo className="text-4xl text-indigo-400" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Vídeo</h2>
+              <p className="text-gray-400 text-center mb-4">Upload de videoclipes ou performances ao vivo.</p>
+              <button className="flex items-center text-indigo-400 hover:text-indigo-300">
+                <span>Começar</span>
+                <FaArrowRight className="ml-2" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Voltar para a tela de seleção
+  const handleBackToSelection = () => {
+    setUploadStep('initial');
+    setUploadMode('select');
+    resetUploadState();
+  };
   // Manipuladores de arquivo de áudio
   const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -385,25 +524,34 @@ export default function UploadPage() {
           </p>
         </div>
         
-        <div className="flex justify-center space-x-4">
-          <motion.button
-            onClick={() => setUploadStep('details')}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+        <div className="flex justify-between space-x-4">
+          <button
+            onClick={handleBackToSelection}
+            className="py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
           >
-            Tentar novamente
-          </motion.button>
+            Voltar
+          </button>
           
-          <motion.button
-            onClick={handleCancelUpload}
-            className="bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition-colors"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-          >
-            Cancelar
-          </motion.button>
-      </div>
+          <div className="flex space-x-2">
+            <motion.button
+              onClick={() => setUploadStep('details')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              Tentar novamente
+            </motion.button>
+            
+            <motion.button
+              onClick={handleCancelUpload}
+              className="bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              Cancelar
+            </motion.button>
+          </div>
+        </div>
       </motion.div>
     );
   }

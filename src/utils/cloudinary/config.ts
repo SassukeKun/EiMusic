@@ -13,14 +13,18 @@ export interface CloudinaryConfig {
 
 // Folder structure for organizing assets in Cloudinary
 export const CLOUDINARY_FOLDERS = {
-  ARTISTS: 'eimusic/artists',
+  ROOT: 'eimusic',
+  ARTISTS: 'eimusic',
   USERS: 'eimusic/users',
-  AUDIO: 'audio',
+  SINGLE: 'single',
+  ALBUM: 'album',
   VIDEO: 'video',
   IMAGES: 'images',
   PROFILE: 'profile',
-  COVER_ART: 'cover-art',
+  COVER_ART: 'cover',
   THUMBNAILS: 'thumbnails',
+  METADATA: 'metadata'
+
 };
 
 /**
@@ -37,22 +41,32 @@ export function getCloudinaryConfig(): CloudinaryConfig {
 
 /**
  * Generate folder path for artist media
- * @param artistId Artist unique ID
- * @param mediaType Type of media (audio, video)
- * @param mediaId Unique ID for the media item
+ * @param artistId Artist unique ID or artist name
+ * @param mediaType Type of media (single, album, video, profile)
+ * @param title Title of the media item (song name, album name, video name)
  */
 export function getArtistMediaPath(
   artistId: string,
-  mediaType: 'audio' | 'video' | 'cover-art' | 'profile',
-  mediaId?: string
+  mediaType: 'single' | 'album' | 'video' | 'profile',
+  title?: string
 ): string {
-  const basePath = `${CLOUDINARY_FOLDERS.ARTISTS}/${artistId}`;
+  // Convert artist name to lowercase and remove special characters for folder name
+  const safeArtistId = artistId.toLowerCase().replace(/[^a-z0-9]/g, '');
   
-  if (!mediaId) {
+  // Base path for the artist
+  const basePath = `${CLOUDINARY_FOLDERS.ROOT}/${safeArtistId}`;
+  
+  // If no title provided, return the path to the media type folder
+  if (!title) {
     return `${basePath}/${mediaType}`;
   }
   
-  return `${basePath}/${mediaType}/${mediaId}`;
+  // Convert title to safe folder name (lowercase, no special chars)
+  const safeTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  
+  // Return complete path including title
+  return `${basePath}/${mediaType}/${safeTitle}`;
+
 }
 
 /**

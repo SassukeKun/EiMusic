@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import cloudinaryService, { AudioMetadata, VideoMetadata, CloudinaryUploadResult } from '@/services/cloudinaryService'
+import { v4 as uuidv4 } from 'uuid'
 
 export interface UploadProgress {
   isUploading: boolean
@@ -109,11 +110,19 @@ export function useCloudinaryUpload(): UseCloudinaryUploadReturn {
       
       // Se também tiver uma imagem de capa, fazer upload
       if (coverArt && result) {
-        // O trackId está no publicId, extrair da pasta no formato eimusic/artists/{artistId}/audio/{trackId}
+        // O trackId está no publicId, extrair da pasta
+        // Na nova estrutura, o caminho é eimusic/{artistId}/single/{track_title}
         const pathParts = result.publicId.split('/')
-        const trackId = pathParts[pathParts.length - 2] // Penúltima parte do caminho
         
-        await cloudinaryService.uploadCoverArt(user.id, trackId, coverArt)
+        // Usamos o ID da faixa, mas também passamos o título para manter consistência no caminho
+        const trackId = uuidv4() // Gerar um ID único para referência
+        
+        await cloudinaryService.uploadCoverArt(
+          user.id, 
+          trackId, 
+          coverArt,
+          fullMetadata.title // Passar o título da faixa para garantir o mesmo caminho
+        )
       }
       
       // Limpar intervalo de simulação

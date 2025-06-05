@@ -94,15 +94,24 @@ export function useSecureCloudinaryUpload(): UseSecureCloudinaryUploadReturn {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
       
-      // Add all required parameters
+      // Add all required parameters including upload preset
       formData.append('file', file);
+      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'eimusic_upload_preset');
       formData.append('api_key', params.apiKey);
       formData.append('timestamp', params.timestamp);
       formData.append('signature', params.signature);
       formData.append('folder', params.folder);
       formData.append('public_id', params.publicId);
       formData.append('resource_type', params.resourceType);
-      
+
+      // Add context and tags if provided
+      if (params.context) {
+        formData.append('context', JSON.stringify(params.context));
+      }
+      if (params.tags) {
+        formData.append('tags', params.tags.join(','));
+      }
+
       // Setup progress monitoring
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable && onProgress) {
@@ -388,4 +397,4 @@ export function useSecureCloudinaryUpload(): UseSecureCloudinaryUploadReturn {
     uploadProfileImage,
     resetUploadState
   };
-} 
+}

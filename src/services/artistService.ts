@@ -1,4 +1,4 @@
-import supabase from '../utils/supabaseClient';
+import { getSafeSupabaseClient } from '../utils/supabaseClient';
 import { Artist, CreateArtistInput } from '../models/artist';
 import { Track } from '../models/track';
 
@@ -12,6 +12,7 @@ export const artistService = {
    * @returns Dados do artista ou null se nao encontrado
    */
   async getArtistById(id: string): Promise<Artist | null> {
+    const supabase = getSafeSupabaseClient();
     // Obter artista do Supabase 
     const { data, error } = await supabase
       .from('artists')
@@ -32,6 +33,7 @@ export const artistService = {
    * @returns Lista de musicas do artista
    */
   async getArtistTracks(artistId: string): Promise<Track[]> {
+    const supabase = getSafeSupabaseClient();
     // Obter musicas de um artista especifico
     const { data, error } = await supabase
       .from('tracks')
@@ -52,6 +54,7 @@ export const artistService = {
    * @returns Dados do artista criado
    */
   async createArtist(artistData: CreateArtistInput): Promise<Artist> {
+    const supabase = getSafeSupabaseClient();
     // Criar novo artista no Supabase
     const { data, error } = await supabase
       .from('artists')
@@ -73,6 +76,7 @@ export const artistService = {
    * @returns Dados do artista atualizados
    */
   async updateArtist(id: string, artistData: Partial<Artist>): Promise<Artist> {
+    const supabase = getSafeSupabaseClient();
     // Atualizar artista no Supabase
     const { data, error } = await supabase
       .from('artists')
@@ -94,6 +98,7 @@ export const artistService = {
    * @returns Lista de artistas em alta
    */
   async getTrendingArtists(limit: number = 10): Promise<Artist[]> {
+    const supabase = getSafeSupabaseClient();
     // Obter artistas em alta do Supabase
     // Este teria um criterio mais complexo em um app real
     const { data, error } = await supabase
