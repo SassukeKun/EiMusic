@@ -99,6 +99,7 @@ export default function HomePage() {
       count: "24 músicas"
     },
     {
+      
       id: "3",
       title: "Clássicos Africanos",
       image: "https://images.unsplash.com/photo-1532953593254-4af21ac275b3?auto=format&fit=crop&w=600&q=80",
