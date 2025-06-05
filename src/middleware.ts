@@ -4,101 +4,89 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  
+  const path = req.nextUrl.pathname;
+  const requestTimestamp = new Date().toISOString();
+  console.log(`[${requestTimestamp}] Middleware triggered for path: ${path}`);
+
   // Verificar se há erros de OAuth na URL
   const url = req.nextUrl;
-  const error = url.searchParams.get('error');
+  const errorParam = url.searchParams.get('error');
   const errorCode = url.searchParams.get('error_code');
-  
-  // Interceptar erros de OAuth e redirecionar para a página de login
-  if (error && (errorCode === 'bad_oauth_state' || error === 'invalid_request')) {
-    console.error('Erro OAuth detectado no middleware:', error, errorCode);
+
+  if (errorParam && (errorCode === 'bad_oauth_state' || errorParam === 'invalid_request')) {
+    console.error(`[${requestTimestamp}] OAuth error detected in middleware: ${errorParam}, Code: ${errorCode}`);
     const errorDescription = url.searchParams.get('error_description') || 'Erro na autenticação OAuth';
-    
-    // Redirecionar para a página de login com a mensagem de erro
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('error', 'oauth_error');
     loginUrl.searchParams.set('message', errorDescription.replace(/\+/g, ' '));
     loginUrl.searchParams.set('clear_cookies', 'true');
-    
     return NextResponse.redirect(loginUrl);
   }
-  
+
   try {
-    // Create a Supabase client for the middleware
     const supabase = createMiddlewareClient({ req, res });
-    
-    // Refresh the session if it exists
+    console.log(`[${requestTimestamp}] Supabase client created for path: ${path}`);
+
     const {
       data: { session },
-      error,
+      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (error) {
-      // Se houver erro na sessão nas rotas protegidas, redirecionar para login
-      // Mas somente se for uma rota protegida
-      const path = req.nextUrl.pathname;
-      const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
-      
-      if (protectedRoutes.some(route => path.startsWith(route))) {
-        return NextResponse.redirect(new URL('/login?error=session_refresh_failed', req.url));
+    if (sessionError) {
+      console.error(`[${requestTimestamp}] Error getting session for path ${path}:`, sessionError.message);
+      const protectedRoutesForError = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
+      if (protectedRoutesForError.some(route => path.startsWith(route))) {
+        console.log(`[${requestTimestamp}] Redirecting to /login due to session error on protected route: ${path}`);
+        return NextResponse.redirect(new URL('/login?error=session_refresh_failed&from_middleware_error=true', req.url));
       }
-      // Se não for uma rota protegida, apenas continua
-      return res;
+      return res; 
     }
 
-    // Protected routes that require authentication
-    const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
-    
-    // Auth routes (login, register)
-    const authRoutes = ['/login', '/register'];
-    
-    // Current path
-    const path = req.nextUrl.pathname;
-    
-    // Se estamos numa página de dashboard ou perfil sem sessão, redirecionar para login
-    if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
-      return NextResponse.redirect(new URL('/login', req.url));
+    if (session) {
+      console.log(`[${requestTimestamp}] Session found for path ${path}. User ID: ${session.user.id}, Email: ${session.user.email}`);
+      if (session.user.user_metadata) {
+        console.log(`[${requestTimestamp}] User metadata:`, JSON.stringify(session.user.user_metadata));
+      } else {
+        console.log(`[${requestTimestamp}] No user_metadata found in session.`);
+      }
+    } else {
+      console.log(`[${requestTimestamp}] No session found for path ${path}.`);
     }
-    
-    // Rota de upload: verificar se o usuário é artista
+
+    const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
+    const authRoutes = ['/login', '/register'];
+
+    if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
+      console.log(`[${requestTimestamp}] Accessing protected route ${path} without session. Redirecting to /login.`);
+      return NextResponse.redirect(new URL('/login?from_middleware_no_session=true', req.url));
+    }
+
     if (path.startsWith('/upload')) {
-      // Se temos sessão, verificar se é artista
       if (session) {
-        const { data: userData } = await supabase.auth.getUser();
-        const isArtist = userData?.user?.user_metadata?.is_artist === true;
-        
-        // Se não for artista, redirecionar para a página inicial
+        const isArtist = session.user?.user_metadata?.is_artist === true;
+        console.log(`[${requestTimestamp}] Checking /upload access. User isArtist: ${isArtist}`);
         if (!isArtist) {
-          return NextResponse.redirect(new URL('/', req.url));
+          console.log(`[${requestTimestamp}] User is not artist. Redirecting from /upload to /.`);
+          return NextResponse.redirect(new URL('/?from_middleware_not_artist=true', req.url));
         }
       } else {
-        // Se não temos sessão, já redirecionamos para login acima
+        console.log(`[${requestTimestamp}] Accessing /upload without session (should be caught earlier). Redirecting to /login.`);
+        return NextResponse.redirect(new URL('/login?from_middleware_upload_no_session=true', req.url));
       }
     }
-    
-    // Se o usuário já está autenticado (com sessão válida) e tenta acessar login ou registro,
-    // redirecioná-lo para a página inicial
+
     if (session && authRoutes.some(route => path === route)) {
-      try {
-        // Verificar se o usuário é artista
-        const { data: userData } = await supabase.auth.getUser();
-        
-        console.log('Middleware redirecionando para a página inicial');
-        // Independente de ser artista ou usuário comum, redirecionamos para a página inicial
-        return NextResponse.redirect(new URL('/', req.url));
-      } catch (err) {
-        console.error('Erro no middleware:', err);
-        // Em caso de erro, vai para a página inicial
-        return NextResponse.redirect(new URL('/', req.url));
-      }
+      console.log(`[${requestTimestamp}] Authenticated user accessing auth route ${path}. Redirecting to /.`);
+      // No need to fetch user data again if already in session, directly redirect.
+      return NextResponse.redirect(new URL('/?from_middleware_auth_route_loggedin=true', req.url));
     }
-    
+
+    console.log(`[${requestTimestamp}] Middleware finished for path: ${path}. Allowing request.`);
     return res;
-  } catch (error) {
-    // Em caso de erro geral, continua a navegação normal em vez de redirecionar
-    // Isso evita loops infinitos quando há problemas no middleware
-    return res;
+  } catch (e: any) {
+    console.error(`[${requestTimestamp}] Critical error in middleware for path ${path}:`, e.message, e.stack);
+    // Return res to avoid redirect loops on critical errors, allowing Next.js to handle.
+    return res; 
   }
 }
 
