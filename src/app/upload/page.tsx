@@ -192,7 +192,6 @@ export default function UploadPage() {
       </div>
     );
   }
-
   // Verificação de artista
   if (!isArtist) {
     return (
@@ -272,7 +271,6 @@ export default function UploadPage() {
     setUploadMode('select');
     resetUploadState();
   };
-  
   // Manipuladores de arquivo de áudio
   const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

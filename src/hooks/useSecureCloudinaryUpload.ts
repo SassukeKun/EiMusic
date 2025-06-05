@@ -111,7 +111,7 @@ export function useSecureCloudinaryUpload(): UseSecureCloudinaryUploadReturn {
       if (params.tags) {
         formData.append('tags', params.tags.join(','));
       }
-      
+
       // Setup progress monitoring
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable && onProgress) {

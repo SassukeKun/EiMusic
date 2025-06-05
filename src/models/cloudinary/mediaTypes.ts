@@ -29,6 +29,7 @@ export interface AudioMetadata extends MediaMetadata {
 // Video-specific metadata
 export interface VideoMetadata extends MediaMetadata {
   isVideoClip?: boolean;
+
   director?: string;
   featuredArtists?: string[];
 }

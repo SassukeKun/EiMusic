@@ -81,6 +81,7 @@ const cloudinaryService = {
       formData.append('file', file);
       formData.append('upload_preset', 'eimusic_upload_preset');
       formData.append('public_id', publicId); // Define o caminho completo inclusive o nome do arquivo
+
       formData.append('resource_type', 'auto');
       
       // Adicionar metadados como tags estruturados
@@ -173,6 +174,7 @@ const cloudinaryService = {
         formData.append('eager', JSON.stringify([
           { width: 640, height: 360, crop: 'fill', quality: 'auto' },
           { width: 1280, height: 720, crop: 'fill', quality: 'auto' }
+
         ]));
       }
       
@@ -218,6 +220,7 @@ const cloudinaryService = {
       // Se foi fornecido um thumbnail personalizado, fazer upload
       if (thumbnailFile) {
         await this.uploadThumbnail(artistId, clipId, thumbnailFile, metadata.title);
+
       }
       
       // Salvar metadados completos em um arquivo JSON no mesmo local
@@ -253,7 +256,7 @@ const cloudinaryService = {
       
       // O public_id define o caminho completo inclusive o nome do arquivo
       const publicId = `${artistId}/single/${cleanTitle}/cover`;
-      
+
       // Upload via API do Cloudinary
       const formData = new FormData();
       formData.append('file', file);
@@ -311,6 +314,7 @@ const cloudinaryService = {
       
       // Public ID completo para o thumbnail
       const publicId = `${artistId}/video/${cleanTitle}/thumbnail`;
+
       
       // Upload via API do Cloudinary
       const formData = new FormData();
@@ -320,6 +324,7 @@ const cloudinaryService = {
       formData.append('resource_type', 'image');
       
       // Não usar transformações eager para evitar erros
+
       
       // Tags para facilitar busca
       formData.append('tags', `artist_${artistId},clip_${clipId},thumbnail`);
@@ -369,6 +374,7 @@ const cloudinaryService = {
     try {
       // Public ID completo para o arquivo de imagem de perfil
       const publicId = `${artistId}/profile/${type}`;
+
       
       // Upload via API do Cloudinary
       const formData = new FormData();
@@ -378,6 +384,7 @@ const cloudinaryService = {
       formData.append('resource_type', 'image');
       
       // Não vamos usar transformações eager para evitar problemas
+
       
       // Tags para facilitar busca
       formData.append('tags', `artist_${artistId},profile,${type}`);
@@ -448,6 +455,7 @@ const cloudinaryService = {
       formData.append('upload_preset', 'eimusic_upload_preset');
       formData.append('public_id', publicId);
       formData.append('resource_type', 'raw'); // Tipo de recurso raw para arquivos JSON
+
       formData.append('tags', `artist_${artistId},${mediaType === 'audio' ? 'track' : 'clip'}_${mediaId},metadata`);
       
       // Fazer o upload para o Cloudinary
