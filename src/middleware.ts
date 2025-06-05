@@ -27,19 +27,47 @@ export async function middleware(req: NextRequest) {
     const supabase = createMiddlewareClient({ req, res });
     console.log(`[${requestTimestamp}] Supabase client created for path: ${path}`);
 
+    // Verificar e atualizar a sessão
     const {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession();
 
+    // Se houver erro na sessão, tentar refresh
     if (sessionError) {
-      console.error(`[${requestTimestamp}] Error getting session for path ${path}:`, sessionError.message);
-      const protectedRoutesForError = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
-      if (protectedRoutesForError.some(route => path.startsWith(route))) {
-        console.log(`[${requestTimestamp}] Redirecting to /login due to session error on protected route: ${path}`);
-        return NextResponse.redirect(new URL('/login?error=session_refresh_failed&from_middleware_error=true', req.url));
+      console.error(`[${requestTimestamp}] Session error:`, sessionError);
+      const { data: refreshedSession } = await supabase.auth.refreshSession();
+      
+      if (!refreshedSession.session) {
+        if (path.startsWith('/upload')) {
+          return NextResponse.redirect(new URL('/login', req.url));
+        }
+        return res;
       }
-      return res; 
+    }
+
+    // Verificar acesso à rota /upload com validação robusta
+    if (path.startsWith('/upload')) {
+      if (!session) {
+        console.log('No session found, redirecting to login');
+        return NextResponse.redirect(new URL('/login', req.url));
+      }
+
+      // Verificação explícita do status de artista
+      const isArtist = session.user?.user_metadata?.is_artist === true;
+      console.log('Artist status check:', {
+        userId: session.user.id,
+        metadata: session.user.user_metadata,
+        isArtist
+      });
+
+      if (!isArtist) {
+        console.log('User is not an artist, redirecting to home');
+        return NextResponse.redirect(new URL('/', req.url));
+      }
+
+      // Se chegou aqui, o usuário é um artista autenticado
+      return res;
     }
 
     if (session) {
@@ -59,20 +87,6 @@ export async function middleware(req: NextRequest) {
     if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
       console.log(`[${requestTimestamp}] Accessing protected route ${path} without session. Redirecting to /login.`);
       return NextResponse.redirect(new URL('/login?from_middleware_no_session=true', req.url));
-    }
-
-    if (path.startsWith('/upload')) {
-      if (session) {
-        const isArtist = session.user?.user_metadata?.is_artist === true;
-        console.log(`[${requestTimestamp}] Checking /upload access. User isArtist: ${isArtist}`);
-        if (!isArtist) {
-          console.log(`[${requestTimestamp}] User is not artist. Redirecting from /upload to /.`);
-          return NextResponse.redirect(new URL('/?from_middleware_not_artist=true', req.url));
-        }
-      } else {
-        console.log(`[${requestTimestamp}] Accessing /upload without session (should be caught earlier). Redirecting to /login.`);
-        return NextResponse.redirect(new URL('/login?from_middleware_upload_no_session=true', req.url));
-      }
     }
 
     if (session && authRoutes.some(route => path === route)) {
@@ -95,4 +109,4 @@ export const config = {
   matcher: [
     '/((?!api|_next/static|_next/image|favicon.ico|public|musicSS.svg).*)',
   ],
-}; 
+};
