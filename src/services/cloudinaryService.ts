@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { createFolderStructure, FolderPaths, MediaType } from '@/utils/cloudinary/folderStructure';
 
 // Tipos para mídia e metadados
 export interface MediaMetadata {
@@ -11,6 +12,7 @@ export interface MediaMetadata {
   duration?: number;
   visibility: 'public' | 'private' | 'followers';
   uploadDate: string;
+  artistName?: string;  // Add artistName property
 }
 
 export interface AudioMetadata extends MediaMetadata {
@@ -65,25 +67,22 @@ const cloudinaryService = {
    */
   async uploadAudio(artistId: string, file: File, metadata: AudioMetadata): Promise<CloudinaryUploadResult> {
     try {
-      // Gerar ID único para a faixa
       const trackId = uuidv4();
+      const folders = createFolderStructure(
+        metadata.artistName || artistId,
+        'single' as MediaType,
+        metadata.title
+      );
       
-      // Definir pasta de destino no Cloudinary seguindo a estrutura correta
-      // eimusic/artista/single/nome_da_single/ficheiros
-      const cleanTitle = metadata.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
-      
-      // Usa public_id para garantir a estrutura de pastas correta
-      // O arquivo principal da faixa é nomeado como 'track'
-      const publicId = `${artistId}/single/${cleanTitle}/track`;
-      
-      // Upload via upload widget ou API do Cloudinary
+      // Create formData with proper folder structure
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', 'eimusic_upload_preset');
-      formData.append('public_id', publicId); // Define o caminho completo inclusive o nome do arquivo
+      formData.append('folder', folders.ficheirosFolder); // Set the folder path
+      formData.append('public_id', `track_main`); // Just the filename, folder is set separately
       formData.append('resource_type', 'auto');
       
-      // Adicionar metadados como tags estruturados
+      // Add context metadata
       formData.append('context', JSON.stringify({
         alt: metadata.title,
         caption: metadata.description || '',
@@ -97,15 +96,15 @@ const cloudinaryService = {
           media_type: 'audio'
         }
       }));
-      
-      // Tags para facilitar busca e organização
-      const tags = [`artist_${artistId}`, `track_${trackId}`, ...(metadata.tags || [])];
-      if (metadata.genre) tags.push(`genre_${metadata.genre.toLowerCase()}`);
-      if (metadata.mood) tags.push(`mood_${metadata.mood.toLowerCase()}`);
-      
+
+      // Add tags
+      const tags = [
+        `artist_${artistId}`, 
+        `track_${trackId}`,
+        ...(metadata.tags || [])
+      ];
       formData.append('tags', tags.join(','));
-      
-      // Fazer o upload para o Cloudinary
+
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/upload`,
         {
@@ -113,16 +112,16 @@ const cloudinaryService = {
           body: formData
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Falha ao fazer upload para o Cloudinary');
       }
-      
+
       const result = await response.json();
-      
-      // Salvar metadados completos em um arquivo JSON no mesmo local
-      await this.saveMetadata(artistId, trackId, 'audio', metadata);
-      
+
+      // Save metadata in the same folder structure
+      await this.saveMetadata(folders, metadata);
+
       return {
         publicId: result.public_id,
         url: result.url,
@@ -145,15 +144,15 @@ const cloudinaryService = {
    * @param thumbnailFile - Opcional: arquivo de thumbnail personalizado
    * @returns Resultado do upload com URLs e IDs
    */
-  async uploadVideo(
-    artistId: string,
-    file: File,
-    metadata: VideoMetadata,
-    thumbnailFile?: File
-  ): Promise<CloudinaryUploadResult> {
+  async uploadVideo(artistId: string, file: File, metadata: VideoMetadata, thumbnailFile?: File): Promise<CloudinaryUploadResult> {
     try {
-      // Gerar ID único para o vídeo
       const clipId = uuidv4();
+      // Create folder structure using the imported utility
+      const folders = createFolderStructure(
+        metadata.artistName || artistId,
+        'video' as MediaType,
+        metadata.title
+      );
       
       // Definir pasta de destino no Cloudinary seguindo a estrutura correta
       const cleanTitle = metadata.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -220,8 +219,8 @@ const cloudinaryService = {
         await this.uploadThumbnail(artistId, clipId, thumbnailFile, metadata.title);
       }
       
-      // Salvar metadados completos em um arquivo JSON no mesmo local
-      await this.saveMetadata(artistId, clipId, 'video', metadata);
+      // Use the new saveMetadata signature with folders
+      await this.saveMetadata(folders, metadata);
       
       return {
         publicId: result.public_id,
@@ -246,27 +245,29 @@ const cloudinaryService = {
    * @param file - Arquivo de imagem
    * @returns Resultado do upload
    */
-  async uploadCoverArt(artistId: string, trackId: string, file: File, trackTitle: string = ''): Promise<CloudinaryUploadResult> {
+  async uploadCoverArt(
+    artistId: string, 
+    trackId: string, 
+    file: File, 
+    metadata: { title: string; artistName?: string }
+  ): Promise<CloudinaryUploadResult> {
     try {
-      // Definir pasta de destino no Cloudinary usando a estrutura correta
-      const cleanTitle = trackTitle.toLowerCase().replace(/[^a-z0-9]/g, '_') || trackId;
-      
-      // O public_id define o caminho completo inclusive o nome do arquivo
-      const publicId = `${artistId}/single/${cleanTitle}/cover`;
-      
-      // Upload via API do Cloudinary
+      const folders = this.createFolderStructure(
+        metadata.artistName || artistId,
+        'single',
+        metadata.title
+      );
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', 'eimusic_upload_preset');
-      formData.append('public_id', publicId); // Caminho completo
+      formData.append('folder', folders.ficheirosFolder);
+      formData.append('public_id', 'cover_art');
       formData.append('resource_type', 'image');
-      
-      // Removemos as transformações para evitar erros
-      
-      // Tags para facilitar busca
+
+      // Add tags
       formData.append('tags', `artist_${artistId},track_${trackId},cover`);
-      
-      // Fazer o upload para o Cloudinary
+
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/upload`,
         {
@@ -274,7 +275,7 @@ const cloudinaryService = {
           body: formData
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Falha ao fazer upload da imagem de capa');
       }
@@ -420,37 +421,26 @@ const cloudinaryService = {
    * @param metadata - Objeto com metadados completos
    */
   async saveMetadata(
-    artistId: string,
-    mediaId: string,
-    mediaType: 'audio' | 'video',
+    folders: FolderPaths,
     metadata: AudioMetadata | VideoMetadata
   ): Promise<void> {
     try {
-      // Determinar o caminho correto com base no tipo de mídia e título
-      const cleanTitle = metadata.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
-      const mediaFolder = mediaType === 'audio' ? 'single' : 'video';
-      
-      // Public ID completo para o arquivo de metadados
-      const publicId = `${artistId}/${mediaFolder}/${cleanTitle}/metadata`;
-      
-      // Converter metadados para string JSON
       const metadataBlob = new Blob(
-        [JSON.stringify(metadata, null, 2)], 
+        [JSON.stringify(metadata, null, 2)],
         { type: 'application/json' }
       );
-      
-      // Criar um arquivo a partir do Blob
-      const metadataFile = new File([metadataBlob], 'metadata.json', { type: 'application/json' });
-      
-      // Upload do arquivo JSON
+
+      const metadataFile = new File([metadataBlob], 'metadata.json', { 
+        type: 'application/json' 
+      });
+
       const formData = new FormData();
       formData.append('file', metadataFile);
       formData.append('upload_preset', 'eimusic_upload_preset');
-      formData.append('public_id', publicId);
-      formData.append('resource_type', 'raw'); // Tipo de recurso raw para arquivos JSON
-      formData.append('tags', `artist_${artistId},${mediaType === 'audio' ? 'track' : 'clip'}_${mediaId},metadata`);
-      
-      // Fazer o upload para o Cloudinary
+      formData.append('folder', folders.ficheirosFolder);
+      formData.append('public_id', 'metadata');
+      formData.append('resource_type', 'raw');
+
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/upload`,
         {
@@ -458,7 +448,7 @@ const cloudinaryService = {
           body: formData
         }
       );
-      
+
       if (!response.ok) {
         throw new Error('Falha ao salvar metadados');
       }
@@ -690,7 +680,32 @@ const cloudinaryService = {
       console.error('Erro ao excluir asset:', error);
       throw error;
     }
+  },
+  
+  /**
+   * Cria a estrutura de pastas no Cloudinary com base no nome do artista, tipo de mídia e título
+   * @param artistName - Nome do artista
+   * @param mediaType - Tipo de mídia (single, album, video)
+   * @param title - Título da faixa ou vídeo
+   * @returns Objeto com os caminhos das pastas criadas
+   */
+  createFolderStructure(artistName: string, mediaType: string, title: string) {
+    // Limpar e formatar o nome do artista, título e tipo de mídia
+    const cleanArtistName = artistName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const cleanTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const mediaFolder = mediaType === 'single' ? 'single' : 'video';
+    
+    // Estrutura de pastas
+    const baseFolder = `eimusic/${mediaFolder}/${cleanArtistName}`;
+    const titleFolder = `${baseFolder}/${cleanTitle}`;
+    
+    return {
+      baseFolder,
+      titleFolder,
+      ficheirosFolder: `${titleFolder}/ficheiros`,
+      metadataFolder: `${titleFolder}/metadata`
+    };
   }
 };
 
-export default cloudinaryService; 
+export default cloudinaryService;

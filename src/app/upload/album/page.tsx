@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { useAlbumUpload } from "@/hooks/useAlbumUpload";
 import {
   FaUpload,
   FaImage,
@@ -31,6 +32,7 @@ import uploadService from "@/services/uploadService";
 // Componente principal para upload de álbum
 export default function AlbumUploadPage() {
   const { isArtist, loading, user } = useAuth();
+  const { uploadAlbum, uploadState: albumUploadState } = useAlbumUpload();
 
   // Estado para gerenciar upload de álbum
   const [uploadStep, setUploadStep] = useState<
@@ -196,61 +198,31 @@ export default function AlbumUploadPage() {
     }
 
     setUploadStep("uploading");
-    setUploadProgress(0);
-
-    // Incrementar o progresso gradualmente para feedback visual
-    const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => {
-        // Limitamos a 90% - os últimos 10% serão quando o upload for realmente concluído
-        return prev < 90 ? prev + 1 : prev;
-      });
-    }, 500);
-
-    // Metadados para o álbum
-    const albumMetadata = {
-      title: albumTitle,
-      description: albumDescription,
-      genre: albumGenre,
-      visibility: albumVisibility,
-      isExplicit,
-      tags: tags.length > 0 ? tags : undefined,
-      releaseDate: releaseDate || new Date().toISOString(),
-    };
 
     try {
-      // Fazer upload do álbum
-      // Verificar se o usuário está autenticado
-      if (!user) {
-        throw new Error("Usuário não autenticado");
+      const metadata = {
+        title: albumTitle,
+        description: albumDescription,
+        genre: albumGenre,
+        releaseDate: releaseDate || new Date().toISOString(),
+        visibility: albumVisibility,
+        isExplicit,
+        tags: tags.length > 0 ? tags : undefined,
+      };
+
+      const result = await uploadAlbum(coverArtFile, trackFiles, metadata);
+
+      if (result) {
+        setUploadResult(result);
+        setUploadStep("success");
+      } else {
+        setError("Falha no upload do álbum");
+        setUploadStep("error");
       }
-
-      // Usamos o nome de exibição do usuário ou um nome padrão para o artista
-      // Para o Supabase, usamos user.user_metadata para dados personalizados
-      const artistName =
-        (user.user_metadata?.full_name as string) ||
-        (user.user_metadata?.name as string) ||
-        (user.email?.split("@")[0] as string) ||
-        `artist_${user.id}_${Date.now()}`;
-
-      const artistId = user.id;
-
-      const result = await uploadService.uploadAlbum(
-        artistId,
-        artistName,
-        coverArtFile,
-        trackFiles,
-        albumMetadata
-      );
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      setUploadResult(result);
-      setUploadStep("success");
     } catch (err: any) {
       console.error("Erro ao fazer upload do álbum:", err);
       setError(err.message || "Ocorreu um erro ao fazer upload do álbum");
       setUploadStep("error");
-      clearInterval(progressInterval);
     }
   };
 
