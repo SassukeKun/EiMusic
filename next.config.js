@@ -1,4 +1,11 @@
 /** @type {import('next').NextConfig} */
+"lh3.googleusercontent.com",
+      "images.unsplash.com", // Adicionado para desenvolvimento
+      "xigubo.com", // Site moçambicano
+      "i1.sndcdn.com", // SoundCloud
+      "i.ytimg.com", // YouTube thumbnails
+      "encrypted-tbn0.gstatic.com" // Google Images
+
 const nextConfig = {
   images: {
     domains: ["res.cloudinary.com", "lh3.googleusercontent.com"],
@@ -10,6 +17,7 @@ const nextConfig = {
       },
     ],
   },
+  
   output: "standalone",
   async redirects() {
     return [

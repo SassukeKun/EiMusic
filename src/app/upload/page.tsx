@@ -553,77 +553,64 @@ export default function UploadPage() {
   }
 
   // Tela de seleção do tipo de upload
-  if (uploadMode === "select") {
+  if (uploadMode === 'select') {
     return (
       <div className="min-h-screen bg-gray-900 text-white py-12">
         <div className="max-w-4xl mx-auto p-6 bg-gray-800 rounded-xl shadow-lg">
           <h1 className="text-3xl font-bold mb-8 text-center">Fazer Upload</h1>
-
+          
           <p className="text-gray-300 mb-8 text-center">
-            Escolha o tipo de conteúdo que você deseja compartilhar com seus
-            fãs.
+            Escolha o tipo de conteúdo que você deseja compartilhar com seus fãs.
           </p>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             {/* Opção de música individual */}
-            <div
-              onClick={() => setUploadMode("single")}
-              className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105"
-            >
+            <div onClick={() => setUploadMode('single')} className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105">
               <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
                 <FaMusic className="text-4xl text-indigo-400" />
               </div>
               <h2 className="text-xl font-bold mb-2">Música</h2>
-              <p className="text-gray-400 text-center mb-4">
-                Upload de uma faixa individual com capa personalizada.
-              </p>
+              <p className="text-gray-400 text-center mb-4">Upload de uma faixa individual com capa personalizada.</p>
               <button className="flex items-center text-indigo-400 hover:text-indigo-300">
                 <span>Começar</span>
                 <FaArrowRight className="ml-2" />
               </button>
             </div>
-
-            {/* Opção de álbum */}
-            <div className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105">
-              <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
-                <FaCompactDisc className="text-4xl text-indigo-400" />
+            
+            {/* CORREÇÃO: Opção de álbum - agora com Link */}
+            <Link href="/upload/album" className="block">
+              <div className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105 h-full">
+                <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
+                  <FaCompactDisc className="text-4xl text-indigo-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">Álbum</h2>
+                <p className="text-gray-400 text-center mb-4">Upload de um álbum completo com múltiplas faixas.</p>
+                <div className="flex items-center text-indigo-400 hover:text-indigo-300 mt-auto">
+                  <span>Começar</span>
+                  <FaArrowRight className="ml-2" />
+                </div>
               </div>
-              <h2 className="text-xl font-bold mb-2">Álbum</h2>
-              <p className="text-gray-400 text-center mb-4">
-                Upload de um álbum completo com múltiplas faixas.
-              </p>
-              <Link
-                href="/upload/album"
-                className="flex items-center text-indigo-400 hover:text-indigo-300"
-              >
-                <span>Começar</span>
-                <FaArrowRight className="ml-2" />
-              </Link>
-            </div>
-
-            {/* Opção de vídeo */}
-            <div
-              onClick={() => setUploadMode("video")}
-              className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105"
-            >
-              <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
-                <FaVideo className="text-4xl text-indigo-400" />
+            </Link>
+            
+            {/* CORREÇÃO: Opção de vídeo - agora com Link em vez de onClick */}
+            <Link href="/upload/video" className="block">
+              <div className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 flex flex-col items-center cursor-pointer transition-all transform hover:scale-105 h-full">
+                <div className="bg-indigo-600/30 rounded-full p-6 mb-4">
+                  <FaVideo className="text-4xl text-indigo-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">Vídeo</h2>
+                <p className="text-gray-400 text-center mb-4">Upload de videoclipes ou performances ao vivo.</p>
+                <div className="flex items-center text-indigo-400 hover:text-indigo-300 mt-auto">
+                  <span>Começar</span>
+                  <FaArrowRight className="ml-2" />
+                </div>
               </div>
-              <h2 className="text-xl font-bold mb-2">Vídeo</h2>
-              <p className="text-gray-400 text-center mb-4">
-                Upload de videoclipes ou performances ao vivo.
-              </p>
-              <button className="flex items-center text-indigo-400 hover:text-indigo-300">
-                <span>Começar</span>
-                <FaArrowRight className="ml-2" />
-              </button>
-            </div>
+            </Link>
           </div>
         </div>
       </div>
     );
   }
-
   // Manipuladores de arquivo de áudio
   const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
