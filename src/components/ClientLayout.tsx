@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar'
 import PlayerBar from '@/components/PlayerBar'
 import { Providers } from '@/utils/providers'
 
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   
