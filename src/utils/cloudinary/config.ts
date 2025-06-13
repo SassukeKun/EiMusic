@@ -24,6 +24,7 @@ export const CLOUDINARY_FOLDERS = {
   COVER_ART: 'cover',
   THUMBNAILS: 'thumbnails',
   METADATA: 'metadata'
+
 };
 
 /**
@@ -65,6 +66,7 @@ export function getArtistMediaPath(
   
   // Return complete path including title
   return `${basePath}/${mediaType}/${safeTitle}`;
+
 }
 
 /**
