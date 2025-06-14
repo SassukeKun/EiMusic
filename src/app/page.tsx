@@ -7,6 +7,12 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FaPlay, FaHeart, FaExclamationTriangle } from 'react-icons/fa'
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
+
+// Types for recent releases
+interface ReleaseBase { id: string; title: string; cover_url: string; created_at: string }
+type RecentRelease = ReleaseBase & { type: 'album' | 'single' };
+
 
 export default function HomePage() {
   const router = useRouter();
@@ -47,43 +53,41 @@ export default function HomePage() {
     description: "Nova música 'No chapa' já disponível"
   };
 
-  const recentReleases = [
-    {
-      id: "1",
-      title: "Nunca tou no Place",
-      artist: "Hernâni & Laylizzy",
-      image: "https://xigubo.com/wp-content/uploads/2022/11/231FEECC-35CF-4DEB-ABC8-621482F88F92-e1669184204697.jpeg",
-      tags: ["Rap"]
-    },
-    {
-      id: "2",
-      title: "Distância",
-      artist: "Nirvana",
-      image: "https://i1.sndcdn.com/artworks-775MIadN8jaJDuCt-JXiSdA-t240x240.jpg",
-      tags: ["Trapsoul"]
-    },
-    {
-      id: "3",
-      title: "Não voltar atrás",
-      artist: "7th Streetz Boyz",
-      image: "https://i1.sndcdn.com/artworks-Ixlqm1BQlHbPwJii-jcEjzA-t240x240.jpg",
-      tags: ["R&B"]
-    },
-    {
-      id: "4",
-      title: "Rivais",
-      artist: "Twenty Fingers",
-      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREBLiwM6nJd2WU594U5jUYr8VG4BVm2CMoLg&s",
-      tags: ["Lovesong"]
-    },
-    {
-      id: "5",
-      title: "Vanabela",
-      artist: "Wizzi Massuke",
-      image: "https://i.ytimg.com/vi/TQpjgrkl19U/maxresdefault.jpg",
-      tags: ["Marabenta"]
-    },
-  ];
+  const [recentReleases, setRecentReleases] = useState<RecentRelease[]>([]);
+
+useEffect(() => {
+  const supabase = getSupabaseBrowserClient();
+  (async () => {
+    const { data: albums } = await supabase
+      .from('albums')
+      .select('id,title,cover_url,created_at')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const { data: singlesData } = await supabase
+      .from('tracks')
+      .select('id,title,file_url,created_at')
+      .is('album_id', null)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const albumRows: ReleaseBase[] = albums ?? [];
+    const singleRows: ReleaseBase[] = (singlesData ?? []).map(s => ({
+      id: s.id,
+      title: s.title,
+      cover_url: s.file_url,
+      created_at: s.created_at,
+    }));
+    const tagged: RecentRelease[] = [
+      ...albumRows.map(a => ({ ...a, type: 'album' as const })),
+      ...singleRows.map(s => ({ ...s, type: 'single' as const })),
+    ];
+    tagged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setRecentReleases(tagged.slice(0, 5));
+  })();
+}, []);
+
+
 
   const topPlaylists = [
     {
@@ -236,13 +240,13 @@ export default function HomePage() {
               {recentReleases.map((release) => (
                 <motion.div
                   key={release.id}
-                  className="group"
+                  className="group cursor-pointer" onClick={() => release.type === 'album' ? router.push(`/albums/${release.id}`) : router.push(`/songs/${release.id}`)}
                   whileHover={{ y: -3 }}
                   transition={{ duration: 0.2 }}
                 >
                   <div className="relative overflow-hidden rounded-lg bg-gray-800 aspect-square mb-1 group-hover:shadow-md w-full max-w-[400px]">
                     <Image
-                      src={release.image}
+                      src={release.cover_url}
                       alt={release.title}
                       fill
                       className="object-cover"
@@ -255,7 +259,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <h3 className="font-medium text-xs truncate">{release.title}</h3>
-                  <p className="text-gray-400 text-xs truncate">{release.artist}</p>
+                  <p className="text-gray-400 text-xs truncate">{release.type === 'album' ? 'Álbum' : 'Single'}</p>
                 </motion.div>
               ))}
             </div>

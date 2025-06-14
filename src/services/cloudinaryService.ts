@@ -252,10 +252,12 @@ const cloudinaryService = {
     metadata: { title: string; artistName?: string }
   ): Promise<CloudinaryUploadResult> {
     try {
-      const folders = this.createFolderStructure(
+      // Fallback content name to trackId if title undefined
+      const contentName = metadata.title || trackId;
+      const folders = createFolderStructure(
         metadata.artistName || artistId,
         'single',
-        metadata.title
+        contentName
       );
 
       const formData = new FormData();

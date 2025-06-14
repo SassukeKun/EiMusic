@@ -121,7 +121,7 @@ export function useCloudinaryUpload(): UseCloudinaryUploadReturn {
           user.id, 
           trackId, 
           coverArt,
-          fullMetadata.title // Passar o título da faixa para garantir o mesmo caminho
+          { title: fullMetadata.title } // Passar o título da faixa para garantir o mesmo caminho
         )
       }
       

@@ -1,8 +1,27 @@
 import { v4 as uuidv4 } from 'uuid';
 import { createFolderStructure, generateCloudinaryPublicId } from '@/utils/cloudinary/folderStructure';
-import { uploadSignedFile, uploadMetadata, CloudinaryUploadResponse } from '@/utils/cloudinary/signedUpload';
-import { VideoMetadata, AudioMetadata } from '@/models/cloudinary/mediaTypes';
+import { uploadSignedFile, uploadMetadata } from '@/utils/cloudinary/signedUpload';
+import { VideoMetadata } from '@/models/cloudinary/mediaTypes';
 import { CLOUDINARY_FOLDERS, getArtistMediaPath } from '@/utils/cloudinary/config';
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
+
+// Helper to get duration from audio file
+async function getAudioDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const audio = document.createElement('audio');
+    audio.preload = 'metadata';
+    const url = URL.createObjectURL(file);
+    audio.src = url;
+    audio.onloadedmetadata = () => {
+      resolve(audio.duration);
+      URL.revokeObjectURL(url);
+    };
+    audio.onerror = () => {
+      reject(new Error('Failed to load audio metadata'));
+      URL.revokeObjectURL(url);
+    };
+  });
+}
 
 // Tipos de mídia para classificação no Cloudinary
 const MEDIA_TYPES = {
@@ -117,12 +136,34 @@ const uploadService = {
         commonTags.join(',')
       );
 
+      // Compute audio duration
+      const computedDuration = await getAudioDuration(file);
+      // Initialize Supabase client
+      const supabase = getSupabaseBrowserClient();
+      // Persist track metadata to Supabase
+      const { data: trackData, error: trackError } = await supabase
+        .from('tracks')
+        .insert([{
+          id: trackId,
+          title: songTitle,
+          artist_id: artistId,
+          duration: computedDuration,
+          file_url: audioResult.secure_url,
+          cover_url: coverArtResult ? coverArtResult.secure_url : null,
+          genre_ids: metadata?.genre ? [metadata.genre] : null,
+          is_explicit: metadata?.isExplicit || false
+        }]);
+      if (trackError) {
+        console.error('Error inserting track to Supabase:', trackError);
+        throw trackError;
+      }
+
       return {
         trackId,
         url: audioResult.secure_url,
         publicId: audioResult.public_id,
         format: audioResult.format,
-        duration: audioResult.duration,
+        duration: computedDuration,
         coverArt: coverArtResult ? {
           url: coverArtResult.secure_url,
           publicId: coverArtResult.public_id
