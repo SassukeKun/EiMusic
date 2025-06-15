@@ -1,6 +1,7 @@
 import { createFolderStructure, generateCloudinaryPublicId } from '@/utils/cloudinary/folderStructure';
 import { CloudinaryUploadResult } from './cloudinaryService';
 import { v4 as uuidv4 } from 'uuid';
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
 
 export interface AlbumMetadata {
   title: string;
@@ -168,6 +169,48 @@ class AlbumUploadService {
         metadataPublicId,
         'auto'
       );
+
+      // Initialize Supabase client
+      const supabase = getSupabaseBrowserClient();
+      // Persist album to Supabase with detailed debug logging
+      console.log('Inserting album with payload:', {
+        id: albumId,
+        title: metadata.title,
+        description: metadata.description || null,
+        genre: metadata.genre || null,
+        release_date: metadata.releaseDate || null,
+        visibility: metadata.visibility,
+        is_explicit: metadata.isExplicit,
+        tags: metadata.tags || [],
+        artist_id: artistId,
+        cover_url: results.coverArt?.secureUrl || results.coverArt?.url || null
+      });
+      const { error: albumError } = await supabase
+        .from('albums')
+        .insert([{ id: albumId, title: metadata.title, description: metadata.description || null, genre: metadata.genre || null, release_date: metadata.releaseDate || null, visibility: metadata.visibility, is_explicit: metadata.isExplicit, tags: metadata.tags || [], artist_id: artistId, cover_url: results.coverArt?.secureUrl || results.coverArt?.url || null }])
+        .select();
+      if (albumError) {
+        // Log full Supabase error for debugging
+        console.error('Supabase album insert error:', JSON.stringify(albumError, null, 2));
+        throw albumError;
+      }
+      // Persist album tracks to Supabase
+      const trackInserts = results.tracks.map(tr => ({
+        id: uuidv4(),
+        title: tr.title,
+        artist_id: artistId,
+        duration: tr.duration || 0,
+        file_url: tr.secureUrl,
+        cover_url: null,
+        album_id: albumId
+      }));
+      const { error: tracksError } = await supabase
+        .from('tracks')
+        .insert(trackInserts);
+      if (tracksError) {
+        console.error('Error inserting album tracks to Supabase:', tracksError);
+        throw tracksError;
+      }
 
       return results;
     } catch (error) {
