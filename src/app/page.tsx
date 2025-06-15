@@ -11,7 +11,7 @@ import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
 
 // Types for recent releases
 interface ReleaseBase { id: string; title: string; cover_url: string; created_at: string }
-type RecentRelease = ReleaseBase & { type: 'album' | 'single' };
+type RecentRelease = ReleaseBase & { type: 'album' | 'single' | 'video' };
 
 
 export default function HomePage() {
@@ -65,27 +65,43 @@ useEffect(() => {
       .limit(5);
 
     const { data: singlesData } = await supabase
-      .from('tracks')
-      .select('id,title,file_url,created_at')
-      .is('album_id', null)
+      .from('singles')
+      .select('id,title,cover_url,file_url,created_at')
+      
       .order('created_at', { ascending: false })
       .limit(5);
+
+      const { data: videosData } = await supabase
+        .from('videos')
+        .select('id,title,video_url,created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      const videoRows: ReleaseBase[] = (videosData ?? []).map((v: any) => ({
+        id: v.id,
+        title: v.title,
+        cover_url: v.video_url,
+        created_at: v.created_at,
+      }));
 
     const albumRows: ReleaseBase[] = albums ?? [];
     const singleRows: ReleaseBase[] = (singlesData ?? []).map(s => ({
       id: s.id,
       title: s.title,
-      cover_url: s.file_url,
+      cover_url: s.cover_url ?? s.file_url,
       created_at: s.created_at,
+
     }));
     const tagged: RecentRelease[] = [
       ...albumRows.map(a => ({ ...a, type: 'album' as const })),
       ...singleRows.map(s => ({ ...s, type: 'single' as const })),
+      ...videoRows.map(v => ({ ...v, type: 'video' as const })),
     ];
     tagged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setRecentReleases(tagged.slice(0, 5));
   })();
 }, []);
+
+
 
 
 
@@ -174,6 +190,7 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
+
       {/* Notificação de erro OAuth */}
       {showOAuthError && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
@@ -240,7 +257,7 @@ useEffect(() => {
               {recentReleases.map((release) => (
                 <motion.div
                   key={release.id}
-                  className="group cursor-pointer" onClick={() => release.type === 'album' ? router.push(`/albums/${release.id}`) : router.push(`/songs/${release.id}`)}
+                  className="group cursor-pointer" onClick={() => { if (release.type === 'album') router.push(`/albums/${release.id}`); else if (release.type === 'single') router.push(`/songs/${release.id}`); else if (release.type === 'video') router.push(`/videos/${release.id}`); }}
                   whileHover={{ y: -3 }}
                   transition={{ duration: 0.2 }}
                 >

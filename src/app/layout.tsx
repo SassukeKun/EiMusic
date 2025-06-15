@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import ClientLayout from '@/components/ClientLayout';
 import { Providers } from '@/utils/providers';
+import { PlayerProvider } from '@/context/PlayerContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,7 +23,9 @@ export default function RootLayout({
     <html lang="pt-PT">
       <body>
         <Providers>
-          <ClientLayout>{children}</ClientLayout>
+          <PlayerProvider>
+            <ClientLayout>{children}</ClientLayout>
+          </PlayerProvider>
         </Providers>
       </body>
     </html>

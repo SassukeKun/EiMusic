@@ -4,7 +4,8 @@
 import React, { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
-import PlayerBar from '@/components/PlayerBar'
+import GlobalPlayerBar from '@/components/GlobalPlayerBar'  
+
 import { Providers } from '@/utils/providers'
 
 
@@ -31,8 +32,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             </main>
           </div>
         )}
-
-        {!isAuthPage && <PlayerBar />}
+        {!isAuthPage && <GlobalPlayerBar />}
       </div>
     </Providers>
   )

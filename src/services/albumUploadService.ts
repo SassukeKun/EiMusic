@@ -185,7 +185,7 @@ class AlbumUploadService {
         artist_id: artistId,
         cover_url: results.coverArt?.secureUrl || results.coverArt?.url || null
       });
-      const { data: albumData, error: albumError } = await supabase
+      const { error: albumError } = await supabase
         .from('albums')
         .insert([{ id: albumId, title: metadata.title, description: metadata.description || null, genre: metadata.genre || null, release_date: metadata.releaseDate || null, visibility: metadata.visibility, is_explicit: metadata.isExplicit, tags: metadata.tags || [], artist_id: artistId, cover_url: results.coverArt?.secureUrl || results.coverArt?.url || null }])
         .select();

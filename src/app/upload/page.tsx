@@ -6,6 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useAnimation } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import uploadService from "@/services/uploadService";
+import { useSupabaseClient } from "@/utils/supabaseClient";
 import useCloudinaryUpload from "@/hooks/useCloudinaryUpload";
 import { AudioMetadata } from "@/services/cloudinaryService";
 import {
@@ -33,6 +35,7 @@ import { AuthGuard } from "@/components/AuthGuard";
 export default function UploadPage() {
   const { isArtist, loading, user } = useAuth();
   const { uploadState, uploadAudio, resetUploadState } = useCloudinaryUpload();
+  const supabaseClient = useSupabaseClient();
 
   // Estado para controlar se estamos na tela de seleção ou no upload
   const [uploadMode, setUploadMode] = useState<
@@ -778,6 +781,20 @@ export default function UploadPage() {
       );
 
       console.log("Upload result:", result);
+          // Persist track record to Supabase
+          try {
+            const trackInsertResult = await uploadService.uploadSong(
+              user!.id,
+              user!.user_metadata?.name || user!.id,
+              audioFile!,
+              audioMetadata,
+              coverImageFile || undefined,
+              supabaseClient
+            );
+            console.log("Inserted track:", trackInsertResult);
+          } catch (insertError) {
+            console.error("Error inserting track to Supabase:", insertError);
+          }
 
       // Verificar se o upload foi bem-sucedido E não foi cancelado
       if (result && !uploadCancelled) {

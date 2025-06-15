@@ -4,6 +4,7 @@ import { uploadSignedFile, uploadMetadata } from '@/utils/cloudinary/signedUploa
 import { VideoMetadata } from '@/models/cloudinary/mediaTypes';
 import { CLOUDINARY_FOLDERS, getArtistMediaPath } from '@/utils/cloudinary/config';
 import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Helper to get duration from audio file
 async function getAudioDuration(file: File): Promise<number> {
@@ -57,7 +58,8 @@ const uploadService = {
       visibility?: 'public' | 'private' | 'followers';
       description?: string;
     },
-    coverArt?: File
+    coverArt?: File,
+    supabaseClient?: SupabaseClient,
   ) {
     try {
       const songTitle = metadata?.title || file.name.split('.')[0];
@@ -139,10 +141,10 @@ const uploadService = {
       // Compute audio duration
       const computedDuration = await getAudioDuration(file);
       // Initialize Supabase client
-      const supabase = getSupabaseBrowserClient();
+      const supabase = supabaseClient ?? getSupabaseBrowserClient();
       // Persist track metadata to Supabase
-      const { data: trackData, error: trackError } = await supabase
-        .from('tracks')
+      const {error: trackError } = await supabase
+        .from('singles')
         .insert([{
           id: trackId,
           title: songTitle,
@@ -150,8 +152,6 @@ const uploadService = {
           duration: computedDuration,
           file_url: audioResult.secure_url,
           cover_url: coverArtResult ? coverArtResult.secure_url : null,
-          genre_ids: metadata?.genre ? [metadata.genre] : null,
-          is_explicit: metadata?.isExplicit || false
         }]);
       if (trackError) {
         console.error('Error inserting track to Supabase:', trackError);
@@ -216,6 +216,7 @@ const uploadService = {
 
       // Upload do arquivo de vídeo
       const videoResult = await uploadSignedFile(
+
         file,
         "", // Folder argument is empty as public_id dictates the path
         {
@@ -287,6 +288,13 @@ const uploadService = {
         metadataPublicId,
         commonTags
       );
+
+      // Persist video record to Supabase
+      const supabase = getSupabaseBrowserClient();
+      const { error: insertError } = await supabase
+        .from('videos')
+        .insert([{ id: clipId, artist_id: artistId, title: videoTitle, video_url: videoResult.secure_url, thumbnail_url: thumbnailResult ? thumbnailResult.secure_url : null, duration: videoResult.duration, format: videoResult.format, is_video_clip: metadata?.isVideoClip ?? false }]);
+      if (insertError) throw insertError;
 
       return {
         clipId,
