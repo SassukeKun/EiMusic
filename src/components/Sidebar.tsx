@@ -89,7 +89,7 @@ export default function Sidebar() {
     { icon: <FaCalendarAlt />, label: 'Eventos', href: '/events' },
     { icon: <FaListUl />, label: 'Playlists', href: '/playlists' },
     { icon: <FaHeadphones />, label: 'Minha Biblioteca', href: '/library' },
-    { icon: <FaMicrophone />, label: 'Artistas', href: '/artistas' },
+    { icon: <FaMicrophone />, label: 'Artistas', href: '/artist' },
   ]
   
   // Adicionar o item de upload apenas se o usuário for um artista
@@ -140,73 +140,106 @@ export default function Sidebar() {
   )
 
   // Renderiza informações do usuário baseado no estado de autenticação
-  const UserInfo = () => {
-    if (loading) {
-      return (
-        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-          <div className="h-10 w-10 rounded-full bg-[#222222] animate-pulse"></div>
-          {(!isCollapsed || (isMobile && isOpen)) && (
-            <div className="space-y-2">
-              <div className="h-4 w-24 bg-[#222222] rounded animate-pulse"></div>
-              <div className="h-3 w-20 bg-[#222222] rounded animate-pulse"></div>
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    if (!isAuthenticated) {
-      return (
-        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-          <div className="relative h-10 w-10 flex-shrink-0">
-            <FaUserCircle className="h-10 w-10 text-[#ededed]" />
-            <div className="absolute bottom-0 right-0 h-3 w-3 bg-gray-500 rounded-full border-2 border-[#111111]"></div>
-          </div>
-          {(!isCollapsed || (isMobile && isOpen)) && (
-            <div>
-              <Link href="/login" className="text-sm font-semibold text-[#ededed] hover:text-yellow-400">Entrar</Link>
-              <p className="text-xs text-gray-400">Visitante</p>
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    // Dados do usuário autenticado
-    const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Usuário';
-    const userEmail = user?.email || '';
-    const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/avatar.svg';
-    const [imgError, setImgError] = useState(false);
-
+ const UserInfo = () => {
+  if (loading) {
     return (
       <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
-        {imgError ? (
-          <div className="h-10 w-10 flex-shrink-0 bg-[#222222] rounded-full flex items-center justify-center">
-            <FaUserCircle className="h-8 w-8 text-[#ededed]" />
-          </div>
-        ) : (
-          <div className="h-10 w-10 rounded-full border-2 border-[#333333] overflow-hidden">
-          <Image
-            src={avatarUrl}
-            alt="Avatar"
-            width={40}
-            height={40}
-            className="rounded-full"
-            priority
-            onError={() => setImgError(true)}
-          />
-          </div>
-        )}
+        <div className="h-10 w-10 rounded-full bg-[#222222] animate-pulse"></div>
         {(!isCollapsed || (isMobile && isOpen)) && (
-          <div>
-            <p className="text-sm font-semibold text-[#ededed]">{userName}</p>
-            <p className="text-xs text-gray-400">{userEmail}</p>
+          <div className="space-y-2">
+            <div className="h-4 w-24 bg-[#222222] rounded animate-pulse"></div>
+            <div className="h-3 w-20 bg-[#222222] rounded animate-pulse"></div>
           </div>
         )}
       </div>
     )
   }
 
+   if (!isAuthenticated) {
+    return (
+      <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
+        <div className="relative h-10 w-10 flex-shrink-0">
+          <FaUserCircle className="h-10 w-10 text-[#ededed]" />
+          <div className="absolute bottom-0 right-0 h-3 w-3 bg-gray-500 rounded-full border-2 border-[#111111]"></div>
+        </div>
+        {(!isCollapsed || (isMobile && isOpen)) && (
+          <div>
+            <Link href="/login" className="text-sm font-semibold text-[#ededed] hover:text-yellow-400">Entrar</Link>
+            <p className="text-xs text-gray-400">Visitante</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+    // Dados do usuário autenticado
+  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Usuário';
+  const userEmail = user?.email || '';
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/avatar.svg';
+  const [imgError, setImgError] = useState(false);
+
+  // 🔧 FUNÇÃO PARA NAVEGAR PARA O DASHBOARD DO ARTISTA
+  const handleProfileClick = () => {
+    if (isArtist) {
+      // Se for artista, vai para o dashboard do artista
+      window.location.href = '/artist/dashboard';
+    } else {
+      // Se for usuário comum, vai para o perfil do usuário
+      window.location.href = '/profile';
+    }
+  };
+
+    return (
+    <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'px-4'} mb-6 ${!isCollapsed || (isMobile && isOpen) ? 'space-x-3' : ''}`}>
+      {/* 🔧 CONTAINER DO PERFIL COM NAVEGAÇÃO */}
+      <button
+        onClick={handleProfileClick}
+        className="flex items-center space-x-3 w-full text-left hover:bg-[#222222] rounded-lg p-2 transition-all duration-200 group cursor-pointer"
+        title={isCollapsed && !isMobile ? (isArtist ? 'Dashboard do Artista' : 'Meu Perfil') : ''}
+      >
+        {imgError ? (
+          <div className="h-10 w-10 flex-shrink-0 bg-[#222222] rounded-full flex items-center justify-center group-hover:bg-[#333333] transition-colors">
+            <FaUserCircle className="h-8 w-8 text-[#ededed] group-hover:text-yellow-400 transition-colors" />
+          </div>
+        ) : (
+          <div className="h-10 w-10 rounded-full border-2 border-[#333333] group-hover:border-yellow-400 overflow-hidden transition-colors">
+            <Image
+              src={avatarUrl}
+              alt="Avatar"
+              width={40}
+              height={40}
+              className="rounded-full group-hover:scale-110 transition-transform duration-200"
+              priority
+              onError={() => setImgError(true)}
+            />
+          </div>
+        )}
+         {(!isCollapsed || (isMobile && isOpen)) && (
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-semibold text-[#ededed] group-hover:text-yellow-400 transition-colors truncate">
+                {userName}
+              </p>
+              {isArtist && (
+                <span className="text-xs bg-yellow-600 text-black px-2 py-0.5 rounded-full font-medium">
+                  Artista
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors truncate">
+              {userEmail}
+            </p>
+            {/* 🔧 INDICADOR DE AÇÃO */}
+            <p className="text-xs text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity">
+              {isArtist ? 'Ir para Dashboard' : 'Ver Perfil'} →
+            </p>
+          </div>
+        )}
+      </button>
+    </div>
+  )
+}
+        
   return (
     <>
       {isMobile && <MobileMenuButton />}
