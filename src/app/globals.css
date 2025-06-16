@@ -21,7 +21,25 @@ body {
   flex-direction: column;
 }
 
-/* Ajuste para o player na parte inferior */
-.content-with-player {
-  padding-bottom: 3.5rem; /* ajuste para o PlayerBar */
+/* Esconder scrollbar completamente */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;     /* Firefox */
+  scroll-behavior: smooth;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;             /* Safari e Chrome */
+}
+
+.scrollbar-hide::-webkit-scrollbar-track {
+  display: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb {
+  display: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar-corner {
+  display: none;
 }

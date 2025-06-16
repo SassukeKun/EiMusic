@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import {
   FaHome,
@@ -24,8 +25,47 @@ import {
   FaSignOutAlt,
   FaMusic,
   FaMicrophone,
-  FaHeadphones
+  FaHeadphones,
+  FaTimes,
+  FaCheck,
+  FaMoon,
+  FaSun,
+  FaGlobe,
+  FaLock,
+  FaUser,
+  FaVolumeUp,
+  FaEye,
+  FaTrash,
+  FaCircle
 } from 'react-icons/fa'
+
+// Interface para notificações
+interface Notification {
+  id: string
+  title: string
+  message: string
+  type: 'info' | 'success' | 'warning' | 'error'
+  timestamp: Date
+  read: boolean
+  important: boolean
+}
+
+// Interface para configurações
+interface Settings {
+  theme: 'dark' | 'light'
+  language: 'pt' | 'en'
+  notifications: {
+    enabled: boolean
+    email: boolean
+    push: boolean
+    marketing: boolean
+  }
+  privacy: {
+    profilePublic: boolean
+    showActivity: boolean
+    allowMessages: boolean
+  }
+}
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -34,6 +74,74 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const { user, loading, isAuthenticated, logout, isArtist } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  // Estados para mini-modals
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false)
+  
+  // Refs para detectar cliques fora dos modals
+  const settingsRef = useRef<HTMLDivElement>(null)
+  const notificationsRef = useRef<HTMLDivElement>(null)
+
+  // Estados para configurações
+  const [settings, setSettings] = useState<Settings>({
+    theme: 'dark',
+    language: 'pt',
+    notifications: {
+      enabled: true,
+      email: true,
+      push: true,
+      marketing: false
+    },
+    privacy: {
+      profilePublic: true,
+      showActivity: true,
+      allowMessages: true
+    }
+  })
+
+  // Mock data para notificações
+  const [notifications, setNotifications] = useState<Notification[]>([
+    {
+      id: '1',
+      title: 'Nova música curtida',
+      message: 'Sua música "Maputo Nights" recebeu 100 curtidas!',
+      type: 'success',
+      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 min atrás
+      read: false,
+      important: false
+    },
+    {
+      id: '2',
+      title: 'Artista te seguiu',
+      message: 'DJ Tarico Jr começou a te seguir',
+      type: 'info',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2h atrás
+      read: false,
+      important: true
+    },
+    {
+      id: '3',
+      title: 'Playlist atualizada',
+      message: 'Nova música adicionada à "Top Moçambique 2025"',
+      type: 'info',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 dia atrás
+      read: true,
+      important: false
+    },
+    {
+      id: '4',
+      title: 'Pagamento processado',
+      message: 'Seus ganhos de dezembro foram processados',
+      type: 'success',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 dias atrás
+      read: true,
+      important: true
+    }
+  ])
+
+  // Estados para filtros de notificações
+  const [notificationFilter, setNotificationFilter] = useState<'all' | 'unread' | 'important'>('all')
 
   // Detecta se a tela é móvel e configura o estado inicial
   useEffect(() => {
@@ -57,6 +165,34 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', checkScreenSize)
   }, [])
 
+  // Fechar modals ao pressionar ESC
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowSettingsModal(false)
+        setShowNotificationsModal(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [])
+
+  // Fechar modals ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setShowSettingsModal(false)
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotificationsModal(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const toggleSidebar = () => {
     if (isMobile) {
       setIsOpen(!isOpen)
@@ -70,7 +206,6 @@ export default function Sidebar() {
     try {
       setIsLoggingOut(true)
       await logout()
-      // Não precisa redirecionar, pois o hook useAuth já faz isso
     } catch (error) {
       console.error('Erro ao fazer logout:', error)
     } finally {
@@ -78,12 +213,52 @@ export default function Sidebar() {
     }
   }
 
+  // Função para filtrar notificações
+  const getFilteredNotifications = () => {
+    switch (notificationFilter) {
+      case 'unread':
+        return notifications.filter(n => !n.read)
+      case 'important':
+        return notifications.filter(n => n.important)
+      default:
+        return notifications
+    }
+  }
+
+  // Função para marcar notificação como lida
+  const markAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => 
+      n.id === id ? { ...n, read: true } : n
+    ))
+  }
+
+  // Função para deletar notificação
+  const deleteNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }
+
+  // Contar notificações não lidas
+  const unreadCount = notifications.filter(n => !n.read).length
+
+  // Função para formatar tempo
+  const formatTime = (date: Date) => {
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const minutes = Math.floor(diff / (1000 * 60))
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+    if (minutes < 60) return `${minutes}m atrás`
+    if (hours < 24) return `${hours}h atrás`
+    return `${days}d atrás`
+  }
+
   // Lista base de itens do menu
   const baseMenuItems = [
     { icon: <FaHome />, label: 'Home', href: '/' },
     { icon: <FaChartLine />, label: 'Trending', href: '/trending' },
     { icon: <FaCompass />, label: 'Explore', href: '/explore' },
-    { icon: <FaMusic />, label: 'Músicas', href: '/musicas' },
+    { icon: <FaMusic />, label: 'Músicas', href: '/track' },
     { icon: <FaVideo />, label: 'Vídeos', href: '/videos' },
     { icon: <FaUsers />, label: 'Comunidades', href: '/community' },
     { icon: <FaCalendarAlt />, label: 'Eventos', href: '/events' },
@@ -139,7 +314,7 @@ export default function Sidebar() {
     />
   )
 
-  // Renderiza informações do usuário baseado no estado de autenticação
+// Renderiza informações do usuário baseado no estado de autenticação
  const UserInfo = () => {
   if (loading) {
     return (
@@ -239,7 +414,290 @@ export default function Sidebar() {
     </div>
   )
 }
-        
+
+  // Modal de Configurações
+  const SettingsModal = () => (
+    <AnimatePresence>
+      {showSettingsModal && (
+        <motion.div
+          ref={settingsRef}
+          className={`fixed bg-gray-800/95 backdrop-blur-sm border border-gray-700 rounded-xl shadow-2xl w-80 h-96 overflow-hidden z-50 ${
+            isCollapsed ? 'left-20' : 'left-72'
+          } top-4`}
+          initial={{ opacity: 0, x: -20, scale: 0.95 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: -20, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        >
+          {/* Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FaCog className="text-white text-lg" />
+              <h3 className="text-white font-semibold">Configurações</h3>
+            </div>
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="text-white hover:text-gray-200 transition-colors"
+            >
+              <FaTimes />
+            </button>
+          </div>
+
+          {/* Conteúdo */}
+          <div className="p-4 space-y-4 h-full overflow-y-auto">
+            {/* Tema */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <FaMoon className="text-purple-400" />
+                Tema
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, theme: 'dark' }))}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm transition-all ${
+                    settings.theme === 'dark'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Escuro
+                </button>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, theme: 'light' }))}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm transition-all ${
+                    settings.theme === 'light'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Claro
+                </button>
+              </div>
+            </div>
+
+            {/* Idioma */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <FaGlobe className="text-blue-400" />
+                Idioma
+              </label>
+              <select
+                value={settings.language}
+                onChange={(e) => setSettings(prev => ({ ...prev, language: e.target.value as 'pt' | 'en' }))}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="pt">Português</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+
+            {/* Notificações */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <FaBell className="text-yellow-400" />
+                Notificações
+              </label>
+              <div className="space-y-2">
+                {[
+                  { key: 'enabled', label: 'Ativar notificações' },
+                  { key: 'email', label: 'Notificações por email' },
+                  { key: 'push', label: 'Notificações push' },
+                  { key: 'marketing', label: 'Email marketing' }
+                ].map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-300">{label}</span>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        notifications: {
+                          ...prev.notifications,
+                          [key]: !prev.notifications[key as keyof typeof prev.notifications]
+                        }
+                      }))}
+                      className={`w-10 h-5 rounded-full transition-all ${
+                        settings.notifications[key as keyof typeof settings.notifications]
+                          ? 'bg-purple-600' : 'bg-gray-600'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                        settings.notifications[key as keyof typeof settings.notifications]
+                          ? 'translate-x-5' : 'translate-x-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Privacidade */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <FaLock className="text-green-400" />
+                Privacidade
+              </label>
+              <div className="space-y-2">
+                {[
+                  { key: 'profilePublic', label: 'Perfil público' },
+                  { key: 'showActivity', label: 'Mostrar atividade' },
+                  { key: 'allowMessages', label: 'Permitir mensagens' }
+                ].map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-300">{label}</span>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        privacy: {
+                          ...prev.privacy,
+                          [key]: !prev.privacy[key as keyof typeof prev.privacy]
+                        }
+                      }))}
+                      className={`w-10 h-5 rounded-full transition-all ${
+                        settings.privacy[key as keyof typeof settings.privacy]
+                          ? 'bg-green-600' : 'bg-gray-600'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                        settings.privacy[key as keyof typeof settings.privacy]
+                          ? 'translate-x-5' : 'translate-x-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+
+  // Modal de Notificações
+  const NotificationsModal = () => (
+    <AnimatePresence>
+      {showNotificationsModal && (
+        <motion.div
+          ref={notificationsRef}
+          className={`fixed bg-gray-800/95 backdrop-blur-sm border border-gray-700 rounded-xl shadow-2xl w-80 h-96 overflow-hidden z-50 ${
+            isCollapsed ? 'left-20' : 'left-72'
+          } top-4`}
+          initial={{ opacity: 0, x: -20, scale: 0.95 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: -20, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        >
+          {/* Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <FaBell className="text-white text-lg" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-xs w-4 h-4 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
+              <h3 className="text-white font-semibold">Notificações</h3>
+            </div>
+            <button
+              onClick={() => setShowNotificationsModal(false)}
+              className="text-white hover:text-gray-200 transition-colors"
+            >
+              <FaTimes />
+            </button>
+          </div>
+
+          {/* Filtros */}
+          <div className="p-3 border-b border-gray-700">
+            <div className="flex gap-1">
+              {[
+                { key: 'all', label: 'Todas' },
+                { key: 'unread', label: 'Não lidas' },
+                { key: 'important', label: 'Importantes' }
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setNotificationFilter(key as any)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                    notificationFilter === key
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lista de notificações */}
+          <div className="flex-1 overflow-y-auto">
+            {getFilteredNotifications().length === 0 ? (
+              <div className="p-6 text-center text-gray-400">
+                <FaBell className="mx-auto text-2xl mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma notificação encontrada</p>
+              </div>
+            ) : (
+              <div className="p-2 space-y-1">
+                {getFilteredNotifications().map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-3 rounded-lg border transition-all hover:bg-gray-700/50 ${
+                      notification.read
+                        ? 'bg-gray-800/50 border-gray-700'
+                        : 'bg-purple-600/10 border-purple-500/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FaCircle className={`text-xs ${
+                            notification.type === 'success' ? 'text-green-400' :
+                            notification.type === 'warning' ? 'text-yellow-400' :
+                            notification.type === 'error' ? 'text-red-400' : 'text-blue-400'
+                          }`} />
+                          <h4 className="text-sm font-medium text-white truncate">
+                            {notification.title}
+                          </h4>
+                          {notification.important && (
+                            <FaLock className="text-yellow-400 text-xs" />
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatTime(notification.timestamp)}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {!notification.read && (
+                          <button
+                            onClick={() => markAsRead(notification.id)}
+                            className="p-1 text-gray-400 hover:text-green-400 transition-colors"
+                            title="Marcar como lida"
+                          >
+                            <FaCheck className="text-xs" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteNotification(notification.id)}
+                          className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                          title="Deletar"
+                        >
+                          <FaTrash className="text-xs" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+
   return (
     <>
       {isMobile && <MobileMenuButton />}
@@ -270,20 +728,45 @@ export default function Sidebar() {
           
           {(!isCollapsed || (isMobile && isOpen)) && (
             <div className="flex items-center space-x-3 text-[#ededed]">
-              <FaCog className="text-xl hover:text-yellow-400 cursor-pointer transition" />
-              <div className="relative">
-                <FaBell className="text-xl hover:text-yellow-400 cursor-pointer transition" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                  2
-                </span>
-              </div>
+              {/* Botão de Configurações */}
+              <button
+                onClick={() => {
+                  setShowSettingsModal(!showSettingsModal)
+                  setShowNotificationsModal(false) // Fechar notificações se abertas
+                }}
+                className={`text-xl hover:text-yellow-400 cursor-pointer transition-all duration-300 ${
+                  showSettingsModal ? 'text-yellow-400 scale-110' : ''
+                }`}
+                title="Configurações"
+              >
+                <FaCog />
+              </button>
+
+              {/* Botão de Notificações */}
+              <button
+                onClick={() => {
+                  setShowNotificationsModal(!showNotificationsModal)
+                  setShowSettingsModal(false) // Fechar configurações se abertas
+                }}
+                className={`relative text-xl hover:text-yellow-400 cursor-pointer transition-all duration-300 ${
+                  showNotificationsModal ? 'text-yellow-400 scale-110' : ''
+                }`}
+                title="Notificações"
+              >
+                <FaBell />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
             </div>
           )}
         </div>
 
         {/* User Info Component */}
         <div className="mt-4">
-        <UserInfo />
+          <UserInfo />
         </div>
 
         {/* Navigation */}
@@ -354,6 +837,10 @@ export default function Sidebar() {
       
       {/* Espaçador para empurrar o conteúdo para a direita */}
       <div className={`${isMobile ? 'hidden' : `block transition-all duration-300 ${isCollapsed ? 'ml-16' : 'ml-64'}`}`} />
+
+      {/* Modals */}
+      <SettingsModal />
+      <NotificationsModal />
     </>
   )
 }

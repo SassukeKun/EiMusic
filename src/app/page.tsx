@@ -421,13 +421,13 @@ export default function HomePage() {
               ))}
             </div>
           </motion.section>
-          // Na sua página src/app/page.tsx, localize a seção "Artistas
-          Populares" e corrija o link:
+        
+          
           {/* Artistas Populares */}
           <motion.section variants={itemVariants}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold">Artistas Populares</h2>
-              {/* CORRIGIR ESTE LINK: */}
+              
               <Link
                 href="/artist"
                 className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors"
