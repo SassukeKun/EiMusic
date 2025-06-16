@@ -1,8 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { createFolderStructure, generateCloudinaryPublicId } from '@/utils/cloudinary/folderStructure';
 import { uploadSignedFile, uploadMetadata } from '@/utils/cloudinary/signedUpload';
+import type { CloudinaryUploadResponse } from '@/utils/cloudinary/signedUpload';
 import { VideoMetadata } from '@/models/cloudinary/mediaTypes';
-import { CLOUDINARY_FOLDERS, getArtistMediaPath } from '@/utils/cloudinary/config';
+import { CLOUDINARY_FOLDERS, getArtistMediaPath, getCommunityMediaPath } from '@/utils/cloudinary/config';
 import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -293,7 +294,17 @@ const uploadService = {
       const supabase = getSupabaseBrowserClient();
       const { error: insertError } = await supabase
         .from('videos')
-        .insert([{ id: clipId, artist_id: artistId, title: videoTitle, video_url: videoResult.secure_url, thumbnail_url: thumbnailResult ? thumbnailResult.secure_url : null, duration: videoResult.duration, format: videoResult.format, is_video_clip: metadata?.isVideoClip ?? false }]);
+        .insert([{ id: clipId,
+  artist_id: artistId,
+  title: videoTitle,
+  video_url: videoResult.secure_url,
+  thumbnail_url: thumbnailResult ? thumbnailResult.secure_url : null,
+  duration: videoResult.duration,
+  format: videoResult.format,
+  is_video_clip: metadata?.isVideoClip ?? false,
+  description: metadata?.description || '',
+  genre: metadata?.genre || null
+}]);
       if (insertError) throw insertError;
 
       return {
@@ -561,6 +572,63 @@ const uploadService = {
     } catch (error) {
       console.error('Erro ao fazer upload de álbum:', error);
       throw error;
+    }
+  },
+  /**
+   * Upload a community media file to Cloudinary
+   * @param communityId - ID of the community
+   * @param file - File to upload
+   * @param mediaType - Type of media (image, video, other)
+   * @param metadata - Optional metadata for the media
+   * @returns Cloudinary upload response for the file
+   */
+  async uploadCommunityMedia(
+    communityId: string,
+    file: File,
+    mediaType: 'image' | 'video' | 'other',
+    metadata?: { title?: string; description?: string; tags?: string[] }
+  ): Promise<CloudinaryUploadResponse> {
+    try {
+      const folder = getCommunityMediaPath(communityId, mediaType, metadata?.title)
+      const mediaId = uuidv4()
+      const publicId = `${mediaType}_${mediaId}`
+      const resourceType = mediaType === 'video' ? 'video' : 'image'
+      const tags = [
+        `community_${communityId}`,
+        mediaType,
+        ...(metadata?.tags || [])
+      ]
+      const context: Record<string, any> = {
+        community_id: communityId,
+        media_type: mediaType,
+        upload_date: new Date().toISOString()
+      }
+      if (metadata?.title) context.title = metadata.title
+      if (metadata?.description) context.description = metadata.description
+      const result = await uploadSignedFile(file, folder, {
+        resourceType,
+        publicId,
+        tags,
+        context
+      })
+      const metadataPublicId = `${folder}/${publicId}_metadata`
+      await uploadMetadata(
+        {
+          communityId,
+          mediaType,
+          title: metadata?.title,
+          description: metadata?.description,
+          tags: metadata?.tags,
+          uploadDate: context.upload_date
+        },
+        '',
+        metadataPublicId,
+        tags
+      )
+      return result
+    } catch (error) {
+      console.error('Error uploading community media:', error)
+      throw error
     }
   }
 };

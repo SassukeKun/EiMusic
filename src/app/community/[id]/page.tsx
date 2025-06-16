@@ -581,7 +581,7 @@ export default function CommunityDetailPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
 
           {/* Botão voltar */}
-          <Link href="/communities">
+          <Link href="/community">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

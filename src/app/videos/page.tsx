@@ -11,6 +11,8 @@ import React, {
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
 import {
   FaPlay,
   FaStepBackward,
@@ -2071,6 +2073,13 @@ const VideoCard: React.FC<{
 };
 
 // ===== COMPONENTE PRINCIPAL =====
+// Helper to format duration in seconds to mm:ss
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2,'0')}`;
+}
+
 export default function VideosPage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
@@ -2081,6 +2090,62 @@ export default function VideosPage() {
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "trending">(
     "recent"
   );
+
+  const supabaseClient = getSupabaseBrowserClient();
+  const { user } = useAuth();
+
+  // Like/dislike handlers
+  const handleLike = async (videoId: string) => {
+    if (!user) return;
+    setVideos(prev =>
+      prev.map(v =>
+        v.id === videoId
+          ? {
+              ...v,
+              isLiked: !v.isLiked,
+              likes: v.isLiked ? v.likes - 1 : v.likes + 1,
+              // ensure you can't both like and dislike
+              isDisliked: v.isLiked ? v.isDisliked : false,
+              dislikes: v.isLiked ? v.dislikes : v.dislikes
+            }
+          : v
+      )
+    );
+    const updated = videos.find(v => v.id === videoId);
+    if (updated) {
+      const { error } = await supabaseClient
+        .from('videos')
+        .update({ likes: updated.likes, dislikes: updated.dislikes })
+        .eq('id', videoId);
+      if (error) console.error('Like update error:', error);
+    }
+  };
+
+  const handleDislike = async (videoId: string) => {
+    if (!user) return;
+    setVideos(prev =>
+      prev.map(v =>
+        v.id === videoId
+          ? {
+              ...v,
+              isDisliked: !v.isDisliked,
+              dislikes: v.isDisliked ? v.dislikes - 1 : v.dislikes + 1,
+              isLiked: v.isDisliked ? v.isLiked : false,
+              likes: v.isDisliked ? v.likes : v.likes
+            }
+          : v
+      )
+    );
+    const updated = videos.find(v => v.id === videoId);
+    if (updated) {
+      const { error } = await supabaseClient
+        .from('videos')
+        .update({ likes: updated.likes, dislikes: updated.dislikes })
+        .eq('id', videoId);
+      if (error) console.error('Dislike update error:', error);
+    }
+  };
+
 
   // Mock data with enhanced information
   useEffect(() => {
@@ -2251,47 +2316,9 @@ export default function VideosPage() {
     setIsPlaying(true);
   }, []);
 
-  const handleLike = useCallback((videoId: string) => {
-    setVideos((prev) =>
-      prev.map((video) =>
-        video.id === videoId
-          ? {
-              ...video,
-              isLiked: !video.isLiked,
-              isDisliked: video.isLiked ? video.isDisliked : false,
-              likes: video.isLiked ? video.likes - 1 : video.likes + 1,
-              dislikes: video.isLiked
-                ? video.dislikes
-                : video.isDisliked
-                ? video.dislikes - 1
-                : video.dislikes,
-            }
-          : video
-      )
-    );
-  }, []);
 
-  const handleDislike = useCallback((videoId: string) => {
-    setVideos((prev) =>
-      prev.map((video) =>
-        video.id === videoId
-          ? {
-              ...video,
-              isDisliked: !video.isDisliked,
-              isLiked: video.isDisliked ? video.isLiked : false,
-              dislikes: video.isDisliked
-                ? video.dislikes - 1
-                : video.dislikes + 1,
-              likes: video.isDisliked
-                ? video.likes
-                : video.isLiked
-                ? video.likes - 1
-                : video.likes,
-            }
-          : video
-      )
-    );
-  }, []);
+
+
 
   const handleBookmark = useCallback((videoId: string) => {
     setVideos((prev) =>
@@ -2316,6 +2343,44 @@ export default function VideosPage() {
       );
     }
   }, []);
+
+  // Fetch videos from Supabase
+  useEffect(() => {
+    const loadVideos = async () => {
+      const { data, error } = await supabaseClient
+        .from('videos')
+        .select(`
+          *, profiles ( id, name, avatar_url, verified, subscribers )
+        `)
+        .order('created_at', { ascending: false });
+      if (error) return console.error('Error fetching videos:', error);
+      const formatted: Video[] = data.map((v: any) => ({
+        id: v.id,
+        title: v.title,
+        artist: {
+          id: v.profiles.id,
+          name: v.profiles.name,
+          avatar: v.profiles.avatar_url,
+          verified: v.profiles.verified,
+          subscribers: v.profiles.subscribers,
+        },
+        thumbnail: v.thumbnail_url,
+        videoUrl: v.video_url,
+        duration: formatDuration(v.duration),
+        views: v.views,
+        likes: v.likes,
+        dislikes: v.dislikes,
+        uploadDate: new Date(v.created_at).toISOString().split('T')[0],
+        description: v.description,
+        genre: v.genre,
+        isLiked: false,
+        isDisliked: false,
+        isBookmarked: false,
+      }));
+      setVideos(formatted);
+    };
+    loadVideos();
+  }, [supabaseClient]);
 
   // Filtered and sorted videos
   const filteredVideos = useMemo(() => {
