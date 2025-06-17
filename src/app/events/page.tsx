@@ -1,13 +1,15 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  Users, 
-  Star, 
+"use client";
+import { PlansModal } from "@/components/PlansModal";
+import { CreateEventModal } from "./CreateEventModal";
+import { useAuth } from "@/hooks/useAuth";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  Users,
+  Star,
   ExternalLink,
   Bell,
   Search,
@@ -24,8 +26,9 @@ import {
   Eye,
   Share2,
   ChevronDown,
-  Tag
-} from 'lucide-react';
+  Tag,
+  Plus,
+} from "lucide-react";
 
 // Interfaces TypeScript para tipagem forte
 interface Artist {
@@ -39,23 +42,23 @@ interface Venue {
   nome: string;
   cidade: string;
   capacidade?: number;
-  tipo: 'teatro' | 'hotel' | 'centro_cultural' | 'festival' | 'online';
+  tipo: "teatro" | "hotel" | "centro_cultural" | "festival" | "online";
 }
 
 interface Event {
   id: string;
   titulo: string;
   artista: Artist;
-  tipo: 'show' | 'lancamento' | 'tour' | 'visita' | 'colaboracao';
+  tipo: "show" | "lancamento" | "tour" | "visita" | "colaboracao";
   data: string;
   hora?: string;
   venue: Venue;
   descricao: string;
   preco_min?: number;
   preco_max?: number;
-  status: 'confirmado' | 'esgotado' | 'cancelado' | 'em_breve';
+  status: "confirmado" | "esgotado" | "cancelado" | "em_breve";
   is_exclusive: boolean;
-  plano_necessario: 'free' | 'premium' | 'vip';
+  plano_necessario: "free" | "premium" | "vip";
   imagem: string;
   link_externo?: string;
   tags: string[];
@@ -64,40 +67,85 @@ interface Event {
 }
 
 interface UserPlan {
-  tipo: 'free' | 'premium' | 'vip';
+  tipo: "free" | "premium" | "vip";
   ativo: boolean;
 }
 
-type FilterType = 'todos' | 'show' | 'lancamento' | 'tour' | 'visita' | 'colaboracao';
-type DateFilter = 'todos' | 'proximos' | 'este_mes' | 'este_ano' | 'passados';
+interface EventFormData {
+  titulo: string;
+  descricao: string;
+  tipo: "show" | "lancamento" | "tour" | "visita" | "colaboracao";
+  data: string;
+  hora: string;
+  venue_nome: string;
+  venue_cidade: string;
+  venue_tipo: "teatro" | "hotel" | "centro_cultural" | "festival" | "online";
+  capacidade?: number;
+  preco_min?: number;
+  preco_max?: number;
+  plano_necessario: "free" | "premium" | "vip";
+  is_exclusive: boolean;
+  link_externo?: string;
+  imagem: File | null;
+  tags: string[];
+}
+
+type FilterType =
+  | "todos"
+  | "show"
+  | "lancamento"
+  | "tour"
+  | "visita"
+  | "colaboracao";
+type DateFilter = "todos" | "proximos" | "este_mes" | "este_ano" | "passados";
 
 // Página de Eventos - EiMusic Platform
 export default function EventsPage() {
+  const { user, isArtist, isAuthenticated } = useAuth();
+  const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);
   // Estados para gerenciamento de dados e UI
   const [events, setEvents] = useState<Event[]>([]);
-  const [userPlan, setUserPlan] = useState<UserPlan>({ tipo: 'premium', ativo: true });
+  const [userPlan, setUserPlan] = useState<UserPlan>({
+    tipo: "free",
+    ativo: true,
+  });
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<FilterType>('todos');
-  const [dateFilter, setDateFilter] = useState<DateFilter>('proximos');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<FilterType>("todos");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("proximos");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Função para verificar acesso ao evento
   const hasAccessToEvent = (event: Event): boolean => {
     if (!event.is_exclusive) return true;
     const planHierarchy = { free: 0, premium: 1, vip: 2 };
-    return planHierarchy[userPlan.tipo] >= planHierarchy[event.plano_necessario];
+    return (
+      planHierarchy[userPlan.tipo] >= planHierarchy[event.plano_necessario]
+    );
   };
 
   // Função para obter badge do tipo de evento
   const getEventTypeBadge = (tipo: string) => {
     const badges = {
-      show: { icon: Music, text: 'Show', colors: 'from-red-500 to-orange-500' },
-      lancamento: { icon: Disc, text: 'Lançamento', colors: 'from-blue-500 to-purple-500' },
-      tour: { icon: Mic, text: 'Tour', colors: 'from-green-500 to-yellow-500' },
-      visita: { icon: Users, text: 'Visita', colors: 'from-pink-500 to-purple-500' },
-      colaboracao: { icon: Heart, text: 'Colaboração', colors: 'from-purple-500 to-pink-500' }
+      show: { icon: Music, text: "Show", colors: "from-red-500 to-orange-500" },
+      lancamento: {
+        icon: Disc,
+        text: "Lançamento",
+        colors: "from-blue-500 to-purple-500",
+      },
+      tour: { icon: Mic, text: "Tour", colors: "from-green-500 to-yellow-500" },
+      visita: {
+        icon: Users,
+        text: "Visita",
+        colors: "from-pink-500 to-purple-500",
+      },
+      colaboracao: {
+        icon: Heart,
+        text: "Colaboração",
+        colors: "from-purple-500 to-pink-500",
+      },
     };
 
     const badge = badges[tipo as keyof typeof badges];
@@ -106,7 +154,9 @@ export default function EventsPage() {
     const IconComponent = badge.icon;
 
     return (
-      <div className={`flex items-center space-x-1 bg-gradient-to-r ${badge.colors} text-white px-2 py-1 rounded-full text-xs font-bold`}>
+      <div
+        className={`flex items-center space-x-1 bg-gradient-to-r ${badge.colors} text-white px-2 py-1 rounded-full text-xs font-bold`}
+      >
         <IconComponent className="w-3 h-3" />
         <span>{badge.text}</span>
       </div>
@@ -114,16 +164,16 @@ export default function EventsPage() {
   };
 
   // Função para obter badge do plano necessário
-  const getPlanBadge = (plan: 'free' | 'premium' | 'vip') => {
+  const getPlanBadge = (plan: "free" | "premium" | "vip") => {
     switch (plan) {
-      case 'premium':
+      case "premium":
         return (
           <div className="flex items-center space-x-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-2 py-1 rounded-full text-xs font-bold">
             <Crown className="w-3 h-3" />
             <span>PREMIUM</span>
           </div>
         );
-      case 'vip':
+      case "vip":
         return (
           <div className="flex items-center space-x-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold">
             <Gem className="w-3 h-3" />
@@ -138,10 +188,10 @@ export default function EventsPage() {
   // Função para obter status do evento
   const getEventStatus = (status: string) => {
     const statusConfig = {
-      confirmado: { text: 'Confirmado', color: 'text-green-400' },
-      esgotado: { text: 'Esgotado', color: 'text-red-400' },
-      cancelado: { text: 'Cancelado', color: 'text-gray-400' },
-      em_breve: { text: 'Em Breve', color: 'text-yellow-400' }
+      confirmado: { text: "Confirmado", color: "text-green-400" },
+      esgotado: { text: "Esgotado", color: "text-red-400" },
+      cancelado: { text: "Cancelado", color: "text-gray-400" },
+      em_breve: { text: "Em Breve", color: "text-yellow-400" },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig];
@@ -156,16 +206,16 @@ export default function EventsPage() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return {
-      day: date.getDate().toString().padStart(2, '0'),
-      month: date.toLocaleDateString('pt-MZ', { month: 'short' }),
+      day: date.getDate().toString().padStart(2, "0"),
+      month: date.toLocaleDateString("pt-MZ", { month: "short" }),
       year: date.getFullYear(),
-      weekday: date.toLocaleDateString('pt-MZ', { weekday: 'short' })
+      weekday: date.toLocaleDateString("pt-MZ", { weekday: "short" }),
     };
   };
 
   // Função para formatear preço
   const formatPrice = (min?: number, max?: number) => {
-    if (!min && !max) return 'Gratuito';
+    if (!min && !max) return "Gratuito";
     if (min === max) return `${min} MT`;
     if (!max) return `A partir de ${min} MT`;
     return `${min} - ${max} MT`;
@@ -174,185 +224,191 @@ export default function EventsPage() {
   // Mock data dos eventos
   const mockEvents: Event[] = [
     {
-      id: '1',
-      titulo: 'Noite de Marrabenta Moderna',
+      id: "1",
+      titulo: "Noite de Marrabenta Moderna",
       artista: {
-        id: 'art1',
-        nome: 'Zena Bakar',
-        avatar: '/api/placeholder/64/64',
-        verificado: true
+        id: "art1",
+        nome: "Zena Bakar",
+        avatar: "/api/placeholder/64/64",
+        verificado: true,
       },
-      tipo: 'show',
-      data: '2025-01-15T20:00:00Z',
-      hora: '20:00',
+      tipo: "show",
+      data: "2025-01-15T20:00:00Z",
+      hora: "20:00",
       venue: {
-        nome: 'Centro Cultural Franco-Moçambicano',
-        cidade: 'Maputo',
+        nome: "Centro Cultural Franco-Moçambicano",
+        cidade: "Maputo",
         capacidade: 500,
-        tipo: 'centro_cultural'
+        tipo: "centro_cultural",
       },
-      descricao: 'Uma noite especial celebrando a evolução da marrabenta com toques modernos. Zena Bakar apresenta seu novo repertório em um show intimista.',
+      descricao:
+        "Uma noite especial celebrando a evolução da marrabenta com toques modernos. Zena Bakar apresenta seu novo repertório em um show intimista.",
       preco_min: 150,
       preco_max: 300,
-      status: 'confirmado',
+      status: "confirmado",
       is_exclusive: false,
-      plano_necessario: 'free',
-      imagem: '/api/placeholder/400/300',
-      link_externo: 'https://ticketing-mocambique.com/zena-bakar',
-      tags: ['#Marrabenta', '#AoVivo', '#Maputo'],
+      plano_necessario: "free",
+      imagem: "/api/placeholder/400/300",
+      link_externo: "https://ticketing-mocambique.com/zena-bakar",
+      tags: ["#Marrabenta", "#AoVivo", "#Maputo"],
       participantes: 350,
-      is_trending: true
+      is_trending: true,
     },
     {
-      id: '2',
+      id: "2",
       titulo: 'Lançamento: "Fusão Urbana" EP',
       artista: {
-        id: 'art2',
-        nome: 'MC Joaquim',
-        avatar: '/api/placeholder/64/64',
-        verificado: true
+        id: "art2",
+        nome: "MC Joaquim",
+        avatar: "/api/placeholder/64/64",
+        verificado: true,
       },
-      tipo: 'lancamento',
-      data: '2025-01-20T18:00:00Z',
-      hora: '18:00',
+      tipo: "lancamento",
+      data: "2025-01-20T18:00:00Z",
+      hora: "18:00",
       venue: {
-        nome: 'Polana Serena Hotel',
-        cidade: 'Maputo',
+        nome: "Polana Serena Hotel",
+        cidade: "Maputo",
         capacidade: 200,
-        tipo: 'hotel'
+        tipo: "hotel",
       },
-      descricao: 'Sessão de escuta exclusiva do novo EP "Fusão Urbana" que mistura pandza com elementos de hip-hop internacional. Apenas para membros Premium.',
+      descricao:
+        'Sessão de escuta exclusiva do novo EP "Fusão Urbana" que mistura pandza com elementos de hip-hop internacional. Apenas para membros Premium.',
       preco_min: 80,
       preco_max: 120,
-      status: 'confirmado',
+      status: "confirmado",
       is_exclusive: true,
-      plano_necessario: 'premium',
-      imagem: '/api/placeholder/400/300',
-      link_externo: 'https://eventbrite.com/mc-joaquim-ep-launch',
-      tags: ['#Pandza', '#HipHop', '#Lançamento'],
+      plano_necessario: "premium",
+      imagem: "/api/placeholder/400/300",
+      link_externo: "https://eventbrite.com/mc-joaquim-ep-launch",
+      tags: ["#Pandza", "#HipHop", "#Lançamento"],
       participantes: 120,
-      is_trending: false
+      is_trending: false,
     },
     {
-      id: '3',
+      id: "3",
       titulo: 'Tour Nacional "Beats de Maputo"',
       artista: {
-        id: 'art3',
-        nome: 'DJ Azagaia Jr',
-        avatar: '/api/placeholder/64/64',
-        verificado: false
+        id: "art3",
+        nome: "DJ Azagaia Jr",
+        avatar: "/api/placeholder/64/64",
+        verificado: false,
       },
-      tipo: 'tour',
-      data: '2025-02-01T19:30:00Z',
-      hora: '19:30',
+      tipo: "tour",
+      data: "2025-02-01T19:30:00Z",
+      hora: "19:30",
       venue: {
-        nome: 'Festival de Verão',
-        cidade: 'Beira',
+        nome: "Festival de Verão",
+        cidade: "Beira",
         capacidade: 2000,
-        tipo: 'festival'
+        tipo: "festival",
       },
-      descricao: 'Primeira parada da tour nacional "Beats de Maputo". DJ Azagaia Jr leva sua produção inovadora para todo o país.',
+      descricao:
+        'Primeira parada da tour nacional "Beats de Maputo". DJ Azagaia Jr leva sua produção inovadora para todo o país.',
       preco_min: 50,
       preco_max: 150,
-      status: 'confirmado',
+      status: "confirmado",
       is_exclusive: false,
-      plano_necessario: 'free',
-      imagem: '/api/placeholder/400/300',
-      link_externo: 'https://festivaldeverao.mz/ingressos',
-      tags: ['#Tour', '#Beira', '#Eletrônica'],
+      plano_necessario: "free",
+      imagem: "/api/placeholder/400/300",
+      link_externo: "https://festivaldeverao.mz/ingressos",
+      tags: ["#Tour", "#Beira", "#Eletrônica"],
       participantes: 1200,
-      is_trending: true
+      is_trending: true,
     },
     {
-      id: '4',
-      titulo: 'Meet & Greet Exclusivo VIP',
+      id: "4",
+      titulo: "Meet & Greet Exclusivo VIP",
       artista: {
-        id: 'art4',
-        nome: 'Lenna Bahule',
-        avatar: '/api/placeholder/64/64',
-        verificado: true
+        id: "art4",
+        nome: "Lenna Bahule",
+        avatar: "/api/placeholder/64/64",
+        verificado: true,
       },
-      tipo: 'visita',
-      data: '2025-01-25T15:00:00Z',
-      hora: '15:00',
+      tipo: "visita",
+      data: "2025-01-25T15:00:00Z",
+      hora: "15:00",
       venue: {
-        nome: 'Estúdio Privado',
-        cidade: 'Maputo',
+        nome: "Estúdio Privado",
+        cidade: "Maputo",
         capacidade: 20,
-        tipo: 'teatro'
+        tipo: "teatro",
       },
-      descricao: 'Sessão exclusiva para membros VIP com Lenna Bahule. Conversa íntima sobre música, carreira e performance acústica privada.',
-      status: 'confirmado',
+      descricao:
+        "Sessão exclusiva para membros VIP com Lenna Bahule. Conversa íntima sobre música, carreira e performance acústica privada.",
+      status: "confirmado",
       is_exclusive: true,
-      plano_necessario: 'vip',
-      imagem: '/api/placeholder/400/300',
-      tags: ['#VIP', '#Acústico', '#Exclusivo'],
+      plano_necessario: "vip",
+      imagem: "/api/placeholder/400/300",
+      tags: ["#VIP", "#Acústico", "#Exclusivo"],
       participantes: 15,
-      is_trending: false
+      is_trending: false,
     },
     {
-      id: '5',
+      id: "5",
       titulo: 'Colaboração: "Vozes do Sul"',
       artista: {
-        id: 'art5',
-        nome: 'Kelvin Momo Moz',
-        avatar: '/api/placeholder/64/64',
-        verificado: true
+        id: "art5",
+        nome: "Kelvin Momo Moz",
+        avatar: "/api/placeholder/64/64",
+        verificado: true,
       },
-      tipo: 'colaboracao',
-      data: '2025-02-10T17:00:00Z',
-      hora: '17:00',
+      tipo: "colaboracao",
+      data: "2025-02-10T17:00:00Z",
+      hora: "17:00",
       venue: {
-        nome: 'Live Stream',
-        cidade: 'Online',
-        tipo: 'online'
+        nome: "Live Stream",
+        cidade: "Online",
+        tipo: "online",
       },
-      descricao: 'Projeto colaborativo "Vozes do Sul" reúne artistas de Moçambique e África do Sul em uma sessão ao vivo especial.',
-      status: 'em_breve',
+      descricao:
+        'Projeto colaborativo "Vozes do Sul" reúne artistas de Moçambique e África do Sul em uma sessão ao vivo especial.',
+      status: "em_breve",
       is_exclusive: true,
-      plano_necessario: 'premium',
-      imagem: '/api/placeholder/400/300',
-      link_externo: 'https://youtube.com/vozesdosul',
-      tags: ['#Colaboração', '#AfricaDoSul', '#Online'],
+      plano_necessario: "premium",
+      imagem: "/api/placeholder/400/300",
+      link_externo: "https://youtube.com/vozesdosul",
+      tags: ["#Colaboração", "#AfricaDoSul", "#Online"],
       participantes: 500,
-      is_trending: true
+      is_trending: true,
     },
     {
-      id: '6',
-      titulo: 'Festival de Jazz Moçambicano',
+      id: "6",
+      titulo: "Festival de Jazz Moçambicano",
       artista: {
-        id: 'art6',
-        nome: 'Maria dos Anjos',
-        avatar: '/api/placeholder/64/64',
-        verificado: true
+        id: "art6",
+        nome: "Maria dos Anjos",
+        avatar: "/api/placeholder/64/64",
+        verificado: true,
       },
-      tipo: 'show',
-      data: '2024-12-01T19:00:00Z',
-      hora: '19:00',
+      tipo: "show",
+      data: "2024-12-01T19:00:00Z",
+      hora: "19:00",
       venue: {
-        nome: 'Teatro Avenida',
-        cidade: 'Maputo',
+        nome: "Teatro Avenida",
+        cidade: "Maputo",
         capacidade: 800,
-        tipo: 'teatro'
+        tipo: "teatro",
       },
-      descricao: 'Festival anual que celebrou o jazz moçambicano com os melhores artistas locais. Evento histórico já realizado.',
+      descricao:
+        "Festival anual que celebrou o jazz moçambicano com os melhores artistas locais. Evento histórico já realizado.",
       preco_min: 200,
       preco_max: 500,
-      status: 'confirmado',
+      status: "confirmado",
       is_exclusive: false,
-      plano_necessario: 'free',
-      imagem: '/api/placeholder/400/300',
-      tags: ['#Jazz', '#Festival', '#História'],
+      plano_necessario: "free",
+      imagem: "/api/placeholder/400/300",
+      tags: ["#Jazz", "#Festival", "#História"],
       participantes: 750,
-      is_trending: false
-    }
+      is_trending: false,
+    },
   ];
 
   // Simulação de carregamento
   useEffect(() => {
     const loadEvents = async () => {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       setEvents(mockEvents);
       setLoading(false);
     };
@@ -360,14 +416,15 @@ export default function EventsPage() {
   }, []);
 
   // Filtros aplicados
-  const filteredEvents = events.filter(event => {
+  const filteredEvents = events.filter((event) => {
     // Filtro de busca
-    const matchesSearch = event.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.artista.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.venue.cidade.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      event.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.artista.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.venue.cidade.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Filtro de tipo
-    const matchesType = filterType === 'todos' || event.tipo === filterType;
+    const matchesType = filterType === "todos" || event.tipo === filterType;
 
     // Filtro de data
     const eventDate = new Date(event.data);
@@ -377,16 +434,18 @@ export default function EventsPage() {
 
     let matchesDate = true;
     switch (dateFilter) {
-      case 'proximos':
+      case "proximos":
         matchesDate = eventDate >= now;
         break;
-      case 'este_mes':
-        matchesDate = eventDate >= startOfMonth && eventDate <= new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      case "este_mes":
+        matchesDate =
+          eventDate >= startOfMonth &&
+          eventDate <= new Date(now.getFullYear(), now.getMonth() + 1, 0);
         break;
-      case 'este_ano':
+      case "este_ano":
         matchesDate = eventDate >= startOfYear;
         break;
-      case 'passados':
+      case "passados":
         matchesDate = eventDate < now;
         break;
       default:
@@ -395,6 +454,56 @@ export default function EventsPage() {
 
     return matchesSearch && matchesType && matchesDate;
   });
+
+  const handleCreateEvent = async (formData: EventFormData) => {
+    try {
+      // Simular criação do evento (aqui você faria a chamada real à API)
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Criar novo evento com dados do formulário
+      const newEvent: Event = {
+        id: Date.now().toString(),
+        titulo: formData.titulo,
+        artista: {
+          id: user?.id || "temp",
+          nome:
+            user?.user_metadata?.name ||
+            user?.email?.split("@")[0] ||
+            "Artista",
+          avatar: "/api/placeholder/64/64",
+          verificado: isArtist || false,
+        },
+        tipo: formData.tipo,
+        data: `${formData.data}T${formData.hora}:00Z`,
+        hora: formData.hora,
+        venue: {
+          nome: formData.venue_nome,
+          cidade: formData.venue_cidade,
+          capacidade: formData.capacidade,
+          tipo: formData.venue_tipo,
+        },
+        descricao: formData.descricao,
+        preco_min: formData.preco_min,
+        preco_max: formData.preco_max,
+        status: "confirmado",
+        is_exclusive: formData.is_exclusive,
+        plano_necessario: formData.plano_necessario,
+        imagem: "/api/placeholder/400/300",
+        link_externo: formData.link_externo,
+        tags: formData.tags.map((tag) => `#${tag}`),
+        participantes: 1,
+        is_trending: false,
+      };
+
+      // Adicionar à lista de eventos
+      setEvents((prev) => [newEvent, ...prev]);
+
+      console.log("Novo evento criado:", newEvent);
+    } catch (error) {
+      console.error("Erro ao criar evento:", error);
+      throw error;
+    }
+  };
 
   // Componente de Loading
   const LoadingSkeleton = () => (
@@ -425,7 +534,7 @@ export default function EventsPage() {
 
     const handleExternalLink = () => {
       if (event.link_externo) {
-        window.open(event.link_externo, '_blank');
+        window.open(event.link_externo, "_blank");
       }
     };
 
@@ -452,11 +561,13 @@ export default function EventsPage() {
             alt={event.titulo}
             className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
           />
-          
+
           {/* Overlay com data */}
           <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm rounded-lg p-2 text-center">
             <div className="text-white font-bold text-lg">{dateInfo.day}</div>
-            <div className="text-gray-300 text-xs uppercase">{dateInfo.month}</div>
+            <div className="text-gray-300 text-xs uppercase">
+              {dateInfo.month}
+            </div>
           </div>
 
           {/* Status do evento */}
@@ -469,9 +580,12 @@ export default function EventsPage() {
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
               <div className="text-center">
                 <Lock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-white font-semibold text-sm">Evento Exclusivo</p>
+                <p className="text-white font-semibold text-sm">
+                  Evento Exclusivo
+                </p>
                 <p className="text-gray-300 text-xs">
-                  {event.plano_necessario === 'premium' ? 'Premium' : 'VIP'} necessário
+                  {event.plano_necessario === "premium" ? "Premium" : "VIP"}{" "}
+                  necessário
                 </p>
               </div>
             </div>
@@ -498,7 +612,9 @@ export default function EventsPage() {
               alt={event.artista.nome}
               className="w-8 h-8 rounded-full border border-gray-600"
             />
-            <span className="text-gray-300 font-medium">{event.artista.nome}</span>
+            <span className="text-gray-300 font-medium">
+              {event.artista.nome}
+            </span>
             {event.artista.verificado && (
               <Star className="w-4 h-4 text-blue-400" fill="currentColor" />
             )}
@@ -508,9 +624,11 @@ export default function EventsPage() {
           <div className="space-y-2 mb-4">
             <div className="flex items-center space-x-2 text-gray-400 text-sm">
               <MapPin className="w-4 h-4" />
-              <span>{event.venue.nome}, {event.venue.cidade}</span>
+              <span>
+                {event.venue.nome}, {event.venue.cidade}
+              </span>
             </div>
-            
+
             {event.hora && (
               <div className="flex items-center space-x-2 text-gray-400 text-sm">
                 <Clock className="w-4 h-4" />
@@ -575,8 +693,8 @@ export default function EventsPage() {
                     onClick={handleReminder}
                     className={`p-2 rounded-lg transition-all ${
                       isReminded
-                        ? 'bg-yellow-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        ? "bg-yellow-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                     }`}
                   >
                     <Bell className="w-4 h-4" />
@@ -593,14 +711,15 @@ export default function EventsPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowUpgradeModal(true)} 
+                onClick={() => setShowUpgradeModal(true)}
                 className={`flex-1 font-medium py-2 px-4 rounded-lg transition-all ${
-                  event.plano_necessario === 'premium'
-                    ? 'bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700'
-                    : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
+                  event.plano_necessario === "premium"
+                    ? "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
+                    : "bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
                 } text-white`}
               >
-                Upgrade para {event.plano_necessario === 'premium' ? 'Premium' : 'VIP'}
+                Upgrade para{" "}
+                {event.plano_necessario === "premium" ? "Premium" : "VIP"}
               </motion.button>
             )}
 
@@ -614,7 +733,7 @@ export default function EventsPage() {
           </div>
 
           {/* Contato VIP */}
-          {userPlan.tipo === 'vip' && event.artista.verificado && hasAccess && (
+          {userPlan.tipo === "vip" && event.artista.verificado && hasAccess && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -628,87 +747,103 @@ export default function EventsPage() {
       </motion.div>
     );
   };
+  const handleSelectPlan = (planType: "premium" | "vip") => {
+    console.log("Plano selecionado:", planType);
+    // Aqui você pode redirecionar para a página de pagamento
+    // Exemplo: router.push(`/payment?plan=${planType}`)
 
+    // Por enquanto, apenas fecha o modal
+    setIsPlansModalOpen(false);
+
+    // Opcional: mostrar mensagem de sucesso
+    alert(`Redirecionando para pagamento do plano ${planType.toUpperCase()}`);
+  };
   // Modal de Upgrade
-const UpgradeModal = () => (
-  <AnimatePresence>
-    {showUpgradeModal && (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        onClick={() => setShowUpgradeModal(false)}
-      >
+  const UpgradeModal = () => (
+    <AnimatePresence>
+      {showUpgradeModal && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          onClick={(e) => e.stopPropagation()}
-          className="bg-gray-800 rounded-2xl p-8 max-w-md w-full border border-gray-700"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setIsPlansModalOpen(true)}
         >
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="w-8 h-8 text-white" />
-            </div>
-            
-            <h3 className="text-2xl font-bold text-white mb-2">Upgrade o teu Plano</h3>
-            <p className="text-gray-400 mb-6">
-              Acede a eventos exclusivos e benefícios especiais
-            </p>
-
-            <div className="space-y-4">
-              <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2">
-                    <Crown className="w-5 h-5 text-yellow-500" />
-                    <span className="font-bold text-white">Premium</span>
-                  </div>
-                  <span className="text-yellow-500 font-bold">120 MT/mês</span>
-                </div>
-                <ul className="text-sm text-gray-300 space-y-1">
-                  <li>• Eventos exclusivos Premium</li>
-                  <li>• Notificações antecipadas</li>
-                  <li>• Meet & greet selecionados</li>
-                </ul>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-gray-800 rounded-2xl p-8 max-w-md w-full border border-gray-700"
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Calendar className="w-8 h-8 text-white" />
               </div>
 
-              <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2">
-                    <Gem className="w-5 h-5 text-purple-500" />
-                    <span className="font-bold text-white">VIP</span>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Upgrade o teu Plano
+              </h3>
+              <p className="text-gray-400 mb-6">
+                Acede a eventos exclusivos e benefícios especiais
+              </p>
+
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <Crown className="w-5 h-5 text-yellow-500" />
+                      <span className="font-bold text-white">Premium</span>
+                    </div>
+                    <span className="text-yellow-500 font-bold">
+                      120 MT/mês
+                    </span>
                   </div>
-                  <span className="text-purple-500 font-bold">250 MT/mês</span>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• Eventos exclusivos Premium</li>
+                    <li>• Notificações antecipadas</li>
+                    <li>• Meet & greet selecionados</li>
+                  </ul>
                 </div>
-                <ul className="text-sm text-gray-300 space-y-1">
-                  <li>• Tudo do Premium +</li>
-                  <li>• Contato direto com artistas</li>
-                  <li>• Eventos exclusivos VIP</li>
-                </ul>
+
+                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <Gem className="w-5 h-5 text-purple-500" />
+                      <span className="font-bold text-white">VIP</span>
+                    </div>
+                    <span className="text-purple-500 font-bold">
+                      250 MT/mês
+                    </span>
+                  </div>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li>• Tudo do Premium +</li>
+                    <li>• Contato direto com artistas</li>
+                    <li>• Eventos exclusivos VIP</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white py-3 rounded-xl transition-all"
+                >
+                  Escolher Plano
+                </button>
               </div>
             </div>
-
-            <div className="flex space-x-3 mt-6">
-              <button
-                onClick={() => setShowUpgradeModal(false)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl transition-colors"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={() => setShowUpgradeModal(false)}
-                className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white py-3 rounded-xl transition-all"
-              >
-                Escolher Plano
-              </button>
-            </div>
-          </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+      )}
+    </AnimatePresence>
+  );
 
   if (loading) {
     return (
@@ -724,6 +859,7 @@ const UpgradeModal = () => (
     );
   }
 
+  // Render da página principal
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 text-white relative overflow-hidden">
       {/* Efeitos de background animados - MESMO DAS OUTRAS PÁGINAS */}
@@ -737,7 +873,7 @@ const UpgradeModal = () => (
       <div className="border-b border-gray-800/50 bg-gray-900/80 backdrop-blur-xl sticky top-0 z-20 relative">
         {/* Linha de gradiente no topo */}
         <div className="h-1 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-purple-500"></div>
-        
+
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
             {/* Título e descrição */}
@@ -761,34 +897,46 @@ const UpgradeModal = () => (
                 </motion.div>
               </div>
               <p className="text-gray-300 text-lg max-w-2xl">
-                🎪 Descobre shows, lançamentos e eventos dos teus artistas favoritos em Moçambique
+                🎪 Descobre shows, lançamentos e eventos dos teus artistas
+                favoritos em Moçambique
               </p>
-              
+
               {/* Estatísticas rápidas */}
               <div className="flex items-center space-x-6 mt-4">
                 <div className="flex items-center space-x-2 text-green-400">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">{filteredEvents.filter(e => new Date(e.data) > new Date()).length} eventos próximos</span>
+                  <span className="text-sm font-medium">
+                    {
+                      filteredEvents.filter(
+                        (e) => new Date(e.data) > new Date()
+                      ).length
+                    }{" "}
+                    eventos próximos
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2 text-blue-400">
                   <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm font-medium">{filteredEvents.filter(e => e.is_trending).length} em alta</span>
+                  <span className="text-sm font-medium">
+                    {filteredEvents.filter((e) => e.is_trending).length} em alta
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2 text-purple-400">
                   <Eye className="w-4 h-4" />
-                  <span className="text-sm font-medium">{filteredEvents.length} total</span>
+                  <span className="text-sm font-medium">
+                    {filteredEvents.length} total
+                  </span>
                 </div>
               </div>
             </motion.div>
 
-            {/* Área de busca e filtros */}
+            {/* Área de busca e filtros com efeitos visuais */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
               className="flex flex-col space-y-4"
             >
-              {/* Campo de busca */}
+              {/* Campo de busca com gradiente */}
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-orange-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
                 <div className="relative">
@@ -803,22 +951,39 @@ const UpgradeModal = () => (
                 </div>
               </div>
 
-              {/* Botão de filtros */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center justify-center space-x-2 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-3 text-white hover:bg-gray-700/80 transition-all duration-300"
-              >
-                <Filter className="w-5 h-5" />
-                <span>Filtros</span>
-                <motion.div
-                  animate={{ rotate: showFilters ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
+              {/* Container para filtros e botão criar */}
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                {/* Botão de filtros */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center justify-center space-x-2 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-3 text-white hover:bg-gray-700/80 transition-all duration-300"
                 >
-                  <ChevronDown className="w-4 h-4" />
-                </motion.div>
-              </motion.button>
+                  <Filter className="w-5 h-5" />
+                  <span>Filtros</span>
+                  <motion.div
+                    animate={{ rotate: showFilters ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </motion.div>
+                </motion.button>
+
+                {/* Botão Criar Evento - Apenas para artistas autenticados */}
+                {isAuthenticated && isArtist && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="flex items-center justify-center space-x-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-xl px-4 py-3 text-white font-bold transition-all duration-300 shadow-lg hover:shadow-red-500/25"
+                  >
+                    <Calendar className="w-5 h-5" />
+                    <span className="hidden sm:inline">Criar Evento</span>
+                    <span className="inline sm:hidden">Criar</span>
+                  </motion.button>
+                )}
+              </div>
             </motion.div>
           </div>
 
@@ -827,7 +992,7 @@ const UpgradeModal = () => (
             {showFilters && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
+                animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
                 className="overflow-hidden mt-6"
@@ -836,23 +1001,27 @@ const UpgradeModal = () => (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Filtro por tipo */}
                     <div>
-                      <label className="block text-white font-medium mb-3">Tipo de Evento</label>
+                      <label className="block text-white font-medium mb-3">
+                        Tipo de Evento
+                      </label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
-                          { value: 'todos', label: '🌟 Todos' },
-                          { value: 'show', label: '🎵 Shows' },
-                          { value: 'lancamento', label: '💿 Lançamentos' },
-                          { value: 'tour', label: '🎤 Tours' },
-                          { value: 'visita', label: '👥 Visitas' },
-                          { value: 'colaboracao', label: '❤️ Colaborações' }
+                          { value: "todos", label: "🌟 Todos" },
+                          { value: "show", label: "🎵 Shows" },
+                          { value: "lancamento", label: "💿 Lançamentos" },
+                          { value: "tour", label: "🎤 Tours" },
+                          { value: "visita", label: "👥 Visitas" },
+                          { value: "colaboracao", label: "❤️ Colaborações" },
                         ].map((option) => (
                           <button
                             key={option.value}
-                            onClick={() => setFilterType(option.value as FilterType)}
+                            onClick={() =>
+                              setFilterType(option.value as FilterType)
+                            }
                             className={`p-2 rounded-lg text-sm font-medium transition-all ${
                               filterType === option.value
-                                ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white'
-                                : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                                ? "bg-gradient-to-r from-red-600 to-orange-600 text-white"
+                                : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50"
                             }`}
                           >
                             {option.label}
@@ -863,22 +1032,26 @@ const UpgradeModal = () => (
 
                     {/* Filtro por data */}
                     <div>
-                      <label className="block text-white font-medium mb-3">Período</label>
+                      <label className="block text-white font-medium mb-3">
+                        Período
+                      </label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
-                          { value: 'todos', label: '📅 Todos' },
-                          { value: 'proximos', label: '⏭️ Próximos' },
-                          { value: 'este_mes', label: '📆 Este Mês' },
-                          { value: 'este_ano', label: '🗓️ Este Ano' },
-                          { value: 'passados', label: '⏮️ Passados' }
+                          { value: "todos", label: "📅 Todos" },
+                          { value: "proximos", label: "⏭️ Próximos" },
+                          { value: "este_mes", label: "📆 Este Mês" },
+                          { value: "este_ano", label: "🗓️ Este Ano" },
+                          { value: "passados", label: "⏮️ Passados" },
                         ].map((option) => (
                           <button
                             key={option.value}
-                            onClick={() => setDateFilter(option.value as DateFilter)}
+                            onClick={() =>
+                              setDateFilter(option.value as DateFilter)
+                            }
                             className={`p-2 rounded-lg text-sm font-medium transition-all ${
                               dateFilter === option.value
-                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                                : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                                : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50"
                             }`}
                           >
                             {option.label}
@@ -893,6 +1066,7 @@ const UpgradeModal = () => (
           </AnimatePresence>
         </div>
       </div>
+
       {/* Conteúdo principal */}
       <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
         {/* Indicador de plano atual */}
@@ -904,32 +1078,38 @@ const UpgradeModal = () => (
           <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-4 border border-gray-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  userPlan.tipo === 'free' ? 'bg-gray-500' :
-                  userPlan.tipo === 'premium' ? 'bg-yellow-500' : 'bg-purple-500'
-                }`}></div>
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    userPlan.tipo === "free"
+                      ? "bg-gray-500"
+                      : userPlan.tipo === "premium"
+                      ? "bg-yellow-500"
+                      : "bg-purple-500"
+                  }`}
+                ></div>
                 <span className="text-white font-medium">
                   Plano {userPlan.tipo.toUpperCase()}
                 </span>
                 <span className="text-gray-400 text-sm">
-                  {userPlan.tipo === 'free' && 'Acesso a eventos públicos'}
-                  {userPlan.tipo === 'premium' && 'Acesso a eventos Premium + públicos'}
-                  {userPlan.tipo === 'vip' && 'Acesso total + contato direto'}
+                  {userPlan.tipo === "free" && "Acesso a eventos públicos"}
+                  {userPlan.tipo === "premium" &&
+                    "Acesso a eventos Premium + públicos"}
+                  {userPlan.tipo === "vip" && "Acesso total + contato direto"}
                 </span>
               </div>
-              
-              {userPlan.tipo !== 'vip' && (
+
+              {userPlan.tipo !== "vip" && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowUpgradeModal(true)} 
+                  onClick={() => setShowUpgradeModal(true)}
                   className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    userPlan.tipo === 'free'
-                      ? 'bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700'
-                      : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
+                    userPlan.tipo === "free"
+                      ? "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
+                      : "bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
                   } text-white`}
                 >
-                  Upgrade para {userPlan.tipo === 'free' ? 'Premium' : 'VIP'}
+                  Upgrade para {userPlan.tipo === "free" ? "Premium" : "VIP"}
                 </motion.button>
               )}
             </div>
@@ -949,7 +1129,11 @@ const UpgradeModal = () => (
               <div className="relative">
                 <motion.div
                   animate={{ y: [-10, 10, -10] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 >
                   <Calendar className="w-24 h-24 text-gray-600 mx-auto mb-6" />
                 </motion.div>
@@ -962,21 +1146,21 @@ const UpgradeModal = () => (
                   </motion.div>
                 </div>
               </div>
-              
+
               <h3 className="text-2xl font-bold text-transparent bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text mb-3">
                 Nenhum evento encontrado
               </h3>
               <p className="text-gray-400 text-lg mb-6">
                 🔍 Tenta ajustar os filtros ou buscar por outros termos
               </p>
-              
+
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  setSearchTerm('');
-                  setFilterType('todos');
-                  setDateFilter('proximos');
+                  setSearchTerm("");
+                  setFilterType("todos");
+                  setDateFilter("proximos");
                 }}
                 className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-medium transition-all"
               >
@@ -1000,19 +1184,29 @@ const UpgradeModal = () => (
                 <div className="flex items-center space-x-3">
                   <div className="w-1 h-6 bg-gradient-to-b from-red-500 to-orange-500 rounded-full"></div>
                   <p className="text-gray-300 text-lg">
-                    <span className="font-bold text-white">{filteredEvents.length}</span>{' '}
-                    {filteredEvents.length === 1 ? 'evento encontrado' : 'eventos encontrados'}
+                    <span className="font-bold text-white">
+                      {filteredEvents.length}
+                    </span>{" "}
+                    {filteredEvents.length === 1
+                      ? "evento encontrado"
+                      : "eventos encontrados"}
                   </p>
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
                   >
                     <Disc className="w-5 h-5 text-yellow-400" />
                   </motion.div>
                 </div>
 
                 {/* Filtros ativos */}
-                {(searchTerm || filterType !== 'todos' || dateFilter !== 'proximos') && (
+                {(searchTerm ||
+                  filterType !== "todos" ||
+                  dateFilter !== "proximos") && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -1039,7 +1233,7 @@ const UpgradeModal = () => (
               </div>
 
               {/* Seção de eventos bloqueados para FREE */}
-              {userPlan.tipo === 'free' && (
+              {userPlan.tipo === "free" && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1049,18 +1243,24 @@ const UpgradeModal = () => (
                   <div className="bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-red-500/10 rounded-2xl p-8 border border-yellow-500/20 text-center">
                     <motion.div
                       animate={{ y: [-5, 5, -5] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     >
                       <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
                     </motion.div>
-                    
+
                     <h3 className="text-2xl font-bold text-transparent bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text mb-2">
                       Eventos Exclusivos Esperando por Ti!
                     </h3>
                     <p className="text-gray-300 mb-6 max-w-md mx-auto">
-                      Há eventos Premium e VIP que não podes ver. Upgrade e acede a meet & greets, lançamentos exclusivos e muito mais!
+                      Há eventos Premium e VIP que não podes ver. Upgrade e
+                      acede a meet & greets, lançamentos exclusivos e muito
+                      mais!
                     </p>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto mb-6">
                       <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
                         <Crown className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
@@ -1073,11 +1273,11 @@ const UpgradeModal = () => (
                         <p className="text-purple-400 text-sm">250 MT/mês</p>
                       </div>
                     </div>
-                    
+
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                       onClick={() => setShowUpgradeModal(true)} 
+                      onClick={() => setShowUpgradeModal(true)}
                       className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg hover:shadow-yellow-500/25"
                     >
                       🎫 Ver Todos os Eventos
@@ -1089,7 +1289,21 @@ const UpgradeModal = () => (
           )}
         </AnimatePresence>
       </div>
-         <UpgradeModal />
-      </div>
+
+      {/* Modal de Upgrade existente */}
+      <UpgradeModal />
+      <PlansModal
+        isOpen={isPlansModalOpen}
+        onClose={() => setIsPlansModalOpen(false)}
+        onSelectPlan={handleSelectPlan}
+        currentPlan={userPlan.tipo}
+      />
+      {/* Modal de Criação de Evento */}
+      <CreateEventModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreateEvent}
+      />
+    </div>
   );
 }
