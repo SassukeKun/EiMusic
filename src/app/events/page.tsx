@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { PlansModal } from "@/components/PlansModal";
 import { CreateEventModal } from "./CreateEventModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -102,6 +103,7 @@ type DateFilter = "todos" | "proximos" | "este_mes" | "este_ano" | "passados";
 // Página de Eventos - EiMusic Platform
 export default function EventsPage() {
   const { user, isArtist, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);
   // Estados para gerenciamento de dados e UI
   const [events, setEvents] = useState<Event[]>([]);
@@ -747,16 +749,22 @@ export default function EventsPage() {
       </motion.div>
     );
   };
+
   const handleSelectPlan = (planType: "premium" | "vip") => {
-    console.log("Plano selecionado:", planType);
-    // Aqui você pode redirecionar para a página de pagamento
-    // Exemplo: router.push(`/payment?plan=${planType}`)
+    const planData = {
+      premium: { price: 120, name: "Premium" },
+      vip: { price: 250, name: "VIP" },
+    };
 
-    // Por enquanto, apenas fecha o modal
+    const plan = planData[planType];
+
+    // Redirecionar para a página de pagamento com parâmetros
+    router.push(
+      `/payment?plan=${planType}&price=${plan.price}&name=${plan.name}`
+    );
+
+    // Fechar o modal
     setIsPlansModalOpen(false);
-
-    // Opcional: mostrar mensagem de sucesso
-    alert(`Redirecionando para pagamento do plano ${planType.toUpperCase()}`);
   };
   // Modal de Upgrade
   const UpgradeModal = () => (
@@ -767,7 +775,7 @@ export default function EventsPage() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setIsPlansModalOpen(true)}
+          onClick={() => setShowUpgradeModal(false)} // <- MUDANÇA: fecha o modal ao clicar fora
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -832,7 +840,7 @@ export default function EventsPage() {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => setShowUpgradeModal(false)}
+                  onClick={() => setIsPlansModalOpen(true)} // <- MUDANÇA: abre o PlansModal
                   className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white py-3 rounded-xl transition-all"
                 >
                   Escolher Plano
@@ -891,7 +899,11 @@ export default function EventsPage() {
                 </h1>
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
                 >
                   <Music className="w-6 h-6 text-yellow-400" />
                 </motion.div>
