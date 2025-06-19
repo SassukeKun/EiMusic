@@ -20,6 +20,8 @@ import {
   TrendingUp,
   Flame,
 } from "lucide-react";
+import { CreateCommunityModal } from './CreateCommunityModal';
+import { useAuth } from '@/hooks/useAuth';
 
 // Interface TypeScript para tipagem forte - Boa prática fundamental
 interface Community {
@@ -44,8 +46,21 @@ interface Community {
   gradient_colors: string[];
 }
 
+// Interface para dados do formulário do modal
+interface CommunityFormData {
+  nome: string;
+  descricao: string;
+  categoria: string;
+  privacidade: 'public' | 'private' | 'invite_only';
+  imagem: File | null;
+  tags: string[];
+}
+
 // Página de Comunidades - EiMusic Platform
-export default function CommunitiesPage() {
+export default function CommunityPage() {
+  // Hook de autenticação para verificar se é artista
+  const { user, isArtist, isAuthenticated } = useAuth();
+
   // Estados para gerenciamento de dados e UI
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +68,9 @@ export default function CommunitiesPage() {
   const [filterType, setFilterType] = useState<"all" | "public" | "private">(
     "all"
   );
+
+  // Estado para controle do modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Mock data realista seguindo padrões moçambicanos
   const mockCommunities: Community[] = [
@@ -203,6 +221,45 @@ export default function CommunitiesPage() {
     loadCommunities();
   }, []);
 
+  // Handler para criar nova comunidade
+  const handleCreateCommunity = async (formData: CommunityFormData) => {
+    try {
+      // Simular criação da comunidade (aqui você faria a chamada real à API)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Criar nova comunidade com dados do formulário
+      const newCommunity: Community = {
+        id: Date.now().toString(),
+        nome: formData.nome,
+        artista: {
+          id: user?.id || 'temp',
+          nome: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Artista',
+          avatar: '/api/placeholder/64/64',
+          verificado: isArtist || false,
+        },
+        descricao: formData.descricao,
+        membros: 1, // Criador é o primeiro membro
+        tipo_acesso: formData.privacidade === 'invite_only' ? 'private' : formData.privacidade,
+        data_criacao: new Date().toISOString(),
+        categoria: formData.categoria,
+        ativo: true,
+        posts_recentes: 0,
+        is_trending: false,
+        activity_level: "low",
+        tags: formData.tags.map(tag => `#${tag}`),
+        gradient_colors: ["from-purple-600", "via-pink-600", "to-blue-600"],
+      };
+
+      // Adicionar à lista de comunidades
+      setCommunities(prev => [newCommunity, ...prev]);
+      
+      console.log('Nova comunidade criada:', newCommunity);
+    } catch (error) {
+      console.error('Erro ao criar comunidade:', error);
+      throw error;
+    }
+  };
+
   // Lógica de filtros reativa
   const filteredCommunities = communities.filter((community) => {
     const matchesSearch =
@@ -330,7 +387,6 @@ export default function CommunitiesPage() {
             </motion.div>
           )}
 
-          {/* Header da comunidade */}
           {/* Header da comunidade - RESPONSIVO */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 space-y-3 sm:space-y-0">
             <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
@@ -418,7 +474,6 @@ export default function CommunitiesPage() {
               </div>
             </div>
 
-            {/* Botão de ação com gradientes vibrantes */}
             {/* Botão de ação com gradientes vibrantes - RESPONSIVO */}
             <div className="flex justify-end sm:justify-start mt-3 sm:mt-0">
               <Link href={`/community/${community.id}`}>
@@ -507,8 +562,7 @@ export default function CommunitiesPage() {
       </motion.div>
     );
   };
-
-  // Render da página principal
+// Render da página principal
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 text-white relative overflow-hidden">
       {/* Efeitos de background animados */}
@@ -555,7 +609,7 @@ export default function CommunitiesPage() {
                 <div className="flex items-center space-x-2 text-green-400">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <span className="text-sm font-medium">
-                    12 comunidades ativas
+                    {communities.length} comunidades ativas
                   </span>
                 </div>
                 <div className="flex items-center space-x-2 text-blue-400">
@@ -613,6 +667,20 @@ export default function CommunitiesPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Botão Criar Comunidade - Apenas para artistas autenticados */}
+              {isAuthenticated && isArtist && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-purple-500/25"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span className="hidden sm:inline">Criar Comunidade</span>
+                  <span className="inline sm:hidden">Criar</span>
+                </motion.button>
+              )}
             </motion.div>
           </div>
         </div>
@@ -740,46 +808,57 @@ export default function CommunitiesPage() {
                 ))}
               </div>
 
-              {/* Call to action para criar comunidade */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: filteredCommunities.length * 0.1 + 0.3 }}
-                className="mt-12 text-center"
-              >
-                <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-yellow-500/10 rounded-2xl p-8 border border-purple-500/20">
-                  <motion.div
-                    animate={{ y: [-5, 5, -5] }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                  </motion.div>
+              {/* Call to action para criar comunidade - Apenas para usuários não-artistas */}
+              {(!isAuthenticated || !isArtist) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: filteredCommunities.length * 0.1 + 0.3 }}
+                  className="mt-12 text-center"
+                >
+                  <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-yellow-500/10 rounded-2xl p-8 border border-purple-500/20">
+                    <motion.div
+                      animate={{ y: [-5, 5, -5] }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                    >
+                      <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                    </motion.div>
 
-                  <h3 className="text-2xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text mb-2">
-                    És artista? Cria a tua comunidade!
-                  </h3>
-                  <p className="text-gray-300 mb-6 max-w-md mx-auto">
-                    Conecta-te diretamente com os teus fãs e constrói uma
-                    comunidade em torno da tua música
-                  </p>
+                    <h3 className="text-2xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text mb-2">
+                      És artista? Cria a tua comunidade!
+                    </h3>
+                    <p className="text-gray-300 mb-6 max-w-md mx-auto">
+                      Conecta-te diretamente com os teus fãs e constrói uma
+                      comunidade em torno da tua música
+                    </p>
 
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25"
-                  >
-                    ✨ Criar Comunidade
-                  </motion.button>
-                </div>
-              </motion.div>
+                    <Link href="/artist/register">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25"
+                      >
+                        ✨ Tornar-me Artista
+                      </motion.button>
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* Modal de Criação de Comunidade */}
+      <CreateCommunityModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateCommunity}
+      />
     </div>
   );
 }
