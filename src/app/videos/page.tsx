@@ -11,8 +11,9 @@ import React, {
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
-import { useAuth } from '@/hooks/useAuth';
+import { getSupabaseBrowserClient } from "@/utils/supabaseClient";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import {
   FaPlay,
   FaStepBackward,
@@ -49,6 +50,7 @@ import {
   FaChartLine,
   FaArrowUp,
 } from "react-icons/fa";
+import Comments from "@/components/Comments";
 
 // ===== COMPONENTE VIDEO PLAYER COMPLETO =====
 interface VideoPlayerProps {
@@ -62,7 +64,7 @@ interface VideoPlayerProps {
   hasPrevious?: boolean;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   video,
   isPlaying,
   onPlayPause,
@@ -695,11 +697,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             transition={{ duration: 0.3 }}
             className={getCommentsContainerClasses()}
           >
-            <CommentSection
-              videoId={video.id}
-              isVisible={showComments}
-              onToggle={toggleComments}
-            />
+            <Comments contentId={video.id} contentType="video" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -716,7 +714,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 };
 
 // ===== TIPOS TYPESCRIPT =====
-interface Video {
+export interface Video {
   id: string;
   title: string;
   artist: {
@@ -2074,13 +2072,14 @@ const VideoCard: React.FC<{
 
 // ===== COMPONENTE PRINCIPAL =====
 // Helper to format duration in seconds to mm:ss
-function formatDuration(seconds: number): string {
+export function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2,'0')}`;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 export default function VideosPage() {
+  const router = useRouter();
   const [videos, setVideos] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -2097,8 +2096,8 @@ export default function VideosPage() {
   // Like/dislike handlers
   const handleLike = async (videoId: string) => {
     if (!user) return;
-    setVideos(prev =>
-      prev.map(v =>
+    setVideos((prev) =>
+      prev.map((v) =>
         v.id === videoId
           ? {
               ...v,
@@ -2106,48 +2105,47 @@ export default function VideosPage() {
               likes: v.isLiked ? v.likes - 1 : v.likes + 1,
               // ensure you can't both like and dislike
               isDisliked: v.isLiked ? v.isDisliked : false,
-              dislikes: v.isLiked ? v.dislikes : v.dislikes
+              dislikes: v.isLiked ? v.dislikes : v.dislikes,
             }
           : v
       )
     );
-    const updated = videos.find(v => v.id === videoId);
+    const updated = videos.find((v) => v.id === videoId);
     if (updated) {
       const { error } = await supabaseClient
-        .from('videos')
+        .from("videos")
         .update({ likes: updated.likes, dislikes: updated.dislikes })
-        .eq('id', videoId);
-      if (error) console.error('Like update error:', error);
+        .eq("id", videoId);
+      if (error) console.error("Like update error:", error);
     }
   };
 
   const handleDislike = async (videoId: string) => {
     if (!user) return;
-    setVideos(prev =>
-      prev.map(v =>
+    setVideos((prev) =>
+      prev.map((v) =>
         v.id === videoId
           ? {
               ...v,
               isDisliked: !v.isDisliked,
               dislikes: v.isDisliked ? v.dislikes - 1 : v.dislikes + 1,
               isLiked: v.isDisliked ? v.isLiked : false,
-              likes: v.isDisliked ? v.likes : v.likes
+              likes: v.isDisliked ? v.likes : v.likes,
             }
           : v
       )
     );
-    const updated = videos.find(v => v.id === videoId);
+    const updated = videos.find((v) => v.id === videoId);
     if (updated) {
       const { error } = await supabaseClient
-        .from('videos')
+        .from("videos")
         .update({ likes: updated.likes, dislikes: updated.dislikes })
-        .eq('id', videoId);
-      if (error) console.error('Dislike update error:', error);
+        .eq("id", videoId);
+      if (error) console.error("Dislike update error:", error);
     }
   };
 
-
-  // Mock data with enhanced information
+  /* // Mock data with enhanced information
   useEffect(() => {
     const mockVideos: Video[] = [
       {
@@ -2308,17 +2306,13 @@ export default function VideosPage() {
       },
     ];
     setVideos(mockVideos);
-  }, []);
+  }, []); */
 
   // Event handlers
   const handleVideoSelect = useCallback((video: Video) => {
     setSelectedVideo(video);
     setIsPlaying(true);
   }, []);
-
-
-
-
 
   const handleBookmark = useCallback((videoId: string) => {
     setVideos((prev) =>
@@ -2347,36 +2341,63 @@ export default function VideosPage() {
   // Fetch videos from Supabase
   useEffect(() => {
     const loadVideos = async () => {
-      const { data, error } = await supabaseClient
-        .from('videos')
-        .select(`
-          *, profiles ( id, name, avatar_url, verified, subscribers )
-        `)
-        .order('created_at', { ascending: false });
-      if (error) return console.error('Error fetching videos:', error);
-      const formatted: Video[] = data.map((v: any) => ({
-        id: v.id,
-        title: v.title,
-        artist: {
-          id: v.profiles.id,
-          name: v.profiles.name,
-          avatar: v.profiles.avatar_url,
-          verified: v.profiles.verified,
-          subscribers: v.profiles.subscribers,
-        },
-        thumbnail: v.thumbnail_url,
-        videoUrl: v.video_url,
-        duration: formatDuration(v.duration),
-        views: v.views,
-        likes: v.likes,
-        dislikes: v.dislikes,
-        uploadDate: new Date(v.created_at).toISOString().split('T')[0],
-        description: v.description,
-        genre: v.genre,
-        isLiked: false,
-        isDisliked: false,
-        isBookmarked: false,
-      }));
+      const { data: videosData, error: videosError } = await supabaseClient
+        .from("videos")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (videosError) {
+        console.error("Error fetching videos:", {
+          code: videosError.code,
+          details: videosError.details,
+          hint: videosError.hint,
+          message: videosError.message,
+        });
+        return;
+      }
+      const { data: artistsData, error: artistsError } = await supabaseClient
+        .from("artists")
+        .select("id,name,profile_image_url,verified,subscribers");
+      if (artistsError) {
+        console.error("Error fetching artists:", {
+          code: artistsError.code,
+          details: artistsError.details,
+          hint: artistsError.hint,
+          message: artistsError.message,
+        });
+        return;
+      }
+      const formatted: Video[] = videosData.map((v: any) => {
+        const art = artistsData?.find((a: any) => a.id === v.artist_id) || {
+          id: "",
+          name: "",
+          profile_image_url: "",
+          verified: false,
+          subscribers: 0,
+        };
+        return {
+          id: v.id,
+          title: v.title,
+          artist: {
+            id: art.id,
+            name: art.name,
+            avatar: art.profile_image_url,
+            verified: art.verified,
+            subscribers: art.subscribers,
+          },
+          thumbnail: v.thumbnail_url,
+          videoUrl: v.video_url,
+          duration: formatDuration(v.duration),
+          views: v.views,
+          likes: v.likes,
+          dislikes: v.dislikes,
+          uploadDate: new Date(v.created_at).toISOString().split("T")[0],
+          description: v.description,
+          genre: v.genre,
+          isLiked: false,
+          isDisliked: false,
+          isBookmarked: false,
+        };
+      });
       setVideos(formatted);
     };
     loadVideos();
@@ -2562,7 +2583,7 @@ export default function VideosPage() {
               <VideoCard
                 key={video.id}
                 video={video}
-                onVideoSelect={handleVideoSelect}
+                onVideoSelect={() => router.push(`/videos/${video.id}`)}
                 onLike={handleLike}
                 onDislike={handleDislike}
                 onBookmark={handleBookmark}
@@ -2624,7 +2645,7 @@ export default function VideosPage() {
       </motion.button>
 
       {/* Video Player */}
-      
+
       <AnimatePresence>
         {selectedVideo && (
           <VideoPlayer
@@ -2638,8 +2659,6 @@ export default function VideosPage() {
           />
         )}
       </AnimatePresence>
-
-
     </div>
   );
 }

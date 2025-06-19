@@ -279,7 +279,7 @@ const uploadService = {
         director: metadata?.director,
         video_public_id: videoResult.public_id,
         thumbnail_public_id: thumbnailResult ? thumbnailResult.public_id : null,
-        duration: videoResult.duration,
+        duration: Math.round(videoResult.duration ?? 0),
         format: videoResult.format
       };
       
@@ -299,7 +299,7 @@ const uploadService = {
   title: videoTitle,
   video_url: videoResult.secure_url,
   thumbnail_url: thumbnailResult ? thumbnailResult.secure_url : null,
-  duration: videoResult.duration,
+  duration: Math.round(videoResult.duration ?? 0),
   format: videoResult.format,
   is_video_clip: metadata?.isVideoClip ?? false,
   description: metadata?.description || '',
@@ -312,7 +312,7 @@ const uploadService = {
         url: videoResult.secure_url,
         publicId: videoResult.public_id,
         format: videoResult.format,
-        duration: videoResult.duration,
+        duration: Math.round(videoResult.duration ?? 0),
         thumbnail: thumbnailResult ? {
           url: thumbnailResult.secure_url,
           publicId: thumbnailResult.public_id

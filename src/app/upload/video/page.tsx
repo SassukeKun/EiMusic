@@ -23,6 +23,7 @@ import {
   FaPlus
 } from 'react-icons/fa'
 import FileUploader from '@/components/upload/FileUploader'
+import uploadService from '@/services/uploadService' 
 
 /**
  * BOA PRÁTICA: Definir tipos TypeScript explícitos
@@ -364,36 +365,39 @@ export default function VideoUploadPage() {
     return true;
   };
   
-  // Função de submissão (simulada - será substituída pela integração real)
+  // Função de submissão real usando uploadService
   const handleSubmitUpload = async () => {
     if (!validateForm()) return;
-    
+
     setUploadStep('uploading');
     setUploadProgress(0);
-    
-    /**
-     * BOA PRÁTICA: Feedback visual durante processo assíncrono
-     * - Mostra progresso para o usuário
-     * - Previne múltiplas submissões
-     * - Simula comportamento real do upload
-     */
-    
-    // Simulação de progresso com incrementos realistas
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          // Simular processamento final
-          setTimeout(() => {
-            setUploadProgress(100);
-            setUploadStep('success');
-          }, 1000);
-          return prev;
-        }
-        // Incremento aleatório mas controlado
-        return Math.min(prev + Math.random() * 10, 90);
-      });
-    }, 500);
+
+    try {
+      const artistId = user?.id || '';
+      const artistName = (user as any)?.user_metadata?.name || artistId;
+      await uploadService.uploadVideo(
+        artistId,
+        artistName,
+        videoFile!,
+        {
+          title: videoMetadata.title,
+          isVideoClip: videoMetadata.isVideoClip,
+          genre: videoMetadata.genre,
+          tags: videoMetadata.tags,
+          visibility: videoMetadata.visibility,
+          description: videoMetadata.description,
+          director: videoMetadata.director,
+        },
+        thumbnailFile ?? undefined
+      );
+
+      setUploadProgress(100);
+      setUploadStep('success');
+    } catch (err: any) {
+      console.error('Erro ao fazer upload de vídeo:', err);
+      setError('Falha ao enviar vídeo. Tente novamente.');
+      setUploadStep('error');
+    }
   };
   /**
    * BOA PRÁTICA: Componentes de renderização separados
