@@ -17,15 +17,17 @@ import {
   Save,
   AlertCircle
 } from 'lucide-react'
+import { CldUploadWidget } from 'next-cloudinary'
 
-// Interface para dados da comunidade - Boa prática de tipagem forte
+// Interface para dados da comunidade - Agora alinhada com a tabela Supabase
 interface CommunityFormData {
-  nome: string
-  descricao: string
-  categoria: string
-  privacidade: 'public' | 'private' | 'invite_only'
-  imagem: File | null
-  tags: string[]
+  name: string;
+  description: string;
+  category: string;
+  access_type: 'public' | 'private' | 'invite_only';
+  tags: string[];
+  banner: string; // Cloudinary URL after upload
+  imagem?: File | null; // Local file before upload
 }
 
 // Interface para props do modal
@@ -43,12 +45,13 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
 }) => {
   // Estados para gerenciamento do formulário
   const [formData, setFormData] = useState<CommunityFormData>({
-    nome: '',
-    descricao: '',
-    categoria: '',
-    privacidade: 'public',
-    imagem: null,
-    tags: []
+    name: '',
+    description: '',
+    category: '',
+    access_type: 'public',
+    tags: [],
+    banner: '',
+    imagem: null
   })
   
   // Estados de controle de UI
@@ -96,29 +99,28 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
 
   // Função para validar formulário
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {}
-    
+    const newErrors: Record<string, string> = {};
     // Validação do nome (obrigatório, mínimo 3 caracteres)
-    if (!formData.nome.trim()) {
-      newErrors.nome = 'Nome da comunidade é obrigatório'
-    } else if (formData.nome.trim().length < 3) {
-      newErrors.nome = 'Nome deve ter pelo menos 3 caracteres'
+    if (!formData.name.trim()) {
+      newErrors.name = 'Nome da comunidade é obrigatório';
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
     }
     
     // Validação da descrição (obrigatório, mínimo 10 caracteres)
-    if (!formData.descricao.trim()) {
-      newErrors.descricao = 'Descrição é obrigatória'
-    } else if (formData.descricao.trim().length < 10) {
-      newErrors.descricao = 'Descrição deve ter pelo menos 10 caracteres'
+    if (!formData.description.trim()) {
+      newErrors.description = 'Descrição é obrigatória';
+    } else if (formData.description.trim().length < 10) {
+      newErrors.description = 'Descrição deve ter pelo menos 10 caracteres';
     }
     
     // Validação da categoria (obrigatório)
-    if (!formData.categoria) {
-      newErrors.categoria = 'Selecione uma categoria'
+    if (!formData.category) {
+      newErrors.category = 'Selecione uma categoria';
     }
     
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   }
 
   // Handler para upload de imagem
@@ -160,8 +162,8 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
       setFormData(prev => ({
         ...prev,
         tags: [...prev.tags, tagInput.trim()]
-      }))
-      setTagInput('')
+      }));
+      setTagInput('');
     }
   }
 
@@ -170,34 +172,59 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
     setFormData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }))
+    }));
   }
 
   // Handler para submissão do formulário
   const handleSubmit = async () => {
-    if (!validateForm()) return
-    
-    setIsLoading(true)
+    if (!validateForm()) return;
+    setIsLoading(true);
     try {
-      await onSubmit(formData)
+      let bannerUrl = formData.banner;
+      // Se não houver URL ainda mas existe arquivo local, faz upload para Cloudinary
+      if (!bannerUrl && formData.imagem) {
+        const data = new FormData();
+        data.append('file', formData.imagem);
+        data.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
+        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+        if (!cloudName) {
+          throw new Error('Cloudinary cloud name não definido nas variáveis de ambiente');
+        }
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
+          method: 'POST',
+          body: data
+        });
+        if (!res.ok) {
+          throw new Error('Falha ao fazer upload para Cloudinary');
+        }
+        const json = await res.json();
+        bannerUrl = json.secure_url;
+      }
+
+      const submitPayload = {
+        ...formData,
+        banner: bannerUrl,
+      } as CommunityFormData;
+
+      await onSubmit(submitPayload);
       // Reset form após sucesso
       setFormData({
-        nome: '',
-        descricao: '',
-        categoria: '',
-        privacidade: 'public',
-        imagem: null,
-        tags: []
-      })
-      setImagePreview(null)
-      setTagInput('')
-      setErrors({})
-      onClose()
+        name: '',
+        description: '',
+        category: '',
+        access_type: 'public',
+        tags: [],
+        banner: '',
+        imagem: null
+      });
+      setTagInput('');
+      setErrors({});
+      onClose();
     } catch (error) {
-      console.error('Erro ao criar comunidade:', error)
-      setErrors({ submit: 'Erro ao criar comunidade. Tente novamente.' })
+      console.error('Erro ao criar comunidade:', error);
+      setErrors({ submit: 'Erro ao criar comunidade. Tente novamente.' });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -219,7 +246,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop com blur */}
+          {/*  ckdrop com blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -354,23 +381,23 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={formData.nome}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Ex: Marrabenta Moderna"
                       className={`w-full px-4 py-3 bg-gray-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                        errors.nome 
+                        errors.name 
                           ? 'border-red-500 focus:ring-red-500' 
                           : 'border-gray-600 focus:ring-purple-500 hover:border-purple-500/50'
                       }`}
                     />
-                    {errors.nome && (
+                    {errors.name && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.nome}</span>
+                        <span>{errors.name}</span>
                       </motion.p>
                     )}
                   </div>
@@ -381,24 +408,24 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                       Descrição *
                     </label>
                     <textarea
-                      value={formData.descricao}
-                      onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Descreva o propósito e objetivo da sua comunidade..."
                       rows={4}
                       className={`w-full px-4 py-3 bg-gray-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 resize-none ${
-                        errors.descricao 
+                        errors.description 
                           ? 'border-red-500 focus:ring-red-500' 
                           : 'border-gray-600 focus:ring-purple-500 hover:border-purple-500/50'
                       }`}
                     />
-                    {errors.descricao && (
+                    {errors.description && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.descricao}</span>
+                        <span>{errors.description}</span>
                       </motion.p>
                     )}
                   </div>
@@ -410,16 +437,16 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {categorias.map((categoria) => {
-                        const Icon = categoria.icon
+                        const Icon = categoria.icon;
                         return (
                           <motion.button
                             key={categoria.value}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, categoria: categoria.value }))}
+                            onClick={() => setFormData(prev => ({ ...prev, category: categoria.value }))}
                             className={`p-3 rounded-lg border-2 transition-all duration-200 flex items-center space-x-3 ${
-                              formData.categoria === categoria.value
+                              formData.category === categoria.value
                                 ? 'border-purple-500 bg-purple-500/20'
                                 : 'border-gray-600 hover:border-purple-500/50 bg-gray-800/30'
                             }`}
@@ -427,17 +454,17 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                             <Icon className="w-5 h-5 text-purple-400" />
                             <span className="text-white font-medium">{categoria.label}</span>
                           </motion.button>
-                        )
+                        );
                       })}
                     </div>
-                    {errors.categoria && (
+                    {errors.category && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.categoria}</span>
+                        <span>{errors.category}</span>
                       </motion.p>
                     )}
                   </div>
@@ -449,15 +476,15 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                     </label>
                     <div className="space-y-3">
                       {privacidadeOptions.map((option) => {
-                        const Icon = option.icon
+                        const Icon = option.icon;
                         return (
                           <motion.button
                             key={option.value}
                             whileHover={{ scale: 1.01 }}
                             type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, privacidade: option.value }))}
+                            onClick={() => setFormData(prev => ({ ...prev, access_type: option.value }))}
                             className={`w-full p-4 rounded-lg border-2 transition-all duration-200 flex items-center justify-between ${
-                              formData.privacidade === option.value
+                              formData.access_type === option.value
                                 ? 'border-purple-500 bg-purple-500/20'
                                 : 'border-gray-600 hover:border-purple-500/50 bg-gray-800/30'
                             }`}
@@ -470,7 +497,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                               </div>
                             </div>
                             
-                            {formData.privacidade === option.value && (
+                            {formData.access_type === option.value && (
                               <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
@@ -485,7 +512,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                               </motion.div>
                             )}
                           </motion.button>
-                        )
+                        );
                       })}
                     </div>
                   </div>

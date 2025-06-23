@@ -1,28 +1,9 @@
 import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
-
-export interface RawCommunity {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  access_type: 'public' | 'private';
-  category: string;
-  is_active: boolean;
-  is_trending: boolean;
-  activity_level: 'low' | 'medium' | 'high';
-  tags: string[];
-  gradient_colors: string[];
-  artist: {
-    id: string;
-    name: string;
-    profile_image_url: string | null;
-    is_artist: boolean;
-  }[];
-}
+import { Community, CreateCommunityInput } from '@/models/community';
 
 const supabase = getSupabaseBrowserClient();
 
-export async function fetchCommunities(): Promise<RawCommunity[]> {
+export async function fetchCommunities(): Promise<Community[]> {
   const { data, error } = await supabase
     .from('communities')
     .select(
@@ -33,38 +14,30 @@ export async function fetchCommunities(): Promise<RawCommunity[]> {
        access_type,
        category,
        is_active,
-       is_trending,
        activity_level,
        tags,
-       gradient_colors,
-       artist:artists(id, name, profile_image_url, is_artist)`
+       banner,
+       artist:artists!communities_artist_id_fkey(artist_id:id, name, profile_image_url, verified)`
     )
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data as unknown as RawCommunity[]; 
+  return data as unknown as Community[]; 
 }
 
-interface CreateInput {
-  name: string;
-  description?: string;
-  access_type: 'public' | 'private';
-  category: string;
-  tags?: string[];
-  gradient_colors?: string[];
-}
 
-export async function createCommunity(
-  input: CreateInput
-): Promise<RawCommunity> {
-  const { data, error } = await supabase
+
+export async function createCommunity(input: CreateCommunityInput): Promise<Community> {
+  // Create the community
+  const { data: community, error: createError } = await supabase
     .from('communities')
     .insert({
+      artist_id: input.artist_id || null,
       name: input.name,
       description: input.description || null,
       access_type: input.access_type,
       category: input.category,
       tags: input.tags || [],
-      gradient_colors: input.gradient_colors || []
+      banner: input.banner || null,
     })
     .select(
       `id,
@@ -74,13 +47,76 @@ export async function createCommunity(
        access_type,
        category,
        is_active,
-       is_trending,
        activity_level,
        tags,
-       gradient_colors,
-       artist:artists(id, name, profile_image_url, is_artist)`
+       banner,
+       artist:artists!communities_artist_id_fkey(artist_id:id, name, profile_image_url, verified)`
     )
     .single();
+  if (createError) throw createError;
+
+  // Add the creator as an admin member
+  if (input.artist_id) {
+    const { error: membershipError } = await supabase
+      .from('community_members')
+      .insert({
+        community_id: community.id,
+        user_id: input.artist_id,
+        role: 'admin'
+      });
+    if (membershipError) throw membershipError;
+  }
+
+  return community as unknown as Community;
+}
+
+export async function getCommunityById(id: string): Promise<Community> {
+  const { data, error } = await supabase
+    .from('communities')
+    .select(
+      `id,
+       name,
+       description,
+       created_at,
+       access_type,
+       category,
+       is_active,
+       activity_level,
+       tags,
+       banner,
+       artist:artists!communities_artist_id_fkey(artist_id:id, name, profile_image_url, verified)`
+    )
+    .eq('id', id)
+    .single();
   if (error) throw error;
-  return data as unknown as RawCommunity; 
+  return data as unknown as Community;
+}
+
+// Get membership status for a user in a community
+export async function getCommunityMembership(communityId: string, userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('community_members')
+    .select()
+    .eq('community_id', communityId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
+// Join a community as a member
+export async function joinCommunity(communityId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('community_members')
+    .insert({ community_id: communityId, user_id: userId });
+  if (error) throw error;
+}
+
+// Leave a community (remove membership)
+export async function leaveCommunity(communityId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('community_members')
+    .delete()
+    .match({ community_id: communityId, user_id: userId });
+  if (error) throw error;
 }
