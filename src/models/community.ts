@@ -13,6 +13,8 @@ export interface Community {
   tags: string[];
   is_active: boolean;
   activity_level: string;
+  /** whether the current logged-in user is a member (client-side helper) */
+  isMember?: boolean;
   artist_id: string | null;
   created_at: string;
   /** banner image URL */

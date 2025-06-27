@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
+import ProfilePhotoUploader from '@/components/settings/ProfilePhotoUploader';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3,
@@ -1387,14 +1388,11 @@ export default function ArtistDashboard() {
           </h3>
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
-              <img
-                src={mockArtist.avatar}
-                alt="Avatar"
-                className="w-20 h-20 rounded-full border-2 border-purple-500"
+              <ProfilePhotoUploader
+                mode="artist"
+                id={mockArtist.id}
+                initialUrl={mockArtist.avatar}
               />
-              <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-colors">
-                Alterar Foto
-              </button>
             </div>
             <div>
               <label className="block text-gray-400 font-medium mb-3">

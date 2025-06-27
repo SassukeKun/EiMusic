@@ -17,9 +17,8 @@ import {
   Save,
   AlertCircle
 } from 'lucide-react'
-import { CldUploadWidget } from 'next-cloudinary'
 
-// Interface para dados da comunidade - Agora alinhada com a tabela Supabase
+// Interface para dados da comunidade - Alinhada com a tabela Supabase
 interface CommunityFormData {
   name: string;
   description: string;
@@ -27,7 +26,8 @@ interface CommunityFormData {
   access_type: 'public' | 'private' | 'invite_only';
   tags: string[];
   banner: string; // Cloudinary URL after upload
-  imagem?: File | null; // Local file before upload
+  image?: File | null; // Local file before upload
+  artist_id: string; // Artist ID required for community creation
 }
 
 // Interface para props do modal
@@ -35,44 +35,46 @@ interface CreateCommunityModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: CommunityFormData) => Promise<void>
+  onImageUpload: (file: File, metadata?: {title?: string; description?: string; tags?: string[]; artist_id?: string}) => Promise<string>
+  artistId: string; // Artist ID passed from parent component
 }
 
 // Componente do Modal de Criação de Comunidade
 export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
   isOpen,
   onClose,
-  onSubmit
+  onSubmit,
+  onImageUpload,
+  artistId
 }) => {
   // Estados para gerenciamento do formulário
   const [formData, setFormData] = useState<CommunityFormData>({
     name: '',
     description: '',
     category: '',
-    access_type: 'public',
+    access_type: 'public' as const,
     tags: [],
     banner: '',
-    imagem: null
-  })
-  
+    image: null,
+    artist_id: artistId
+  });
+
   // Estados de controle de UI
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [tagInput, setTagInput] = useState('')
-  
-  // Referências para elementos DOM
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
-  // Categorias disponíveis - Mock data moçambicano
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dados estáticos
   const categorias = [
     { value: 'musica', label: '🎵 Música', icon: Music },
     { value: 'artistas', label: '🎤 Artistas', icon: Mic },
     { value: 'generos', label: '🎼 Gêneros', icon: Music },
     { value: 'cidades', label: '🏙️ Cidades', icon: MapPin },
     { value: 'eventos', label: '📅 Eventos', icon: Calendar }
-  ]
-  
-  // Opções de privacidade
+  ] as const;
+
   const privacidadeOptions = [
     {
       value: 'public' as const,
@@ -95,7 +97,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
       icon: UserCheck,
       color: 'text-purple-400'
     }
-  ]
+  ] as const;
 
   // Função para validar formulário
   const validateForm = (): boolean => {
@@ -124,35 +126,44 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
   }
 
   // Handler para upload de imagem
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // Validação do arquivo
-      if (file.size > 5 * 1024 * 1024) { // 5MB máximo
-        setErrors(prev => ({ ...prev, imagem: 'Imagem deve ter menos de 5MB' }))
-        return
-      }
-      
-      if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, imagem: 'Arquivo deve ser uma imagem' }))
-        return
-      }
-      
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validação do arquivo
+    if (file.size > 5 * 1024 * 1024) { // 5MB máximo
+      setErrors(prev => ({ ...prev, image: 'Imagem deve ter menos de 5MB' }));
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      setErrors(prev => ({ ...prev, image: 'Arquivo deve ser uma imagem' }));
+      return;
+    }
+
+    try {
       // Criar preview da imagem
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-      
-      // Atualizar form data
-      setFormData(prev => ({ ...prev, imagem: file }))
-      
-      // Limpar erro de imagem se existir
-      setErrors(prev => {
-        const { imagem, ...rest } = prev
-        return rest
-      })
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload da imagem com metadados do artista
+      const bannerUrl = await onImageUpload(file, {
+        title: formData.name || 'Comunidade',
+        description: 'Banner da comunidade',
+        tags: formData.tags,
+        artist_id: artistId
+      });
+
+      // Atualizar form data com URL da imagem
+      setFormData(prev => ({ ...prev, banner: bannerUrl, image: null }));
+      // Clear all errors since upload was successful
+      setErrors({});
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem:', error);
+      setErrors(prev => ({ ...prev, image: 'Erro ao fazer upload da imagem' }));
     }
   }
 
@@ -182,29 +193,30 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
     try {
       let bannerUrl = formData.banner;
       // Se não houver URL ainda mas existe arquivo local, faz upload para Cloudinary
-      if (!bannerUrl && formData.imagem) {
-        const data = new FormData();
-        data.append('file', formData.imagem);
-        data.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-        if (!cloudName) {
-          throw new Error('Cloudinary cloud name não definido nas variáveis de ambiente');
-        }
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
-          method: 'POST',
-          body: data
-        });
-        if (!res.ok) {
+      if (!bannerUrl && formData.image) {
+        // Use the onImageUpload function to upload the image with metadata
+        try {
+          // Format tags properly - remove any # prefix if present
+          const formattedTags = formData.tags.map(tag => tag.startsWith('#') ? tag.substring(1) : tag);
+          
+          const uploadResponse = await onImageUpload(formData.image, {
+            title: formData.name,
+            description: formData.description,
+            tags: formattedTags
+          });
+          bannerUrl = uploadResponse;
+        } catch (error) {
+          console.error('Error uploading image to Cloudinary:', error);
           throw new Error('Falha ao fazer upload para Cloudinary');
         }
-        const json = await res.json();
-        bannerUrl = json.secure_url;
       }
 
-      const submitPayload = {
+      // Create submit payload with proper typing
+      const submitPayload: CommunityFormData = {
         ...formData,
         banner: bannerUrl,
-      } as CommunityFormData;
+        artist_id: artistId
+      };
 
       await onSubmit(submitPayload);
       // Reset form após sucesso
@@ -212,10 +224,11 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
         name: '',
         description: '',
         category: '',
-        access_type: 'public',
+        access_type: 'public' as const,
         tags: [],
         banner: '',
-        imagem: null
+        image: null,
+        artist_id: artistId
       });
       setTagInput('');
       setErrors({});
@@ -327,7 +340,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                             whileHover={{ scale: 1.1 }}
                             onClick={() => {
                               setImagePreview(null)
-                              setFormData(prev => ({ ...prev, imagem: null }))
+                              setFormData(prev => ({ ...prev, image: null }))
                             }}
                             className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"
                           >
@@ -362,14 +375,14 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                       className="hidden"
                     />
                     
-                    {errors.imagem && (
+                    {errors.image && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.imagem}</span>
+                        <span>{errors.image}</span>
                       </motion.p>
                     )}
                   </div>

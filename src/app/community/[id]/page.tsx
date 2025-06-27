@@ -13,6 +13,7 @@ const supabase = getSupabaseBrowserClient();
 // Hardcoded gradient colors for community header
 const DEFAULT_GRADIENT_COLORS = ['from-purple-600','via-pink-600','to-red-600'];
 import { Post } from "@/models/post";
+import { createPost } from "@/services/postService";
 import {
   Users,
   Star,
@@ -71,6 +72,7 @@ export default function CommunityDetailPage() {
   const [isCreator, setIsCreator] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [newPostText, setNewPostText] = useState("");
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
 
   // Função para verificar acesso ao conteúdo
   const hasAccessToContent = (
@@ -331,16 +333,16 @@ export default function CommunityDetailPage() {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-3">
               <img
-                src={post.autor.avatar}
-                alt={post.autor.name}
+                src={post.author?.avatar ?? '/api/placeholder/64/64'}
+                alt={post.author?.name ?? 'Autor'}
                 className="w-12 h-12 rounded-full border-2 border-gray-600"
               />
               <div>
                 <div className="flex items-center space-x-2">
                   <h4 className="font-semibold text-white">
-                    {post.autor.name}
+                    {post.author?.name ?? 'Autor'}
                   </h4>
-                  {post.autor.verified && (
+                  {post.author?.verified && (
                     <Star
                       className="w-4 h-4 text-blue-400"
                       fill="currentColor"
@@ -595,6 +597,12 @@ export default function CommunityDetailPage() {
               src={community.banner}
               alt={community.name}
               className="w-full h-full object-cover opacity-50"
+              onError={(e) => {
+                console.error('Error loading banner image:', e);
+                // Replace with fallback image if loading fails
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/api/placeholder/800/300';
+              }}
             />
           )}
 
@@ -633,9 +641,14 @@ export default function CommunityDetailPage() {
                 " "
               )} relative z-10`}
             >                <img
-                  src={community.artist?.profile_image_url ?? '/api/placeholder/128/128'}
+                  src={community.artist?.profile_image_url ?? '/avatar.svg'}
                   alt={community.artist?.name}
                   className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gray-800 border-4 border-gray-900"
+                  onError={(e) => {
+                    console.error('Error loading artist image:', e);
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/avatar.svg';
+                  }}
                 />
             </motion.div>
 
@@ -810,12 +823,69 @@ export default function CommunityDetailPage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            disabled={!newPostText.trim()}
+                            disabled={!newPostText.trim() || isCreatingPost}
                             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
                           >
                             <Send className="w-4 h-4" />
                             <span>Publicar</span>
                           </motion.button>
+                          
+                          <AnimatePresence>
+                            {isCreatingPost && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute top-0 left-0 right-0 bottom-0 bg-black/50 flex items-center justify-center"
+                                onClick={async () => {
+                                  if (!userId || !communityId) return;
+
+                                  try {
+                                    setIsCreatingPost(true);
+                                    
+                                    // Get current user's plan from user metadata
+                                    const currentUser = await authService.getCurrentUser();
+                                    const plan = (currentUser?.user_metadata?.plan as 'free' | 'premium' | 'vip') ?? 'free';
+
+                                    // Create post in Supabase
+                                    const newPost = await createPost({
+                                      community_id: communityId,
+                                      user_id: userId,
+                                      content: newPostText,
+                                      plan,
+                                      type: 'text',
+                                      attachments: [],
+                                      pinned: false
+                                    });
+
+                                    // Reset form
+                                    setNewPostText('');
+                                    
+                                    // Update posts list
+                                    setPosts(prevPosts => [newPost, ...prevPosts]);
+                                    
+                                  } catch (error) {
+                                    console.error('Erro ao criar post:', error);
+                                    alert('Erro ao criar post. Por favor, tente novamente.');
+                                  } finally {
+                                    setIsCreatingPost(false);
+                                  }
+                                }}
+                              >
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  exit={{ scale: 0 }}
+                                  className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-lg border border-gray-700"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-4 h-4 border-2 border-white rounded-full animate-spin"></div>
+                                    <span className="text-white">Publicando...</span>
+                                  </div>
+                                </motion.div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       </div>
                     </div>

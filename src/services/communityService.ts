@@ -27,11 +27,16 @@ export async function fetchCommunities(): Promise<Community[]> {
 
 
 export async function createCommunity(input: CreateCommunityInput): Promise<Community> {
+  // Validate that artist_id is provided
+  if (!input.artist_id) {
+    throw new Error('Artist ID is required to create a community');
+  }
+
   // Create the community
   const { data: community, error: createError } = await supabase
     .from('communities')
     .insert({
-      artist_id: input.artist_id || null,
+      artist_id: input.artist_id,
       name: input.name,
       description: input.description || null,
       access_type: input.access_type,
@@ -56,16 +61,14 @@ export async function createCommunity(input: CreateCommunityInput): Promise<Comm
   if (createError) throw createError;
 
   // Add the creator as an admin member
-  if (input.artist_id) {
-    const { error: membershipError } = await supabase
-      .from('community_members')
-      .insert({
-        community_id: community.id,
-        user_id: input.artist_id,
-        role: 'admin'
-      });
-    if (membershipError) throw membershipError;
-  }
+  const { error: membershipError } = await supabase
+    .from('community_members')
+    .insert({
+      community_id: community.id,
+      user_id: input.artist_id,
+      role: 'admin'
+    });
+  if (membershipError) throw membershipError;
 
   return community as unknown as Community;
 }

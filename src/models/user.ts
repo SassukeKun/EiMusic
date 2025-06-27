@@ -11,6 +11,7 @@ export interface User {
   created_at: string; // Data_Registro
   payment_method?: string; // Metodo_Pagamento_Preferido
   has_active_subscription?: boolean; // Assinatura_Ativa
+  plan: 'free' | 'premium' | 'vip'; // Plano do usuario
 }
 
 /**
@@ -23,6 +24,7 @@ export const userSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   payment_method: z.string().optional(),
   has_active_subscription: z.boolean().optional(),
+  plan: z.enum(['free', 'premium', 'vip']).default('free'),
 });
 
 /**

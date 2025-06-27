@@ -586,7 +586,12 @@ const uploadService = {
     communityId: string,
     file: File,
     mediaType: 'image' | 'video' | 'other',
-    metadata?: { title?: string; description?: string; tags?: string[] }
+    metadata?: { 
+      title?: string; 
+      description?: string; 
+      tags?: string[];
+      artist_id?: string;
+    }
   ): Promise<CloudinaryUploadResponse> {
     try {
       const folder = getCommunityMediaPath(communityId, mediaType, metadata?.title)
