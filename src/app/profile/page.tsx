@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
+import ProfilePhotoUploader from '@/components/settings/ProfilePhotoUploader'
 import {
   FaUser,
   FaMusic,
@@ -494,6 +495,7 @@ function SubscriptionSection() {
 }
 
 function SettingsSection() {
+  const { user } = useAuth()
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -502,6 +504,15 @@ function SettingsSection() {
       className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-8 text-center"
     >
       <FaCog className="text-gray-500 text-4xl mx-auto mb-4" />
+      {user && (
+        <div className="mt-4 flex justify-center">
+          <ProfilePhotoUploader
+            mode="user"
+            id={user.id}
+            initialUrl={user.user_metadata?.profile_image_url || '/avatar.svg'}
+          />
+        </div>
+      )}
       <h3 className="text-xl font-bold text-white mb-2">Configurações</h3>
       <p className="text-gray-400">Personalize sua experiência na plataforma</p>
     </motion.div>

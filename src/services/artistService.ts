@@ -18,7 +18,7 @@ export const artistService = {
       .from('artists')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
     
     if (error) {
       throw error;
@@ -75,7 +75,7 @@ export const artistService = {
    * @param artistData - Dados do artista atualizados
    * @returns Dados do artista atualizados
    */
-  async updateArtist(id: string, artistData: Partial<Artist>): Promise<Artist> {
+  async updateArtist(id: string, artistData: Partial<Artist>): Promise<Artist | null> {
     const supabase = getSafeSupabaseClient();
     // Atualizar artista no Supabase
     const { data, error } = await supabase
@@ -83,13 +83,13 @@ export const artistService = {
       .update(artistData)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     
-    if (error) {
+    if (error && error.code !== 'PGRST116') {
       throw error;
     }
     
-    return data as Artist;
+    return (data ?? null) as Artist | null;
   },
   
   /**

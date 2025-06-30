@@ -3,6 +3,17 @@ import Link from "next/link";
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useParams } from "next/navigation";
+import { getCommunityById, getCommunityMembership, joinCommunity, leaveCommunity } from "@/services/communityService";
+import authService from "@/services/authService";
+import { Community } from "@/models/community";
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
+const supabase = getSupabaseBrowserClient();
+
+// Hardcoded gradient colors for community header
+const DEFAULT_GRADIENT_COLORS = ['from-purple-600','via-pink-600','to-red-600'];
+import { Post } from "@/models/post";
+import { createPost } from "@/services/postService";
 import {
   Users,
   Star,
@@ -36,50 +47,6 @@ import {
 } from "lucide-react";
 
 // Interfaces TypeScript para tipagem forte
-interface Community {
-  id: string;
-  nome: string;
-  artista: {
-    id: string;
-    nome: string;
-    avatar: string;
-    verificado: boolean;
-  };
-  descricao: string;
-  membros: number;
-  tipo_acesso: "public" | "private";
-  data_criacao: string;
-  categoria: string;
-  ativo: boolean;
-  posts_recentes: number;
-  is_trending?: boolean;
-  activity_level: "low" | "medium" | "high";
-  tags: string[];
-  gradient_colors: string[];
-  banner?: string;
-  plano_necessario: "free" | "premium" | "vip";
-}
-
-interface Post {
-  id: string;
-  autor: {
-    nome: string;
-    avatar: string;
-    tipo: "artista" | "membro";
-  };
-  conteudo: string;
-  tipo: "texto" | "audio" | "video" | "live" | "exclusivo";
-  plano_necessario: "free" | "premium" | "vip";
-  data_publicacao: string;
-  curtidas: number;
-  comentarios: number;
-  anexos?: {
-    tipo: "audio" | "video" | "imagem";
-    url: string;
-    duracao?: string;
-  }[];
-  is_pinned?: boolean;
-}
 
 interface UserPlan {
   tipo: "free" | "premium" | "vip";
@@ -101,8 +68,11 @@ export default function CommunityDetailPage() {
   >("posts");
   const [loading, setLoading] = useState(true);
   const [isJoined, setIsJoined] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isCreator, setIsCreator] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [newPostText, setNewPostText] = useState("");
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
 
   // Função para verificar acesso ao conteúdo
   const hasAccessToContent = (
@@ -135,129 +105,177 @@ export default function CommunityDetailPage() {
   };
 
   // Mock data da comunidade
-  const mockCommunity: Community = {
-    id: "1",
-    nome: "Marrabenta Moderna",
-    artista: {
-      id: "art1",
-      nome: "Zena Bakar",
-      avatar: "/api/placeholder/64/64",
-      verificado: true,
-    },
-    descricao:
-      "Comunidade dedicada à evolução da marrabenta com toques modernos. Partilhamos experiências, técnicas e colaborações exclusivas com os nossos membros mais fiéis.",
-    membros: 2847,
-    tipo_acesso: "private",
-    data_criacao: "2024-08-15T10:30:00Z",
-    categoria: "Música Tradicional",
-    ativo: true,
-    posts_recentes: 12,
-    is_trending: true,
-    activity_level: "high",
-    tags: ["#Marrabenta", "#Fusão", "#Tradição"],
-    gradient_colors: ["from-purple-600", "via-pink-600", "to-red-600"],
-    banner: "/api/placeholder/800/300",
-    plano_necessario: "premium",
-  };
+  // const mockCommunity: Community = {
+  //   id: "1",
+  //   name: "Marrabenta Moderna",
+  //   artist: {
+  //     id: "art1",
+  //     name: "Zena Bakar",
+  //     profile_image_url: "/api/placeholder/64/64",
+  //     verified: true,
+  //   },
+  //   description:
+  //     "Comunidade dedicada à evolução da marrabenta com toques modernos. Partilhamos experiências, técnicas e colaborações exclusivas com os nossos membros mais fiéis.",
+  //   members: 2847,
+  //   tipo_acesso: "private",
+  //   data_criacao: "2024-08-15T10:30:00Z",
+  //   categoria: "Música Tradicional",
+  //   ativo: true,
+  //   posts_recentes: 12,
+  //   is_trending: true,
+  //   activity_level: "high",
+  //   tags: ["#Marrabenta", "#Fusão", "#Tradição"],
+  //   gradient_colors: ["from-purple-600", "via-pink-600", "to-red-600"],
+  //   banner: "/api/placeholder/800/300",
+  //   plano_necessario: "premium",
+  // };
 
   // Mock data dos posts
-  const mockPosts: Post[] = [
-    {
-      id: "1",
-      autor: {
-        nome: "Zena Bakar",
-        avatar: "/api/placeholder/48/48",
-        tipo: "artista",
-      },
-      conteudo:
-        "🎵 Acabei de terminar uma nova faixa que mistura marrabenta tradicional com elementos de jazz moderno! Que acham de fazermos uma sessão ao vivo para ouvirem primeiro? Membros VIP terão acesso exclusivo à demo completa! 🔥",
-      tipo: "exclusivo",
-      plano_necessario: "vip",
-      data_publicacao: "2024-12-13T14:30:00Z",
-      curtidas: 127,
-      comentarios: 23,
-      anexos: [
-        {
-          tipo: "audio",
-          url: "/audio/demo.mp3",
-          duracao: "3:45",
-        },
-      ],
-      is_pinned: true,
-    },
-    {
-      id: "2",
-      autor: {
-        nome: "Zena Bakar",
-        avatar: "/api/placeholder/48/48",
-        tipo: "artista",
-      },
-      conteudo:
-        "📅 LIVE EXCLUSIVA ESTA SEXTA! Vamos falar sobre as técnicas de guitarra na marrabenta e vou tocar algumas das vossas músicas favoritas. Membros Premium e VIP podem enviar pedidos especiais nos comentários!",
-      tipo: "live",
-      plano_necessario: "premium",
-      data_publicacao: "2024-12-12T10:15:00Z",
-      curtidas: 89,
-      comentarios: 34,
-      anexos: [
-        {
-          tipo: "video",
-          url: "/video/live-preview.mp4",
-          duracao: "1:20",
-        },
-      ],
-    },
-    {
-      id: "3",
-      autor: {
-        nome: "Carlos Manjate",
-        avatar: "/api/placeholder/48/48",
-        tipo: "membro",
-      },
-      conteudo:
-        "Que energia incrível na última live! Aprendi tanto sobre as técnicas de dedilhado. Obrigado Zena por partilhares o teu conhecimento connosco! 🙏",
-      tipo: "texto",
-      plano_necessario: "free",
-      data_publicacao: "2024-12-11T16:45:00Z",
-      curtidas: 45,
-      comentarios: 8,
-    },
-    {
-      id: "4",
-      autor: {
-        nome: "Zena Bakar",
-        avatar: "/api/placeholder/48/48",
-        tipo: "artista",
-      },
-      conteudo:
-        "🎸 Download exclusivo para membros Premium! Nova base instrumental de marrabenta que criei. Usem-na nos vossos projectos e partilhem os resultados aqui na comunidade!",
-      tipo: "audio",
-      plano_necessario: "premium",
-      data_publicacao: "2024-12-10T09:20:00Z",
-      curtidas: 156,
-      comentarios: 41,
-      anexos: [
-        {
-          tipo: "audio",
-          url: "/audio/base-instrumental.mp3",
-          duracao: "4:12",
-        },
-      ],
-    },
-  ];
+  // const mockPosts: Post[] = [
+  //   {
+  //     id: "1",
+  //     author: {
+  //       name: "Zena Bakar",
+  //       avatar: "/api/placeholder/48/48",
+  //       type: "artista",
+  //     },
+  //     content:
+  //       "🎵 Acabei de terminar uma nova faixa que mistura marrabenta tradicional com elementos de jazz moderno! Que acham de fazermos uma sessão ao vivo para ouvirem primeiro? Membros VIP terão acesso exclusivo à demo completa! 🔥",
+  //     tipo: "exclusivo",
+  //     plano_necessario: "vip",
+  //     data_publicacao: "2024-12-13T14:30:00Z",
+  //     curtidas: 127,
+  //     comentarios: 23,
+  //     anexos: [
+  //       {
+  //         tipo: "audio",
+  //         url: "/audio/demo.mp3",
+  //         duracao: "3:45",
+  //       },
+  //     ],
+  //     is_pinned: true,
+  //   },
+  //   {
+  //     id: "2",
+  //     author: {
+  //       name: "Zena Bakar",
+  //       avatar: "/api/placeholder/48/48",
+  //       type: "artista",
+  //     },
+  //     content:
+  //       "📅 LIVE EXCLUSIVA ESTA SEXTA! Vamos falar sobre as técnicas de guitarra na marrabenta e vou tocar algumas das vossas músicas favoritas. Membros Premium e VIP podem enviar pedidos especiais nos comentários!",
+  //     tipo: "live",
+  //     plano_necessario: "premium",
+  //     data_publicacao: "2024-12-12T10:15:00Z",
+  //     curtidas: 89,
+  //     comentarios: 34,
+  //     anexos: [
+  //       {
+  //         tipo: "video",
+  //         url: "/video/live-preview.mp4",
+  //         duracao: "1:20",
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     id: "3",
+  //     autor: {
+  //       nome: "Carlos Manjate",
+  //       avatar: "/api/placeholder/48/48",
+  //       tipo: "membro",
+  //     },
+  //     conteudo:
+  //       "Que energia incrível na última live! Aprendi tanto sobre as técnicas de dedilhado. Obrigado Zena por partilhares o teu conhecimento connosco! 🙏",
+  //     tipo: "texto",
+  //     plano_necessario: "free",
+  //     data_publicacao: "2024-12-11T16:45:00Z",
+  //     curtidas: 45,
+  //     comentarios: 8,
+  //   },
+  //   {
+  //     id: "4",
+  //     autor: {
+  //       nome: "Zena Bakar",
+  //       avatar: "/api/placeholder/48/48",
+  //       tipo: "artista",
+  //     },
+  //     conteudo:
+  //       "🎸 Download exclusivo para membros Premium! Nova base instrumental de marrabenta que criei. Usem-na nos vossos projectos e partilhem os resultados aqui na comunidade!",
+  //     tipo: "audio",
+  //     plano_necessario: "premium",
+  //     data_publicacao: "2024-12-10T09:20:00Z",
+  //     curtidas: 156,
+  //     comentarios: 41,
+  //     anexos: [
+  //       {
+  //         tipo: "audio",
+  //         url: "/audio/base-instrumental.mp3",
+  //         duracao: "4:12",
+  //       },
+  //     ],
+  //   },
+  // ];
 
-  // Simulação de carregamento
+  const params = useParams();
+  const communityId = params.id as string;
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setCommunity(mockCommunity);
-      setPosts(mockPosts);
-      setIsJoined(true);
-      setLoading(false);
+      try {
+        const raw = await getCommunityById(communityId);
+        // Fetch member count directly from community_members table
+        const { data: memberCountData } = await supabase
+          .from('community_members')
+          .select('*', { head: true, count: 'exact' })
+          .eq('community_id', communityId);
+        
+        setCommunity({
+          id: raw.id,
+          name: raw.name,
+          description: raw.description ?? null,
+          category: raw.category,
+          access_type: raw.access_type,
+          tags: raw.tags,
+          is_active: raw.is_active,
+          activity_level: raw.activity_level,
+          artist_id: raw.artist_id ?? null,
+          created_at: raw.created_at,
+          banner: raw.banner ?? undefined,
+          members_count: raw.members_count ?? 0,
+          posts_count: raw.posts_count ?? 0,
+          recent_posts: [],
+          artist: raw.artist
+            ? {
+                artist_id: raw.artist.artist_id,
+                name: raw.artist.name,
+                profile_image_url: raw.artist.profile_image_url,
+                verified: raw.artist.verified,
+              }
+            : undefined,
+        });
+
+        // Determine user and membership status
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser?.id) {
+          setUserId(currentUser.id);
+          setIsCreator(currentUser.id === raw.artist_id);
+          const membership = await getCommunityMembership(communityId, currentUser.id);
+          setIsJoined(membership);
+        } else {
+          setUserId(null);
+          setIsJoined(false);
+        }
+
+        // TODO: fetch posts when implemented
+      } catch (error) {
+        console.error("Erro ao carregar comunidade:", error);
+      } finally {
+        setLoading(false);
+      }
     };
-    loadData();
-  }, []);
+    if (communityId) loadData();
+  }, [communityId]);
 
   // Componente de Loading
   const LoadingSkeleton = () => (
@@ -280,7 +298,7 @@ export default function CommunityDetailPage() {
   // Componente do Post
   const PostCard = ({ post }: { post: Post }) => {
     const [liked, setLiked] = useState(false);
-    const hasAccess = hasAccessToContent(post.plano_necessario);
+    const hasAccess = hasAccessToContent(post.plan);
 
     const formatTimeAgo = (dateString: string) => {
       const date = new Date(dateString);
@@ -299,11 +317,11 @@ export default function CommunityDetailPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border relative overflow-hidden ${
-          post.is_pinned ? "border-yellow-500/30" : "border-gray-700"
+          post.pinned ? "border-yellow-500/30" : "border-gray-700"
         }`}
       >
         {/* Pin indicator */}
-        {post.is_pinned && (
+        {post.pinned && (
           <div className="absolute top-4 right-4 bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full text-xs flex items-center space-x-1">
             <Star className="w-3 h-3" fill="currentColor" />
             <span>Fixado</span>
@@ -315,25 +333,25 @@ export default function CommunityDetailPage() {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-3">
               <img
-                src={post.autor.avatar}
-                alt={post.autor.nome}
+                src={post.author?.avatar ?? '/api/placeholder/64/64'}
+                alt={post.author?.name ?? 'Autor'}
                 className="w-12 h-12 rounded-full border-2 border-gray-600"
               />
               <div>
                 <div className="flex items-center space-x-2">
                   <h4 className="font-semibold text-white">
-                    {post.autor.nome}
+                    {post.author?.name ?? 'Autor'}
                   </h4>
-                  {post.autor.tipo === "artista" && (
+                  {post.author?.verified && (
                     <Star
                       className="w-4 h-4 text-blue-400"
                       fill="currentColor"
                     />
                   )}
-                  {getPlanBadge(post.plano_necessario)}
+                  {getPlanBadge(post.plan)}
                 </div>
                 <p className="text-gray-400 text-sm">
-                  {formatTimeAgo(post.data_publicacao)}
+                  {formatTimeAgo(post.created_at)}
                 </p>
               </div>
             </div>
@@ -346,14 +364,14 @@ export default function CommunityDetailPage() {
           {hasAccess ? (
             <>
               <p className="text-gray-300 mb-4 leading-relaxed">
-                {post.conteudo}
+                {post.content}
               </p>
 
               {/* Anexos */}
-              {post.anexos &&
-                post.anexos.map((anexo, index) => (
+              {post.attachments &&
+                post.attachments.map((attachment, index) => (
                   <div key={index} className="mb-4">
-                    {anexo.tipo === "audio" && (
+                    {attachment.type === "audio" && (
                       <div className="bg-gray-700/50 rounded-lg p-4 flex items-center space-x-4">
                         <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
                           <Music className="w-6 h-6 text-white" />
@@ -363,7 +381,7 @@ export default function CommunityDetailPage() {
                             Arquivo de Áudio
                           </p>
                           <p className="text-gray-400 text-sm">
-                            Duração: {anexo.duracao}
+                            Duração: {attachment.duration}
                           </p>
                         </div>
                         <motion.button
@@ -376,7 +394,7 @@ export default function CommunityDetailPage() {
                       </div>
                     )}
 
-                    {anexo.tipo === "video" && (
+                    {attachment.type === "video" && (
                       <div className="bg-gray-700/50 rounded-lg p-4 flex items-center space-x-4">
                         <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
                           <Video className="w-6 h-6 text-white" />
@@ -386,7 +404,7 @@ export default function CommunityDetailPage() {
                             Vídeo Preview
                           </p>
                           <p className="text-gray-400 text-sm">
-                            Duração: {anexo.duracao}
+                            Duração: {attachment.duration}
                           </p>
                         </div>
                         <motion.button
@@ -409,20 +427,20 @@ export default function CommunityDetailPage() {
               </h4>
               <p className="text-gray-400 text-sm mb-4">
                 Este post é exclusivo para membros{" "}
-                {post.plano_necessario === "premium" ? "Premium" : "VIP"}
+                {post.plan === "premium" ? "Premium" : "VIP"}
               </p>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowUpgradeModal(true)}
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  post.plano_necessario === "premium"
+                  post.plan === "premium"
                     ? "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
                     : "bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
                 } text-white`}
               >
                 Upgrade para{" "}
-                {post.plano_necessario === "premium" ? "Premium" : "VIP"}
+                {post.plan === "premium" ? "Premium" : "VIP"}
               </motion.button>
             </div>
           )}
@@ -439,12 +457,12 @@ export default function CommunityDetailPage() {
                 }`}
               >
                 <Heart className={`w-5 h-5 ${liked ? "fill-current" : ""}`} />
-                <span>{post.curtidas + (liked ? 1 : 0)}</span>
+                <span>{post.likes + (liked ? 1 : 0)}</span>
               </motion.button>
 
               <button className="flex items-center space-x-2 text-gray-400 hover:text-blue-400 transition-colors">
                 <MessageCircle className="w-5 h-5" />
-                <span>{post.comentarios}</span>
+                <span>{post.comments}</span>
               </button>
 
               <button className="flex items-center space-x-2 text-gray-400 hover:text-green-400 transition-colors">
@@ -542,6 +560,11 @@ export default function CommunityDetailPage() {
     </AnimatePresence>
   );
 
+  // Function to get gradient colors
+  const getGradientColors = () => {
+    return DEFAULT_GRADIENT_COLORS.join(" ");
+  };
+
   if (loading || !community) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
@@ -565,15 +588,21 @@ export default function CommunityDetailPage() {
       <div className="relative">
         {/* Banner */}
         <div
-          className={`h-48 sm:h-64 bg-gradient-to-r ${community.gradient_colors.join(
+          className={`h-48 sm:h-64 bg-gradient-to-r ${DEFAULT_GRADIENT_COLORS.join(
             " "
           )} relative overflow-hidden`}
         >
           {community.banner && (
             <img
               src={community.banner}
-              alt={community.nome}
+              alt={community.name}
               className="w-full h-full object-cover opacity-50"
+              onError={(e) => {
+                console.error('Error loading banner image:', e);
+                // Replace with fallback image if loading fails
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/api/placeholder/800/300';
+              }}
             />
           )}
 
@@ -581,7 +610,7 @@ export default function CommunityDetailPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent"></div>
 
           {/* Botão voltar */}
-          <Link href="/communities">
+          <Link href="/community">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -592,12 +621,13 @@ export default function CommunityDetailPage() {
           </Link>
 
           {/* Trending badge */}
-          {community.is_trending && (
+          {/* {community.is_trending && (
             <div className="absolute top-4 right-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
               <Flame className="w-3 h-3" />
               <span>TRENDING</span>
             </div>
           )}
+          */}
         </div>
 
         {/* Info da comunidade */}
@@ -607,15 +637,19 @@ export default function CommunityDetailPage() {
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className={`p-1 rounded-full bg-gradient-to-r ${community.gradient_colors.join(
+              className={`p-1 rounded-full bg-gradient-to-r ${DEFAULT_GRADIENT_COLORS.join(
                 " "
               )} relative z-10`}
-            >
-              <img
-                src={community.artista.avatar}
-                alt={community.artista.nome}
-                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gray-800 border-4 border-gray-900"
-              />
+            >                <img
+                  src={community.artist?.profile_image_url ?? '/avatar.svg'}
+                  alt={community.artist?.name}
+                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gray-800 border-4 border-gray-900"
+                  onError={(e) => {
+                    console.error('Error loading artist image:', e);
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/avatar.svg';
+                  }}
+                />
             </motion.div>
 
             {/* Info */}
@@ -623,14 +657,14 @@ export default function CommunityDetailPage() {
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-4 sm:space-y-0">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                    {community.nome}
+                    {community.name}
                   </h1>
                   <p className="text-gray-300 mb-2">
                     por{" "}
                     <span className="text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text font-semibold">
-                      {community.artista.nome}
+                      {community.artist?.name}
                     </span>
-                    {community.artista.verificado && (
+                    {community.artist?.verified && (
                       <Star
                         className="w-4 h-4 text-blue-400 inline ml-1"
                         fill="currentColor"
@@ -640,17 +674,16 @@ export default function CommunityDetailPage() {
 
                   <div className="flex flex-wrap items-center gap-2 mb-4">
                     <span
-                      className={`bg-gradient-to-r ${community.gradient_colors.join(
+                      className={`bg-gradient-to-r ${DEFAULT_GRADIENT_COLORS.join(
                         " "
                       )} text-white px-3 py-1 rounded-full text-sm font-medium`}
                     >
-                      {community.categoria}
+                      {community?.category}
                     </span>
-                    {getPlanBadge(community.plano_necessario)}
                     <div className="flex items-center space-x-1 text-gray-400">
                       <Users className="w-4 h-4" />
                       <span className="text-sm">
-                        {community.membros.toLocaleString()} membros
+                        {community?.members_count?.toLocaleString()} membros
                       </span>
                     </div>
                   </div>
@@ -666,23 +699,47 @@ export default function CommunityDetailPage() {
                     <Share2 className="w-5 h-5" />
                   </motion.button>
 
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsJoined(!isJoined)}
-                    className={`px-6 py-2 rounded-lg font-bold transition-all ${
-                      isJoined
-                        ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                        : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    } text-white`}
-                  >
-                    {isJoined ? "Membro" : "Participar"}
-                  </motion.button>
+                  {isCreator ? (
+                   <motion.button
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
+                     onClick={async () => {
+                       // Admin control: Start live
+                       console.log("Starting live...");
+                     }}
+                     className="px-6 py-2 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all"
+                   >
+                     Iniciar Live
+                   </motion.button>
+                 ) : (
+                   <motion.button
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
+                     onClick={async () => {
+                       if (userId) {
+                         if (isJoined) {
+                           await leaveCommunity(communityId, userId);
+                           setIsJoined(false);
+                         } else {
+                           await joinCommunity(communityId, userId);
+                           setIsJoined(true);
+                         }
+                       }
+                     }}
+                     className={`px-6 py-2 rounded-lg font-bold transition-all ${
+                       isJoined
+                         ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                         : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                     } text-white`}
+                   >
+                     {isJoined ? "Membro" : "Participar"}
+                   </motion.button>
+                 )}
                 </div>
               </div>
 
               <p className="text-gray-300 leading-relaxed">
-                {community.descricao}
+                {community?.description}
               </p>
             </div>
           </div>
@@ -726,7 +783,7 @@ export default function CommunityDetailPage() {
                   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
                     <div className="flex space-x-4">
                       <img
-                        src="/api/placeholder/48/48"
+                        src="/avatar.svg"
                         alt="Seu avatar"
                         className="w-12 h-12 rounded-full border-2 border-gray-600"
                       />
@@ -766,12 +823,69 @@ export default function CommunityDetailPage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            disabled={!newPostText.trim()}
+                            disabled={!newPostText.trim() || isCreatingPost}
                             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
                           >
                             <Send className="w-4 h-4" />
                             <span>Publicar</span>
                           </motion.button>
+                          
+                          <AnimatePresence>
+                            {isCreatingPost && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute top-0 left-0 right-0 bottom-0 bg-black/50 flex items-center justify-center"
+                                onClick={async () => {
+                                  if (!userId || !communityId) return;
+
+                                  try {
+                                    setIsCreatingPost(true);
+                                    
+                                    // Get current user's plan from user metadata
+                                    const currentUser = await authService.getCurrentUser();
+                                    const plan = (currentUser?.user_metadata?.plan as 'free' | 'premium' | 'vip') ?? 'free';
+
+                                    // Create post in Supabase
+                                    const newPost = await createPost({
+                                      community_id: communityId,
+                                      user_id: userId,
+                                      content: newPostText,
+                                      plan,
+                                      type: 'text',
+                                      attachments: [],
+                                      pinned: false
+                                    });
+
+                                    // Reset form
+                                    setNewPostText('');
+                                    
+                                    // Update posts list
+                                    setPosts(prevPosts => [newPost, ...prevPosts]);
+                                    
+                                  } catch (error) {
+                                    console.error('Erro ao criar post:', error);
+                                    alert('Erro ao criar post. Por favor, tente novamente.');
+                                  } finally {
+                                    setIsCreatingPost(false);
+                                  }
+                                }}
+                              >
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  exit={{ scale: 0 }}
+                                  className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-lg border border-gray-700"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-4 h-4 border-2 border-white rounded-full animate-spin"></div>
+                                    <span className="text-white">Publicando...</span>
+                                  </div>
+                                </motion.div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       </div>
                     </div>
@@ -780,15 +894,15 @@ export default function CommunityDetailPage() {
 
                 {/* POSTS FILTRADOS POR PLANO */}
                 <div className="space-y-6">
-                  {posts
-                    .filter((post) => hasAccessToContent(post.plano_necessario))
+                  {posts            
+                    .filter((post) => hasAccessToContent(post.plan))
                     .map((post) => (
                       <PostCard key={post.id} post={post} />
                     ))}
 
                   {posts
                     .filter(
-                      (post) => !hasAccessToContent(post.plano_necessario)
+                      (post) => !hasAccessToContent(post.plan)
                     )
                     .slice(0, 2)
                     .map((post) => (
@@ -906,7 +1020,7 @@ export default function CommunityDetailPage() {
                     </p>
                     <div className="text-gray-400">
                       <span className="text-2xl font-bold text-white">
-                        {community.membros.toLocaleString()}
+                        {community?.members_count.toLocaleString()}
                       </span>{" "}
                       membros totais
                     </div>
@@ -971,19 +1085,13 @@ export default function CommunityDetailPage() {
                     Sobre a Comunidade
                   </h3>
                   <p className="text-gray-300 leading-relaxed mb-6">
-                    {community.descricao}
+                    {community.description}
                   </p>
 
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-white">
-                        {community.membros.toLocaleString()}
-                      </div>
-                      <div className="text-gray-400 text-sm">Membros</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-white">
-                        {community.posts_recentes}
+                        {community?.members_count?.toLocaleString() ?? 0}
                       </div>
                       <div className="text-gray-400 text-sm">
                         Posts Recentes
@@ -1046,7 +1154,7 @@ export default function CommunityDetailPage() {
 
           {/* Sidebar - ADAPTADA AO PLANO */}
           <div className="space-y-6">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <div className={`bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 ${isCreator ? 'hidden' : ''}`}>
               <h3 className="font-bold text-white mb-4 flex items-center space-x-2">
                 <Crown className="w-5 h-5 text-yellow-500" />
                 <span>Teu Plano Atual</span>
@@ -1110,7 +1218,7 @@ export default function CommunityDetailPage() {
                 </h3>
 
                 <p className="text-gray-300 text-sm mb-4">
-                  Tens acesso direto ao chat com {community.artista.nome}
+                  Tens acesso direto ao chat com {community.artist?.name}
                 </p>
 
                 <motion.button

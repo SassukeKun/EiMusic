@@ -20,46 +20,34 @@ import {
   TrendingUp,
   Flame,
 } from "lucide-react";
-import { CreateCommunityModal } from './CreateCommunityModal';
-import { useAuth } from '@/hooks/useAuth';
+import { CreateCommunityModal } from "./CreateCommunityModal";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchCommunities, createCommunity } from "@/services/communityService";
+import uploadService from "@/services/uploadService";
+import { Community } from "@/models/community";
+import { getSupabaseBrowserClient } from "@/utils/supabaseClient";
 
-// Interface TypeScript para tipagem forte - Boa prática fundamental
-interface Community {
-  id: string;
-  nome: string;
-  artista: {
-    id: string;
-    nome: string;
-    avatar: string;
-    verificado: boolean;
-  };
-  descricao: string;
-  membros: number;
-  tipo_acesso: "public" | "private";
-  data_criacao: string;
-  categoria: string;
-  ativo: boolean;
-  posts_recentes: number;
-  is_trending?: boolean;
-  activity_level: "low" | "medium" | "high";
-  tags: string[];
-  gradient_colors: string[];
-}
+const supabase = getSupabaseBrowserClient();
 
 // Interface para dados do formulário do modal
 interface CommunityFormData {
-  nome: string;
-  descricao: string;
-  categoria: string;
-  privacidade: 'public' | 'private' | 'invite_only';
-  imagem: File | null;
+  name: string;
+  description: string;
+  category: string;
+  access_type: "public" | "private" | "invite_only";
+  image?: File | null;
+  banner?: string;
   tags: string[];
 }
 
 // Página de Comunidades - EiMusic Platform
+import { fetchCommunityStats } from "@/services/communityStatsService";
+import { getCommunityMembership, joinCommunity, leaveCommunity } from "@/services/communityService";
+
 export default function CommunityPage() {
   // Hook de autenticação para verificar se é artista
   const { user, isArtist, isAuthenticated } = useAuth();
+  const artistId = user?.id || "";
 
   // Estados para gerenciamento de dados e UI
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -68,194 +56,236 @@ export default function CommunityPage() {
   const [filterType, setFilterType] = useState<"all" | "public" | "private">(
     "all"
   );
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [postsToday, setPostsToday] = useState(0);
 
   // Estado para controle do modal
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Mock data realista seguindo padrões moçambicanos
-  const mockCommunities: Community[] = [
-    {
-      id: "1",
-      nome: "Marrabenta Moderna",
-      artista: {
-        id: "art1",
-        nome: "Zena Bakar",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      descricao:
-        "Comunidade dedicada à evolução da marrabenta com toques modernos. Partilhamos experiências, técnicas e colaborações exclusivas.",
-      membros: 2847,
-      tipo_acesso: "public",
-      data_criacao: "2024-08-15T10:30:00Z",
-      categoria: "Música Tradicional",
-      ativo: true,
-      posts_recentes: 12,
-      is_trending: true,
-      activity_level: "high",
-      tags: ["#Marrabenta", "#Fusão", "#Tradição"],
-      gradient_colors: ["from-purple-600", "via-pink-600", "to-red-600"],
-    },
-    {
-      id: "2",
-      nome: "Pandza Fusion",
-      artista: {
-        id: "art2",
-        nome: "MC Joaquim",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      descricao:
-        "Explorando a fusão do pandza com hip-hop internacional. Exclusivo para membros premium com beats e colaborações únicas.",
-      membros: 856,
-      tipo_acesso: "private",
-      data_criacao: "2024-10-02T14:20:00Z",
-      categoria: "Hip-Hop",
-      ativo: true,
-      posts_recentes: 8,
-      is_trending: false,
-      activity_level: "medium",
-      tags: ["#Pandza", "#HipHop", "#Premium"],
-      gradient_colors: ["from-yellow-500", "via-orange-500", "to-red-500"],
-    },
-    {
-      id: "3",
-      nome: "Produtores de Maputo",
-      artista: {
-        id: "art3",
-        nome: "DJ Azagaia Jr",
-        avatar: "/api/placeholder/64/64",
-        verificado: false,
-      },
-      descricao:
-        "Rede de produtores musicais da capital. Partilhamos beats exclusivos, dicas de produção e oportunidades de colaboração.",
-      membros: 1205,
-      tipo_acesso: "public",
-      data_criacao: "2024-07-22T08:45:00Z",
-      categoria: "Produção",
-      ativo: true,
-      posts_recentes: 25,
-      is_trending: true,
-      activity_level: "high",
-      tags: ["#Beats", "#Produção", "#Maputo"],
-      gradient_colors: ["from-cyan-500", "via-blue-500", "to-purple-600"],
-    },
-    {
-      id: "4",
-      nome: "Vocal Coaching Moz",
-      artista: {
-        id: "art4",
-        nome: "Maria dos Anjos",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      descricao:
-        "Técnicas vocais e desenvolvimento artístico. Sessões exclusivas de coaching, exercícios e dicas para membros VIP.",
-      membros: 643,
-      tipo_acesso: "private",
-      data_criacao: "2024-09-10T16:00:00Z",
-      categoria: "Educação Musical",
-      ativo: true,
-      posts_recentes: 6,
-      is_trending: false,
-      activity_level: "medium",
-      tags: ["#Vocal", "#Coaching", "#VIP"],
-      gradient_colors: ["from-emerald-500", "via-teal-500", "to-cyan-600"],
-    },
-    {
-      id: "5",
-      nome: "Afrobeats Moçambique",
-      artista: {
-        id: "art5",
-        nome: "Kelvin Momo Moz",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      descricao:
-        "O melhor do afrobeats moçambicano! Descobrimos novos talentos, partilhamos playlists e organizamos eventos exclusivos.",
-      membros: 3421,
-      tipo_acesso: "public",
-      data_criacao: "2024-06-05T12:15:00Z",
-      categoria: "Afrobeats",
-      ativo: true,
-      posts_recentes: 35,
-      is_trending: true,
-      activity_level: "high",
-      tags: ["#Afrobeats", "#Novos", "#Eventos"],
-      gradient_colors: ["from-green-500", "via-yellow-500", "to-orange-500"],
-    },
-    {
-      id: "6",
-      nome: "Jazz & Soul Moz",
-      artista: {
-        id: "art6",
-        nome: "Lenna Bahule",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      descricao:
-        "Para os apreciadores do jazz e soul moçambicano. Discussões profundas sobre música, sessões ao vivo e masterclasses.",
-      membros: 892,
-      tipo_acesso: "public",
-      data_criacao: "2024-05-20T18:30:00Z",
-      categoria: "Jazz & Soul",
-      ativo: true,
-      posts_recentes: 15,
-      is_trending: false,
-      activity_level: "medium",
-      tags: ["#Jazz", "#Soul", "#Masterclass"],
-      gradient_colors: ["from-indigo-600", "via-purple-600", "to-pink-600"],
-    },
-  ];
+  // Carregar estatísticas da comunidade
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const stats = await fetchCommunityStats();
+        setTotalMembers(stats.totalMembers);
+        setPostsToday(stats.postsToday);
+      } catch (error) {
+        console.error("Erro ao carregar estatísticas:", error);
+      }
+    };
+    loadStats();
+  }, []);
 
-  // Simulação de carregamento assíncrono
+  // Carregar status de membro apenas quando ainda não estiver definido para evitar loops infinitos
+  useEffect(() => {
+    const loadMembershipStatus = async () => {
+      if (!user?.id) return;
+
+      const memberships = await Promise.all(
+        communities.map((community) =>
+          getCommunityMembership(community.id, user.id)
+        )
+      );
+
+      setCommunities((prev) =>
+        prev.map((community, index) => ({
+          ...community,
+          isMember: memberships[index],
+        }))
+      );
+    };
+
+    if (
+      communities.length > 0 &&
+      user?.id &&
+      communities.some((c) => c.isMember === undefined)
+    ) {
+      // Apenas buscar se algum item não tem ainda membership calculado
+      loadMembershipStatus();
+    }
+  }, [communities, user?.id]);
+
+  // Carregar estatísticas da comunidade
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const stats = await fetchCommunityStats();
+        setTotalMembers(stats.totalMembers);
+        setPostsToday(stats.postsToday);
+      } catch (error) {
+        console.error("Erro ao carregar estatísticas:", error);
+      }
+    };
+    loadStats();
+  }, []);
+
+  // Handler para abrir modal de criação de comunidade
+  const toggleCreateCommunityModal = () => {
+    if (!isArtist) {
+      alert("Apenas artistas podem criar comunidades");
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
+  // Carregar comunidades e estatísticas
   useEffect(() => {
     const loadCommunities = async () => {
       setLoading(true);
-      // Simular delay de rede
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setCommunities(mockCommunities);
-      setLoading(false);
-    };
+      try {
+        // Fetch communities with artist filter if user is an artist
+        const data = await fetchCommunities();
 
+        // Filter and map communities based on artist status
+        const uiData = data
+          .filter((community) => !isArtist || community.artist_id === artistId)
+          .map((raw: any) => ({
+            id: raw.id,
+            name: raw.name,
+            artist: raw.artist
+              ? {
+                  artist_id: raw.artist.id,
+                  name: raw.artist.name,
+                  profile_image_url:
+                    raw.artist.profile_image_url || "/avatar.svg",
+                  verified: raw.artist.verified || false,
+                }
+              : undefined,
+            description: raw.description || "",
+            members_count: raw.members_count || 1,
+            access_type: raw.access_type,
+            created_at: raw.created_at,
+            category: raw.category,
+            is_active: raw.is_active,
+            posts_count: raw.posts_count || 0,
+            activity_level: raw.activity_level,
+            tags: raw.tags || [],
+            artist_id: raw.artist_id,
+            banner: raw.banner || undefined,
+            recent_posts: raw.recent_posts || [],
+          }));
+        setCommunities(uiData);
+      } catch (error) {
+        console.error("Erro ao buscar comunidades:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadCommunities();
   }, []);
 
   // Handler para criar nova comunidade
   const handleCreateCommunity = async (formData: CommunityFormData) => {
     try {
-      // Simular criação da comunidade (aqui você faria a chamada real à API)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Criar nova comunidade com dados do formulário
-      const newCommunity: Community = {
-        id: Date.now().toString(),
-        nome: formData.nome,
-        artista: {
-          id: user?.id || 'temp',
-          nome: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Artista',
-          avatar: '/api/placeholder/64/64',
-          verificado: isArtist || false,
-        },
-        descricao: formData.descricao,
-        membros: 1, // Criador é o primeiro membro
-        tipo_acesso: formData.privacidade === 'invite_only' ? 'private' : formData.privacidade,
-        data_criacao: new Date().toISOString(),
-        categoria: formData.categoria,
-        ativo: true,
-        posts_recentes: 0,
-        is_trending: false,
-        activity_level: "low",
-        tags: formData.tags.map(tag => `#${tag}`),
-        gradient_colors: ["from-purple-600", "via-pink-600", "to-blue-600"],
-      };
+      // Criar comunidade no backend
+      const created = await createCommunity({
+        name: formData.name,
+        description: formData.description,
+        access_type:
+          formData.access_type === "invite_only"
+            ? "private"
+            : formData.access_type,
+        category: formData.category,
+        tags: formData.tags,
+        artist_id: artistId, // Use the derived artistId
+        ...(formData.banner ? { banner: formData.banner } : {}),
+      });
 
-      // Adicionar à lista de comunidades
-      setCommunities(prev => [newCommunity, ...prev]);
-      
-      console.log('Nova comunidade criada:', newCommunity);
+      // Upload da imagem somente se ainda não existir URL de banner e houver arquivo para upload
+      if (!formData.banner && formData.image) {
+        try {
+          // Format tags properly for cloudinary
+          const formattedTags = formData.tags.map((tag) =>
+            tag.startsWith("#") ? tag.substring(1) : tag
+          );
+
+          // Upload with community metadata
+          const uploadResult = await uploadService.uploadCommunityMedia(
+            created.id,
+            formData.image,
+            "image",
+            {
+              title: formData.name,
+              description: formData.description,
+              tags: formattedTags,
+            }
+          );
+
+          console.log("Upload result:", uploadResult);
+
+          // Update the community with the banner URL
+          const cloudinaryUrl = uploadResult.secure_url;
+          console.log("Cloudinary URL received:", cloudinaryUrl);
+
+          // Ensure the URL is properly formatted
+          const formattedUrl = cloudinaryUrl.includes("http")
+            ? cloudinaryUrl
+            : `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/${cloudinaryUrl}`;
+          console.log("Formatted URL:", formattedUrl);
+
+          // Update the community with the banner URL
+          const { data: updateData, error: updateError } = await supabase
+            .from("communities")
+            .update({ banner: formattedUrl })
+            .eq("id", created.id)
+            .select("banner"); // Only select the banner field to verify update
+
+          if (updateError) {
+            console.error("Error updating community banner:", updateError);
+            throw new Error(
+              "Failed to update community banner URL: " + updateError.message
+            );
+          }
+
+          if (updateData && updateData.length > 0) {
+            console.log(
+              "Community banner updated successfully:",
+              updateData[0]
+            );
+            // Verify if the banner field is actually updated
+            if (!updateData[0].banner) {
+              console.error("Banner field is still NULL after update!");
+              throw new Error("Banner field is NULL after update");
+            }
+          } else {
+            console.error("No data returned from update operation");
+            throw new Error("No data returned from update operation");
+          }
+        } catch (error) {
+          console.error("Error during banner upload:", error);
+          throw error;
+        }
+      }
+      // Atualizar lista após criação
+      const data = await fetchCommunities();
+      const uiData = data.map((raw: any) => ({
+        id: raw.id,
+        name: raw.name,
+        artist: raw.artist
+          ? {
+              artist_id: raw.artist.id,
+              name: raw.artist.name,
+              profile_image_url: raw.artist.profile_image_url || "/avatar.svg",
+              verified: raw.artist.verified || false,
+            }
+          : undefined,
+        description: raw.description || "",
+        members_count: raw.members_count || 1,
+        access_type: raw.access_type,
+        created_at: raw.created_at,
+        category: raw.category,
+        is_active: raw.is_active,
+        posts_count: raw.posts_count || 0,
+        activity_level: raw.activity_level,
+        tags: raw.tags || [],
+        artist_id: raw.artist_id,
+        banner: raw.banner || undefined,
+
+        recent_posts: raw.recent_posts || [],
+      }));
+      setCommunities(uiData);
     } catch (error) {
-      console.error('Erro ao criar comunidade:', error);
+      console.error("Erro ao criar comunidade:", error);
       throw error;
     }
   };
@@ -263,10 +293,10 @@ export default function CommunityPage() {
   // Lógica de filtros reativa
   const filteredCommunities = communities.filter((community) => {
     const matchesSearch =
-      community.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      community.artista.nome.toLowerCase().includes(searchTerm.toLowerCase());
+      community.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      community.artist?.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter =
-      filterType === "all" || community.tipo_acesso === filterType;
+      filterType === "all" || community.access_type === filterType;
 
     return matchesSearch && matchesFilter;
   });
@@ -336,16 +366,25 @@ export default function CommunityPage() {
 
   // Componente individual de comunidade
   const CommunityCard = ({ community }: { community: Community }) => {
-    const [isJoined, setIsJoined] = useState(false);
+    // Estado local a partir de membership já carregado (evita re-render geral)
+    const [isJoined, setIsJoined] = useState<boolean>(!!community.isMember);
     const [joinLoading, setJoinLoading] = useState(false);
 
-    // Handler de ação com feedback visual
-    const handleJoinCommunity = async () => {
+    const handleToggleJoin = async () => {
+      if (!user?.id) return;
       setJoinLoading(true);
-      // Simular chamada à API
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setIsJoined(!isJoined);
-      setJoinLoading(false);
+      try {
+        if (isJoined) {
+          await leaveCommunity(community.id, user.id);
+        } else {
+          await joinCommunity(community.id, user.id);
+        }
+        setIsJoined((prev) => !prev);
+      } catch (err) {
+        console.error("Erro ao atualizar membro da comunidade:", err);
+      } finally {
+        setJoinLoading(false);
+      }
     };
 
     return (
@@ -354,215 +393,235 @@ export default function CommunityPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         whileHover={{ y: -5, transition: { duration: 0.2 } }}
-        className={`relative bg-gradient-to-br ${community.gradient_colors.join(
-          " "
-        )} p-[1px] rounded-xl overflow-hidden group`}
+        className="relative bg-gradient-to-br from-gray-800 to-gray-900 p-[1px] rounded-xl overflow-hidden group h-full flex flex-col"
       >
         {/* Efeito de brilho animado */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
 
         {/* Card interno */}
-        <div className="bg-gray-900/90 backdrop-blur-sm rounded-xl p-6 relative z-10 h-full">
-          {/* Badge de trending - RESPONSIVO */}
-          {community.is_trending && (
-            <motion.div
-              initial={{ scale: 0, rotate: -10 }}
-              animate={{ scale: 1, rotate: 0 }}
-              className="
-      absolute -top-1 -right-1 sm:-top-2 sm:-right-2
-      bg-gradient-to-r from-yellow-400 to-orange-500 
-      text-black 
-      px-2 py-1 sm:px-3 sm:py-1
-      rounded-full 
-      text-xs font-bold 
-      flex items-center space-x-1 
-      shadow-lg
-      max-w-[80px] sm:max-w-none
-      overflow-hidden
-    "
-            >
-              <Flame className="w-2 h-2 sm:w-3 sm:h-3 flex-shrink-0" />
-              <span className="hidden sm:inline">TRENDING</span>
-              <span className="inline sm:hidden">HOT</span>
-            </motion.div>
+        <div className="bg-gray-900/90 backdrop-blur-sm rounded-xl relative z-10 h-full flex flex-col">
+          {community.banner && (
+            <Link href={`/community/${community.id}`}>
+              <div className="cursor-pointer">
+                <img
+                  src={
+                    community.banner?.includes("http")
+                      ? community.banner
+                      : `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/${community.banner}`
+                  }
+                  alt={`${community.name} banner`}
+                  className="w-full h-32 object-cover"
+                  onError={(e) => {
+                    console.error("Error loading community banner:", e);
+                    e.currentTarget.onerror = null; // prevent loop
+                    e.currentTarget.src = "/avatar.svg";
+                  }}
+                />
+              </div>
+            </Link>
           )}
 
-          {/* Header da comunidade - RESPONSIVO */}
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 space-y-3 sm:space-y-0">
-            <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
-              {/* Avatar do artista com efeito glow */}
-              <div className="relative">
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  className={`p-[2px] rounded-full bg-gradient-to-r ${community.gradient_colors.join(
-                    " "
-                  )}`}
-                >
-                  <img
-                    src={community.artista.avatar}
-                    alt={community.artista.nome}
-                    className="w-14 h-14 rounded-full object-cover bg-gray-800"
-                  />
-                </motion.div>
-
-                {/* Badge de verificação com animação */}
-                {community.artista.verificado && (
+          <div className="p-6 flex flex-col flex-grow">
+            {/* Header da comunidade - RESPONSIVO */}
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 space-y-3 sm:space-y-0">
+              <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
+                {/* Avatar do artista com efeito glow */}
+                <div className="relative">
                   <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 border-2 border-gray-900"
+                    whileHover={{ scale: 1.1 }}
+                    className="p-[2px] rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
                   >
-                    <Star className="w-3 h-3 text-white" fill="currentColor" />
+                    <img
+                      src={community.artist?.profile_image_url || "/avatar.svg"}
+                      alt={community.artist?.name || ""}
+                      className="w-14 h-14 rounded-full object-cover bg-gray-800"
+                      onError={(e) => {
+                        console.error("Error loading artist profile image:", e);
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = "/avatar.svg";
+                      }}
+                    />
                   </motion.div>
-                )}
-              </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-2 mb-1 flex-wrap">
-                  <h3 className="text-lg sm:text-xl font-bold text-white truncate">
-                    {community.nome}
-                  </h3>
-                  {/* Indicador de tipo de acesso com cores vibrantes */}
-                  <div className="flex items-center">
-                    {community.tipo_acesso === "private" ? (
-                      <motion.div
-                        whileHover={{ scale: 1.2 }}
-                        className="text-yellow-400"
-                      >
-                        <Lock className="w-4 h-4" />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        whileHover={{ scale: 1.2 }}
-                        className="text-green-400"
-                      >
-                        <Globe className="w-4 h-4" />
-                      </motion.div>
-                    )}
-                  </div>
+                  {/* Badge de verificação com animação */}
+                  {community.artist?.verified && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 border-2 border-gray-900"
+                    >
+                      <Star
+                        className="w-3 h-3 text-white"
+                        fill="currentColor"
+                      />
+                    </motion.div>
+                  )}
                 </div>
 
-                <p className="text-gray-300 text-sm mb-2">
-                  por{" "}
-                  <span className="text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text font-semibold">
-                    {community.artista.nome}
-                  </span>
-                </p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1 flex-wrap flex-1">
+                    <h3 className="text-lg sm:text-xl font-bold text-white truncate">
+                      {community.name}
+                    </h3>
 
-                <div className="flex items-center space-x-2 flex-wrap">
-                  <span
-                    className={`inline-block bg-gradient-to-r ${community.gradient_colors.join(
-                      " "
-                    )} text-white text-xs px-3 py-1 rounded-full font-medium`}
-                  >
-                    {community.categoria}
-                  </span>
+                    {/* Join / Member button */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleToggleJoin}
+                      disabled={joinLoading}
+                      className="px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg flex items-center space-x-1 transition-all duration-200 disabled:opacity-50 text-xs sm:text-sm"
+                    >
+                      {joinLoading ? (
+                        <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                      ) : isJoined ? (
+                        <Users className="w-3 h-3" />
+                      ) : (
+                        <Plus className="w-3 h-3" />
+                      )}
+                      <span>{isJoined ? "Membro" : "Entrar"}</span>
+                    </motion.button>
 
-                  {/* Nível de atividade */}
-                  <div
-                    className={`flex items-center space-x-1 ${getActivityColor(
-                      community.activity_level
-                    )}`}
-                  >
-                    {getActivityIcon(community.activity_level)}
-                    <span className="text-xs font-medium capitalize">
-                      {community.activity_level}
-                    </span>
+                    {/* Access type icon */}
+                    <div className="flex items-center">
+                      {community.access_type === "private" ? (
+                        <motion.div whileHover={{ scale: 1.2 }} className="text-yellow-400">
+                          <Lock className="w-4 h-4" />
+                        </motion.div>
+                      ) : (
+                        <motion.div whileHover={{ scale: 1.2 }} className="text-green-400">
+                          <Globe className="w-4 h-4" />
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats das comunidades */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="flex items-center space-x-1 text-sm text-gray-400">
+                      <Users className="w-4 h-4" />
+                      <span>{formatMemberCount(community.members_count)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-sm text-gray-400">
+                      <MessageCircle className="w-4 h-4" />
+                      <span>{community.posts_count}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Botão de ação com gradientes vibrantes - RESPONSIVO */}
-            <div className="flex justify-end sm:justify-start mt-3 sm:mt-0">
-              <Link href={`/community/${community.id}`}>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`
-      px-3 py-2 sm:px-6 sm:py-3 
-      rounded-lg sm:rounded-xl 
-      font-bold text-sm sm:text-base
-      transition-all duration-300 
-      flex items-center space-x-1 sm:space-x-2 
-      text-white shadow-lg
-      min-w-[80px] sm:min-w-[120px]
-      ${
-        community.tipo_acesso === "private"
-          ? "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
-          : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
-      }
-    `}
-                >
-                  <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline sm:inline">
-                    {community.tipo_acesso === "private"
-                      ? "Explorar"
-                      : "Entrar"}
-                  </span>
-                  <span className="inline xs:hidden sm:hidden">→</span>
-                </motion.button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Tags da comunidade */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {community.tags.map((tag, index) => (
-              <motion.span
-                key={tag}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-gray-800/50 text-gray-300 text-xs px-2 py-1 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
-              >
-                {tag}
-              </motion.span>
-            ))}
-          </div>
-
-          {/* Descrição */}
-          <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-            {community.descricao}
-          </p>
-
-          {/* Estatísticas com ícones coloridos */}
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-6">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="flex items-center space-x-2 text-blue-400"
-              >
-                <Users className="w-4 h-4" />
-                <span className="font-medium">
-                  {formatMemberCount(community.membros)} membros
-                </span>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="flex items-center space-x-2 text-green-400"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span className="font-medium">
-                  {community.posts_recentes} posts
-                </span>
-              </motion.div>
-            </div>
-
-            <div className="flex items-center space-x-2 text-gray-400">
-              <Clock className="w-4 h-4" />
-              <span className="text-xs">
-                {formatDate(community.data_criacao)}
+            <p className="text-gray-300 text-sm mb-2">
+              por{" "}
+              <span className="text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text font-semibold">
+                {community.artist?.name}
               </span>
+            </p>
+
+            <div className="flex items-center space-x-2 flex-wrap">
+              <span className="inline-block bg-gray-700 text-white text-xs px-3 py-1 rounded-full font-medium">
+                {community.category}
+              </span>
+
+              {/* Nível de atividade */}
+              <div
+                className={`flex items-center space-x-1 ${getActivityColor(
+                  community.activity_level
+                )}`}
+              >
+                {getActivityIcon(community.activity_level)}
+                <span className="text-xs font-medium capitalize">
+                  {community.activity_level}
+                </span>
+              </div>
             </div>
+          </div>
+        </div>
+
+        
+
+        {/* Botão de ação com gradientes vibrantes - RESPONSIVO */}
+        <div className="flex justify-end sm:justify-start mt-3 sm:mt-0">
+          <Link href={`/community/${community.id}`}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`
+                      px-3 py-2 sm:px-6 sm:py-3 
+                      rounded-lg sm:rounded-xl 
+                      font-bold text-sm sm:text-base
+                      transition-all duration-300 
+                      flex items-center space-x-1 sm:space-x-2 
+                      text-white shadow-lg
+                      min-w-[80px] sm:min-w-[120px]
+                      ${
+                        community.access_type === "private"
+                          ? "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
+                          : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+                      }
+                    `}
+            >
+              <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline sm:inline">
+                {community.access_type === "private" ? "Explorar" : "Entrar"}
+              </span>
+              <span className="inline xs:hidden sm:hidden">→</span>
+            </motion.button>
+          </Link>
+        </div>
+
+        {/* Tags da comunidade */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {community.tags.map((tag, index) => (
+            <motion.span
+              key={tag}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-gray-800/50 text-gray-300 text-xs px-2 py-1 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+            >
+              {tag}
+            </motion.span>
+          ))}
+        </div>
+
+        {/* Descrição */}
+        <p className="text-gray-300 text-sm mb-6 leading-relaxed flex-grow">
+          {community.description}
+        </p>
+
+        {/* Estatísticas com ícones coloridos */}
+        <div className="flex items-center justify-between text-sm mt-auto">
+          <div className="flex items-center space-x-6">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="flex items-center space-x-2 text-blue-400"
+            >
+              <Users className="w-4 h-4" />
+              <span className="font-medium">
+                {formatMemberCount(community.members_count)} membros
+              </span>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="flex items-center space-x-2 text-green-400"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="font-medium">{community.posts_count} posts</span>
+            </motion.div>
+          </div>
+
+          <div className="flex items-center space-x-2 text-gray-400">
+            <Clock className="w-4 h-4" />
+            <span className="text-xs">{formatDate(community.created_at)}</span>
           </div>
         </div>
       </motion.div>
     );
   };
-// Render da página principal
+  // Render da página principal
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 text-white relative overflow-hidden">
       {/* Efeitos de background animados */}
@@ -573,9 +632,9 @@ export default function CommunityPage() {
       </div>
 
       {/* Header da página com efeitos vibrantes */}
-      <div className="border-b border-gray-800/50 bg-gray-900/80 backdrop-blur-xl sticky top-0 z-20 relative">
+      <div className="border-b border-gray-800/50 bg-gray-900/80 backdrop-blur-xl relative top-0 z-20">
         {/* Linha de gradiente no topo */}
-        <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 via-yellow-500 to-green-500"></div>
+        <div className="h-1 bg-gradient-to-r from-purple-500 via-yellow-500 to-green-500"></div>
 
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
@@ -615,12 +674,14 @@ export default function CommunityPage() {
                 <div className="flex items-center space-x-2 text-blue-400">
                   <TrendingUp className="w-4 h-4" />
                   <span className="text-sm font-medium">
-                    8.2k membros totais
+                    {totalMembers.toLocaleString()} membros totais
                   </span>
                 </div>
                 <div className="flex items-center space-x-2 text-purple-400">
                   <Flame className="w-4 h-4" />
-                  <span className="text-sm font-medium">94 posts hoje</span>
+                  <span className="text-sm font-medium">
+                    {postsToday} posts hoje
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -858,6 +919,18 @@ export default function CommunityPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateCommunity}
+        onImageUpload={(file, metadata) =>
+          uploadService
+            .uploadCommunityMedia(
+              // This will be replaced with the real ID after community creation
+              "temp-id",
+              file,
+              "image",
+              metadata
+            )
+            .then((result) => result.secure_url)
+        }
+        artistId={artistId}
       />
     </div>
   );

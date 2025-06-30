@@ -18,14 +18,16 @@ import {
   AlertCircle
 } from 'lucide-react'
 
-// Interface para dados da comunidade - Boa prática de tipagem forte
+// Interface para dados da comunidade - Alinhada com a tabela Supabase
 interface CommunityFormData {
-  nome: string
-  descricao: string
-  categoria: string
-  privacidade: 'public' | 'private' | 'invite_only'
-  imagem: File | null
-  tags: string[]
+  name: string;
+  description: string;
+  category: string;
+  access_type: 'public' | 'private' | 'invite_only';
+  tags: string[];
+  banner: string; // Cloudinary URL after upload
+  image?: File | null; // Local file before upload
+  artist_id: string; // Artist ID required for community creation
 }
 
 // Interface para props do modal
@@ -33,43 +35,46 @@ interface CreateCommunityModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: CommunityFormData) => Promise<void>
+  onImageUpload: (file: File, metadata?: {title?: string; description?: string; tags?: string[]; artist_id?: string}) => Promise<string>
+  artistId: string; // Artist ID passed from parent component
 }
 
 // Componente do Modal de Criação de Comunidade
 export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
   isOpen,
   onClose,
-  onSubmit
+  onSubmit,
+  onImageUpload,
+  artistId
 }) => {
   // Estados para gerenciamento do formulário
   const [formData, setFormData] = useState<CommunityFormData>({
-    nome: '',
-    descricao: '',
-    categoria: '',
-    privacidade: 'public',
-    imagem: null,
-    tags: []
-  })
-  
+    name: '',
+    description: '',
+    category: '',
+    access_type: 'public' as const,
+    tags: [],
+    banner: '',
+    image: null,
+    artist_id: artistId
+  });
+
   // Estados de controle de UI
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [tagInput, setTagInput] = useState('')
-  
-  // Referências para elementos DOM
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
-  // Categorias disponíveis - Mock data moçambicano
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dados estáticos
   const categorias = [
     { value: 'musica', label: '🎵 Música', icon: Music },
     { value: 'artistas', label: '🎤 Artistas', icon: Mic },
     { value: 'generos', label: '🎼 Gêneros', icon: Music },
     { value: 'cidades', label: '🏙️ Cidades', icon: MapPin },
     { value: 'eventos', label: '📅 Eventos', icon: Calendar }
-  ]
-  
-  // Opções de privacidade
+  ] as const;
+
   const privacidadeOptions = [
     {
       value: 'public' as const,
@@ -92,65 +97,73 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
       icon: UserCheck,
       color: 'text-purple-400'
     }
-  ]
+  ] as const;
 
   // Função para validar formulário
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {}
-    
+    const newErrors: Record<string, string> = {};
     // Validação do nome (obrigatório, mínimo 3 caracteres)
-    if (!formData.nome.trim()) {
-      newErrors.nome = 'Nome da comunidade é obrigatório'
-    } else if (formData.nome.trim().length < 3) {
-      newErrors.nome = 'Nome deve ter pelo menos 3 caracteres'
+    if (!formData.name.trim()) {
+      newErrors.name = 'Nome da comunidade é obrigatório';
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
     }
     
     // Validação da descrição (obrigatório, mínimo 10 caracteres)
-    if (!formData.descricao.trim()) {
-      newErrors.descricao = 'Descrição é obrigatória'
-    } else if (formData.descricao.trim().length < 10) {
-      newErrors.descricao = 'Descrição deve ter pelo menos 10 caracteres'
+    if (!formData.description.trim()) {
+      newErrors.description = 'Descrição é obrigatória';
+    } else if (formData.description.trim().length < 10) {
+      newErrors.description = 'Descrição deve ter pelo menos 10 caracteres';
     }
     
     // Validação da categoria (obrigatório)
-    if (!formData.categoria) {
-      newErrors.categoria = 'Selecione uma categoria'
+    if (!formData.category) {
+      newErrors.category = 'Selecione uma categoria';
     }
     
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   }
 
   // Handler para upload de imagem
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // Validação do arquivo
-      if (file.size > 5 * 1024 * 1024) { // 5MB máximo
-        setErrors(prev => ({ ...prev, imagem: 'Imagem deve ter menos de 5MB' }))
-        return
-      }
-      
-      if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, imagem: 'Arquivo deve ser uma imagem' }))
-        return
-      }
-      
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validação do arquivo
+    if (file.size > 5 * 1024 * 1024) { // 5MB máximo
+      setErrors(prev => ({ ...prev, image: 'Imagem deve ter menos de 5MB' }));
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      setErrors(prev => ({ ...prev, image: 'Arquivo deve ser uma imagem' }));
+      return;
+    }
+
+    try {
       // Criar preview da imagem
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-      
-      // Atualizar form data
-      setFormData(prev => ({ ...prev, imagem: file }))
-      
-      // Limpar erro de imagem se existir
-      setErrors(prev => {
-        const { imagem, ...rest } = prev
-        return rest
-      })
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload da imagem com metadados do artista
+      const bannerUrl = await onImageUpload(file, {
+        title: formData.name || 'Comunidade',
+        description: 'Banner da comunidade',
+        tags: formData.tags,
+        artist_id: artistId
+      });
+
+      // Atualizar form data com URL da imagem
+      setFormData(prev => ({ ...prev, banner: bannerUrl, image: null }));
+      // Clear all errors since upload was successful
+      setErrors({});
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem:', error);
+      setErrors(prev => ({ ...prev, image: 'Erro ao fazer upload da imagem' }));
     }
   }
 
@@ -160,8 +173,8 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
       setFormData(prev => ({
         ...prev,
         tags: [...prev.tags, tagInput.trim()]
-      }))
-      setTagInput('')
+      }));
+      setTagInput('');
     }
   }
 
@@ -170,34 +183,61 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
     setFormData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }))
+    }));
   }
 
   // Handler para submissão do formulário
   const handleSubmit = async () => {
-    if (!validateForm()) return
-    
-    setIsLoading(true)
+    if (!validateForm()) return;
+    setIsLoading(true);
     try {
-      await onSubmit(formData)
+      let bannerUrl = formData.banner;
+      // Se não houver URL ainda mas existe arquivo local, faz upload para Cloudinary
+      if (!bannerUrl && formData.image) {
+        // Use the onImageUpload function to upload the image with metadata
+        try {
+          // Format tags properly - remove any # prefix if present
+          const formattedTags = formData.tags.map(tag => tag.startsWith('#') ? tag.substring(1) : tag);
+          
+          const uploadResponse = await onImageUpload(formData.image, {
+            title: formData.name,
+            description: formData.description,
+            tags: formattedTags
+          });
+          bannerUrl = uploadResponse;
+        } catch (error) {
+          console.error('Error uploading image to Cloudinary:', error);
+          throw new Error('Falha ao fazer upload para Cloudinary');
+        }
+      }
+
+      // Create submit payload with proper typing
+      const submitPayload: CommunityFormData = {
+        ...formData,
+        banner: bannerUrl,
+        artist_id: artistId
+      };
+
+      await onSubmit(submitPayload);
       // Reset form após sucesso
       setFormData({
-        nome: '',
-        descricao: '',
-        categoria: '',
-        privacidade: 'public',
-        imagem: null,
-        tags: []
-      })
-      setImagePreview(null)
-      setTagInput('')
-      setErrors({})
-      onClose()
+        name: '',
+        description: '',
+        category: '',
+        access_type: 'public' as const,
+        tags: [],
+        banner: '',
+        image: null,
+        artist_id: artistId
+      });
+      setTagInput('');
+      setErrors({});
+      onClose();
     } catch (error) {
-      console.error('Erro ao criar comunidade:', error)
-      setErrors({ submit: 'Erro ao criar comunidade. Tente novamente.' })
+      console.error('Erro ao criar comunidade:', error);
+      setErrors({ submit: 'Erro ao criar comunidade. Tente novamente.' });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -219,7 +259,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop com blur */}
+          {/*  ckdrop com blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -300,7 +340,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                             whileHover={{ scale: 1.1 }}
                             onClick={() => {
                               setImagePreview(null)
-                              setFormData(prev => ({ ...prev, imagem: null }))
+                              setFormData(prev => ({ ...prev, image: null }))
                             }}
                             className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"
                           >
@@ -335,14 +375,14 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                       className="hidden"
                     />
                     
-                    {errors.imagem && (
+                    {errors.image && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.imagem}</span>
+                        <span>{errors.image}</span>
                       </motion.p>
                     )}
                   </div>
@@ -354,23 +394,23 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={formData.nome}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Ex: Marrabenta Moderna"
                       className={`w-full px-4 py-3 bg-gray-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                        errors.nome 
+                        errors.name 
                           ? 'border-red-500 focus:ring-red-500' 
                           : 'border-gray-600 focus:ring-purple-500 hover:border-purple-500/50'
                       }`}
                     />
-                    {errors.nome && (
+                    {errors.name && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.nome}</span>
+                        <span>{errors.name}</span>
                       </motion.p>
                     )}
                   </div>
@@ -381,24 +421,24 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                       Descrição *
                     </label>
                     <textarea
-                      value={formData.descricao}
-                      onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Descreva o propósito e objetivo da sua comunidade..."
                       rows={4}
                       className={`w-full px-4 py-3 bg-gray-800/50 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 resize-none ${
-                        errors.descricao 
+                        errors.description 
                           ? 'border-red-500 focus:ring-red-500' 
                           : 'border-gray-600 focus:ring-purple-500 hover:border-purple-500/50'
                       }`}
                     />
-                    {errors.descricao && (
+                    {errors.description && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.descricao}</span>
+                        <span>{errors.description}</span>
                       </motion.p>
                     )}
                   </div>
@@ -410,16 +450,16 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {categorias.map((categoria) => {
-                        const Icon = categoria.icon
+                        const Icon = categoria.icon;
                         return (
                           <motion.button
                             key={categoria.value}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, categoria: categoria.value }))}
+                            onClick={() => setFormData(prev => ({ ...prev, category: categoria.value }))}
                             className={`p-3 rounded-lg border-2 transition-all duration-200 flex items-center space-x-3 ${
-                              formData.categoria === categoria.value
+                              formData.category === categoria.value
                                 ? 'border-purple-500 bg-purple-500/20'
                                 : 'border-gray-600 hover:border-purple-500/50 bg-gray-800/30'
                             }`}
@@ -427,17 +467,17 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                             <Icon className="w-5 h-5 text-purple-400" />
                             <span className="text-white font-medium">{categoria.label}</span>
                           </motion.button>
-                        )
+                        );
                       })}
                     </div>
-                    {errors.categoria && (
+                    {errors.category && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-sm flex items-center space-x-1"
                       >
                         <AlertCircle className="w-4 h-4" />
-                        <span>{errors.categoria}</span>
+                        <span>{errors.category}</span>
                       </motion.p>
                     )}
                   </div>
@@ -449,15 +489,15 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                     </label>
                     <div className="space-y-3">
                       {privacidadeOptions.map((option) => {
-                        const Icon = option.icon
+                        const Icon = option.icon;
                         return (
                           <motion.button
                             key={option.value}
                             whileHover={{ scale: 1.01 }}
                             type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, privacidade: option.value }))}
+                            onClick={() => setFormData(prev => ({ ...prev, access_type: option.value }))}
                             className={`w-full p-4 rounded-lg border-2 transition-all duration-200 flex items-center justify-between ${
-                              formData.privacidade === option.value
+                              formData.access_type === option.value
                                 ? 'border-purple-500 bg-purple-500/20'
                                 : 'border-gray-600 hover:border-purple-500/50 bg-gray-800/30'
                             }`}
@@ -470,7 +510,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                               </div>
                             </div>
                             
-                            {formData.privacidade === option.value && (
+                            {formData.access_type === option.value && (
                               <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
@@ -485,7 +525,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                               </motion.div>
                             )}
                           </motion.button>
-                        )
+                        );
                       })}
                     </div>
                   </div>

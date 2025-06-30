@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useAuth } from '@/hooks/useAuth';
+import ProfilePhotoUploader from '@/components/settings/ProfilePhotoUploader';
+import artistService from '@/services/artistService';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3,
@@ -35,8 +38,10 @@ import {
   MapPin,
 } from "lucide-react";
 
-// 🔧 INTERFACES SIMPLIFICADAS E CORRIGIDAS
-interface Artist {
+import type { Artist as DBArtist } from '@/models/artist';
+
+// 🔧 INTERFACES SIMPLIFICADAS E CORRIGIDAS (para mock apenas)
+interface DashboardArtist {
   id: string;
   nome: string;
   avatar: string;
@@ -45,6 +50,12 @@ interface Artist {
   total_streams: number;
   receita_mensal: number;
 }
+
+// Extensão do artista vindo da API para incluir stats opcionais
+type FullArtist = DBArtist & {
+  subscribers?: number;
+  verified?: boolean;
+};
 
 interface Music {
   id: string;
@@ -101,10 +112,32 @@ type DashboardSection =
 
 // 🎵 DASHBOARD ARTISTA EIMUSIC - VERSÃO CORRIGIDA
 export default function ArtistDashboard() {
+  const { user } = useAuth();
+  const [artist, setArtist] = useState<FullArtist | null>(null);
   // 🔧 ESTADOS ESSENCIAIS (SEM UPLOAD)
   const [activeSection, setActiveSection] =
     useState<DashboardSection>("overview");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [artistName, setArtistName] = useState<string>('');
+  const [artistBio, setArtistBio] = useState<string>('');
+  // Fetch current artist data once we have the authenticated user
+  useEffect(() => {
+    const fetchArtist = async () => {
+      if (!user?.id) return;
+      try {
+        const data = await artistService.getArtistById(user.id) as FullArtist;
+        if (data) {
+          setArtist(data);
+          setArtistName(data.name || '');
+          setArtistBio(data.bio || '');
+        }
+      } catch (err) {
+        console.error('Erro ao carregar artista', err);
+      }
+    };
+    fetchArtist();
+  }, [user]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContent, setSelectedContent] = useState<
     Music | VideoContent | null
@@ -115,7 +148,7 @@ export default function ArtistDashboard() {
   const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
 
   // 🎭 MOCK DATA ARTISTA
-  const mockArtist: Artist = {
+  const mockArtist: DashboardArtist = {
     id: "1",
     nome: "Zena Bakar",
     avatar: "/api/placeholder/128/128",
@@ -281,8 +314,9 @@ export default function ArtistDashboard() {
                 {" "}
                 {/* 🔧 Reduzido padding */}
                 <img
-                  src={mockArtist.avatar}
-                  alt={mockArtist.nome}
+                  src={artist?.profile_image_url || mockArtist.avatar}
+                  onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null; t.src='/avatar.svg'; }}
+                  alt={artist?.name || mockArtist.nome}
                   className="w-8 h-8 rounded-full border-2 border-purple-400"
                 />
                 <div className="hidden lg:block">
@@ -290,9 +324,9 @@ export default function ArtistDashboard() {
                   {/* 🔧 Só mostra em telas grandes */}
                   <div className="flex items-center space-x-1">
                     <span className="text-white font-medium text-sm">
-                      {mockArtist.nome}
+                      {artist?.name || artistName || mockArtist.nome}
                     </span>
-                    {mockArtist.verificado && (
+                    {((artist?.verified ?? false) || mockArtist.verificado) && (
                       <Star
                         className="w-3 h-3 text-blue-400"
                         fill="currentColor"
@@ -300,7 +334,7 @@ export default function ArtistDashboard() {
                     )}
                   </div>
                   <p className="text-gray-400 text-xs">
-                    {mockArtist.total_seguidores.toLocaleString()} seguidores
+                    {(artist?.subscribers ?? mockArtist.total_seguidores).toLocaleString()} seguidores
                   </p>
                 </div>
               </div>
@@ -1396,14 +1430,11 @@ export default function ArtistDashboard() {
           </h3>
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
-              <img
-                src={mockArtist.avatar}
-                alt="Avatar"
-                className="w-20 h-20 rounded-full border-2 border-purple-500"
+              <ProfilePhotoUploader
+                mode="artist"
+                id={user?.id || artist?.id || mockArtist.id}
+                initialUrl={(artist?.profile_image_url) || mockArtist.avatar}
               />
-              <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-colors">
-                Alterar Foto
-              </button>
             </div>
             <div>
               <label className="block text-gray-400 font-medium mb-3">
@@ -1411,7 +1442,8 @@ export default function ArtistDashboard() {
               </label>
               <input
                 type="text"
-                defaultValue={mockArtist.nome}
+                value={artistName}
+                onChange={(e)=>setArtistName(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
@@ -1421,7 +1453,8 @@ export default function ArtistDashboard() {
               </label>
               <textarea
                 rows={4}
-                placeholder="Conta a tua história..."
+                value={artistBio}
+                onChange={(e)=>setArtistBio(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
@@ -1475,7 +1508,26 @@ export default function ArtistDashboard() {
             </div>
           </div>
 
-          <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl mt-8 font-medium transition-colors">
+          <button
+            onClick={async () => {
+              if (!user?.id) return alert('Você precisa estar autenticado');
+              try {
+                setSaving(true);
+                await artistService.updateArtist(user.id, {
+                  name: artistName,
+                  bio: artistBio,
+                });
+                alert('Alterações guardadas com sucesso');
+              } catch (err) {
+                console.error('Erro ao salvar alterações', err);
+                alert('Falha ao salvar alterações');
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white py-4 rounded-xl mt-8 font-medium transition-colors flex items-center justify-center gap-2" >
+            {saving && <span className="loader inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             Salvar Alterações
           </button>
         </div>
