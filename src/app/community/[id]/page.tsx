@@ -783,7 +783,7 @@ export default function CommunityDetailPage() {
                   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
                     <div className="flex space-x-4">
                       <img
-                        src="/api/placeholder/48/48"
+                        src="/avatar.svg"
                         alt="Seu avatar"
                         className="w-12 h-12 rounded-full border-2 border-gray-600"
                       />
