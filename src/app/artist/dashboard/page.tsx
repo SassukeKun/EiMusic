@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from '@/hooks/useAuth';
@@ -143,6 +143,9 @@ export default function ArtistDashboard() {
     Music | VideoContent | null
   >(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // 🔄 ESTADOS PARA O MODAL DE EDIÇÃO DE EVENTOS
+  const [showEditEventModal, setShowEditEventModal] = useState<boolean>(false);
+  const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
 
   // 🎭 MOCK DATA ARTISTA
   const mockArtist: DashboardArtist = {
@@ -1249,7 +1252,13 @@ export default function ArtistDashboard() {
             </div>
 
             <div className="flex space-x-3 mt-6">
-              <button className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-medium transition-colors">
+              <button
+                onClick={() => {
+                  setEventToEdit(evento);
+                  setShowEditEventModal(true);
+                }}
+                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-medium transition-colors"
+              >
                 Editar
               </button>
               <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors">
@@ -1591,6 +1600,164 @@ export default function ArtistDashboard() {
     </AnimatePresence>
   );
 
+  // 📅 MODAL DE EDIÇÃO DE EVENTOS
+  const EditEventModal = () => {
+    // Estados para controlar os valores do formulário
+    const [formValues, setFormValues] = useState<{
+      titulo: string;
+      data: string;
+      local: string;
+      status: "agendado" | "confirmado" | "realizado";
+    }>({
+      titulo: eventToEdit?.titulo || "",
+      data: eventToEdit?.data || "",
+      local: eventToEdit?.local || "",
+      status: eventToEdit?.status || "agendado",
+    });
+
+    // Atualizar valores do formulário quando eventToEdit mudar
+    useEffect(() => {
+      if (eventToEdit) {
+        setFormValues({
+          titulo: eventToEdit.titulo,
+          data: eventToEdit.data,
+          local: eventToEdit.local,
+          status: eventToEdit.status,
+        });
+      }
+    }, [eventToEdit]);
+
+    // Função para atualizar o evento
+    const handleSaveEvent = () => {
+      if (!eventToEdit) return;
+
+      // Atualizar o evento na lista
+      const updatedEventos = eventos.map((evento) =>
+        evento.id === eventToEdit.id ? { ...evento, ...formValues } : evento
+      );
+
+      setEventos(updatedEventos);
+      setShowEditEventModal(false);
+      setEventToEdit(null);
+    };
+
+    return (
+      <AnimatePresence>
+        {showEditEventModal && eventToEdit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowEditEventModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gray-800 rounded-2xl p-8 max-w-2xl w-full border border-gray-700 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-white">Editar Evento</h3>
+                <button
+                  onClick={() => setShowEditEventModal(false)}
+                  className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-gray-400 font-medium mb-2">
+                    Título do Evento
+                  </label>
+                  <input
+                    type="text"
+                    value={formValues.titulo}
+                    onChange={(e) =>
+                      setFormValues({ ...formValues, titulo: e.target.value })
+                    }
+                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    placeholder="Nome do evento"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 font-medium mb-2">
+                    Data e Hora
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formValues.data.slice(0, 16)} // Formatar para datetime-local
+                    onChange={(e) =>
+                      setFormValues({ ...formValues, data: e.target.value })
+                    }
+                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 font-medium mb-2">
+                    Local
+                  </label>
+                  <input
+                    type="text"
+                    value={formValues.local}
+                    onChange={(e) =>
+                      setFormValues({ ...formValues, local: e.target.value })
+                    }
+                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    placeholder="Local do evento"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 font-medium mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={formValues.status}
+                    onChange={(e) =>
+                      setFormValues({
+                        ...formValues,
+                        status: e.target.value as
+                          | "agendado"
+                          | "confirmado"
+                          | "realizado",
+                      })
+                    }
+                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  >
+                    <option value="agendado">Agendado</option>
+                    <option value="confirmado">Confirmado</option>
+                    <option value="realizado">Realizado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex space-x-4 mt-8">
+                <button
+                  onClick={() => setShowEditEventModal(false)}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveEvent}
+                  className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-xl transition-colors font-medium"
+                >
+                  Salvar Alterações
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  };
+
   // 🔄 LOADING ELEGANTE
   if (loading) {
     return (
@@ -1735,6 +1902,7 @@ export default function ArtistDashboard() {
 
       {/* 🎭 MODAIS */}
       <DeleteConfirmModal />
+      <EditEventModal />
 
       {/* 📱 FOOTER MÓVEL */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-xl border-t border-gray-700 p-4">
