@@ -10,6 +10,7 @@
     "migrate": "supabase db push"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.4",
     "@hookform/resolvers": "^3.10.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
@@ -17,6 +18,7 @@
     "@tanstack/react-query": "^5.80.7",
     "@tanstack/react-query-devtools": "^5.76.0",
     "cloudinary": "^2.6.1",
+    "e2payments": "^1.0.0",
     "framer-motion": "^12.18.1",
     "lucide-react": "^0.518.0",
     "motion": "^12.18.1",
@@ -25,8 +27,8 @@
     "next-cloudinary": "^6.16.0",
     "react": "^18",
     "react-dom": "^18",
-    "react-hot-toast": "^2.5.2",
     "react-hook-form": "^7.58.1",
+    "react-hot-toast": "^2.5.2",
     "react-icons": "^5.0.1",
     "uuid": "^9.0.1",
     "zod": "^3.25.67",

@@ -97,16 +97,71 @@ export default function PaymentPage() {
 
   // Handler para processamento final do pagamento
   const handlePaymentProcess = async () => {
+    if (!selectedPlan || !selectedMethod) return
+
     setIsProcessing(true)
-    
-    // Simular processamento do pagamento (2-3 segundos)
-    await new Promise(resolve => setTimeout(resolve, 2500))
-    
-    // Em um cenário real, aqui seria feita a chamada para a API de pagamento
-    setIsProcessing(false)
-    
-    // Redirecionar para dashboard com mensagem de sucesso
-    router.push('/dashboard?payment=success&plan=' + selectedPlan?.id)
+
+    try {
+      // Se o utilizador escolheu M-Pesa, seguir o fluxo real via API
+      if (selectedMethod.id === 'mpesa') {
+        // Gera um UUID para identificar esta assinatura como sourceId
+        const sourceId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+          ? crypto.randomUUID()
+          : Math.random().toString(36).substring(2, 10)
+
+        // Iniciar pagamento no backend
+        const initRes = await fetch('/api/payments/initiate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: selectedPlan.price,
+            msisdn: paymentData.phoneNumber.replace(/\D/g, ''),
+            sourceType: 'subscription',
+            sourceId,
+          }),
+        })
+
+        const initJson = await initRes.json()
+        if (!initRes.ok) {
+          throw new Error(initJson.error || 'Falha ao iniciar pagamento')
+        }
+
+        let status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'EXPIRED' = initJson.status
+        const paymentId = initJson.paymentId
+
+        // Polling até estado final
+        const poll = async () => {
+          const res = await fetch(`/api/payments/${paymentId}/status`)
+          const json = await res.json()
+          if (res.ok) return json.status
+          throw new Error(json.error || 'Erro ao consultar status')
+        }
+
+        // Esperar até completar ou falhar
+        const maxAttempts = 15 // ~1 min
+        let attempts = 0
+        while (status === 'PENDING' && attempts < maxAttempts) {
+          await new Promise(r => setTimeout(r, 4000))
+          status = await poll()
+          attempts++
+        }
+
+        if (status === 'COMPLETED') {
+          router.push(`/dashboard?payment=success&plan=${selectedPlan.id}`)
+        } else {
+          router.push('/payment?error=payment_failed')
+        }
+      } else {
+        // Outros métodos mantêm simulação local
+        await new Promise(resolve => setTimeout(resolve, 2500))
+        router.push(`/dashboard?payment=success&plan=${selectedPlan.id}`)
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Ocorreu um erro ao processar o pagamento. Tenta novamente.')
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Loading state enquanto verifica autenticação
@@ -147,7 +202,7 @@ export default function PaymentPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
       {/* Linha gradiente no topo */}
-      <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 via-yellow-500 to-green-500"></div>
+      <div className="h-1 bg-gradient-to-r from-purple-500 via-yellow-500 to-green-500"></div>
       
       {/* Header com navegação */}
       <header className="border-b border-gray-800/50 bg-gray-900/80 backdrop-blur-xl sticky top-0 z-20">

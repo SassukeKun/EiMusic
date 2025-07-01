@@ -27,9 +27,31 @@ export async function fetchCommunities(): Promise<Community[]> {
 
 
 export async function createCommunity(input: CreateCommunityInput): Promise<Community> {
-  // Validate that artist_id is provided
+  // 1. Verificar artist_id
   if (!input.artist_id) {
     throw new Error('Artist ID is required to create a community');
+  }
+
+  // 2. Verificar plano do artista para comunidades premium/vip
+  if (['premium', 'vip'].includes(input.access_type)) {
+    // Carrega plano do artista
+    const { data: artistData, error: artistError } = await supabase
+      .from('artists')
+      .select('monetization_plan_id')
+      .eq('id', input.artist_id)
+      .single();
+    if (artistError) throw artistError;
+
+    const planId = artistData?.monetization_plan_id;
+    const isVipArtist = planId === '33333333-3333-3333-3333-333333333333';
+    const isPremiumArtist = planId === '22222222-2222-2222-2222-222222222222';
+
+    if (input.access_type === 'premium' && !(isPremiumArtist || isVipArtist)) {
+      throw new Error('Somente artistas Premium ou VIP podem criar comunidades Premium');
+    }
+    if (input.access_type === 'vip' && !isVipArtist) {
+      throw new Error('Somente artistas VIP podem criar comunidades VIP');
+    }
   }
 
   // Create the community
@@ -43,6 +65,7 @@ export async function createCommunity(input: CreateCommunityInput): Promise<Comm
       category: input.category,
       tags: input.tags || [],
       banner: input.banner || null,
+      price: input.price ?? 0,
     })
     .select(
       `id,
@@ -109,6 +132,26 @@ export async function getCommunityMembership(communityId: string, userId: string
 
 // Join a community as a member
 export async function joinCommunity(communityId: string, userId: string): Promise<void> {
+  // 1. Buscar comunidade e tipo de acesso
+  const { data: community, error: commErr } = await supabase
+    .from('communities')
+    .select('access_type, price')
+    .eq('id', communityId)
+    .single();
+  if (commErr) throw commErr;
+
+  // 2. Se premium/vip, verificar assinatura ativa do usuário
+  if (community.access_type === 'premium' || community.access_type === 'vip') {
+    const { data: user } = await supabase
+      .from('users')
+      .select('has_active_subscription')
+      .eq('id', userId)
+      .single();
+    if (!user?.has_active_subscription) {
+      throw new Error('É necessária uma assinatura ativa para entrar nesta comunidade');
+    }
+  }
+
   const { error } = await supabase
     .from('community_members')
     .insert({ community_id: communityId, user_id: userId });

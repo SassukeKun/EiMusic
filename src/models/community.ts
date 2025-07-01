@@ -9,7 +9,8 @@ export interface Community {
   name: string;
   description: string | null;
   category: string;
-  access_type: string;
+  access_type: 'public' | 'private' | 'premium' | 'vip';
+  price: number;
   tags: string[];
   is_active: boolean;
   activity_level: string;
@@ -47,7 +48,8 @@ export const communitySchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   category: z.string().min(1, 'Category is required'),
-  access_type: z.enum(['public', 'private']),
+  access_type: z.enum(['public', 'private', 'premium', 'vip']),
+  price: z.number().min(0).optional(),
   tags: z.array(z.string()).optional(),
   artist_id: z.string().uuid().optional(),
 });

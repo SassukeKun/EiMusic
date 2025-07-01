@@ -878,9 +878,9 @@ export default function EventsPage() {
       </div>
 
       {/* Header da página */}
-      <div className="border-b border-gray-800/50 bg-gray-900/80 backdrop-blur-xl sticky top-0 z-20 relative">
+      <div className="border-b border-gray-800/50 bg-gray-900/80 backdrop-blur-xl top-0 z-20 relative">
         {/* Linha de gradiente no topo */}
-        <div className="h-1 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 to-purple-500"></div>
+        <div className="h-1 bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"></div>
 
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
