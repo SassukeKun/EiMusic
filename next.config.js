@@ -1,4 +1,11 @@
 /** @type {import('next').NextConfig} */
+"lh3.googleusercontent.com",
+      "images.unsplash.com", // Adicionado para desenvolvimento
+      "xigubo.com", // Site moçambicano
+      "i1.sndcdn.com", // SoundCloud
+      "i.ytimg.com", // YouTube thumbnails
+      "encrypted-tbn0.gstatic.com" // Google Images
+
 const nextConfig = {
   images: {
     domains: ["res.cloudinary.com", "lh3.googleusercontent.com"],
@@ -8,8 +15,15 @@ const nextConfig = {
         hostname: "res.cloudinary.com",
         pathname: "/ddyuofu2d/image/upload/**",
       },
+
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
     ],
   },
+  
   output: "standalone",
   async redirects() {
     return [

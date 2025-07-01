@@ -2,10 +2,8 @@ import '@/styles/globals.css'
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import ClientLayout from '@/components/ClientLayout';
-import { usePathname } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
-import PlayerBar from '@/components/PlayerBar';
-import Providers from '@/utils/providers';
+import { Providers } from '@/utils/providers';
+import { PlayerProvider } from '@/context/PlayerContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -30,21 +28,11 @@ export default function RootLayout({
 
   return (
     <html lang="pt-PT">
-      <head />
-      <body className={isAuthPage ? '' : 'pb-24 bg-gray-50'}>
+      <body>
         <Providers>
-          {isAuthPage ? (
-            children
-          ) : (
-            <div className="flex">
-              <Sidebar />
-              <main className="flex-1 max-w-7xl px-4 pb-14">
-                {children}
-              </main>
-            </div>
-          )}
-
-          {!isAuthPage && <PlayerBar />}
+          <PlayerProvider>
+            <ClientLayout>{children}</ClientLayout>
+          </PlayerProvider>
         </Providers>
       </body>
     </html>

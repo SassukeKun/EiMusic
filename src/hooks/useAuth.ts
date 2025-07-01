@@ -83,6 +83,23 @@ export function useAuth() {
     };
   }, []);
 
+  // Efeito para manter o status de artista atualizado
+  useEffect(() => {
+    if (user) {
+      // Verificação explícita do status de artista
+      const artistStatus = user.user_metadata?.is_artist === true;
+      setIsArtist(artistStatus);
+      
+      // Log para debug
+      console.log('Auth Status:', {
+        userId: user.id,
+        email: user.email,
+        isArtist: artistStatus,
+        metadata: user.user_metadata
+      });
+    }
+  }, [user]);
+
   // Verificar status do email periodicamente
   useEffect(() => {
     // Não verificar se não há usuário ou se o email já está verificado

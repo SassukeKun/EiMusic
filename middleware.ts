@@ -2,71 +2,79 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
+// This function can be marked `async` if using `await` inside
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  
-  try {
-  // Create a Supabase client for the middleware
-  const supabase = createMiddlewareClient({ req, res });
-  
-  // Refresh the session if it exists
-  const {
-    data: { session },
-      error,
-  } = await supabase.auth.getSession();
-
-    if (error) {
-      console.error('Error refreshing session:', error);
-      // If there's an error refreshing the session, redirect to login
-      return NextResponse.redirect(new URL('/login?error=session_refresh_failed', req.url));
-    }
-
-  // Protected routes that require authentication
-  const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings'];
-  
-  // Auth routes (login, register)
-  const authRoutes = ['/login', '/register'];
-  
-  // Current path
   const path = req.nextUrl.pathname;
-  
-  // If accessing a protected route without a session, redirect to login
-  if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
-    return NextResponse.redirect(new URL('/login', req.url));
+  const requestTimestamp = new Date().toISOString();
+  console.log(`[${requestTimestamp}] Middleware triggered for path: ${path}`);
+
+  // Skip auth check for public routes and static files
+  const publicRoutes = ['/login', '/register', '/', '/api', '/_next', '/static'];
+  if (publicRoutes.some(route => path.startsWith(route))) {
+    return res;
   }
-  
-  // If already logged in and trying to access auth routes, redirect to dashboard
-  if (session && authRoutes.some(route => path === route)) {
-    // Check if user is an artist for proper redirection
-    try {
-      const { data: artistData } = await supabase
-        .from('artists')
-        .select('id')
-        .eq('id', session.user.id)
-        .single();
-      
-      if (artistData) {
-        return NextResponse.redirect(new URL('/artist/dashboard', req.url));
-      } else {
-        return NextResponse.redirect(new URL('/dashboard', req.url));
+
+  try {
+    // Create a Supabase client for this request
+    const supabase = createMiddlewareClient({ req, res });
+    
+    // Try to get the session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error(`[${requestTimestamp}] Session error:`, sessionError);
+      if (path.startsWith('/upload')) {
+        return NextResponse.redirect(new URL('/login', req.url));
       }
-    } catch {
-      // If we can't determine if artist, default to user dashboard
-      return NextResponse.redirect(new URL('/dashboard', req.url));
+      return res;
     }
-  }
-  
-  return res;
-  } catch (error) {
-    console.error('Middleware error:', error);
-    // In case of any error, redirect to login
-    return NextResponse.redirect(new URL('/login?error=middleware_error', req.url));
+
+    // Handle protected routes
+    const protectedRoutes = ['/dashboard', '/artist/dashboard', '/profile', '/settings', '/upload'];
+    
+    if (protectedRoutes.some(route => path.startsWith(route))) {
+      // No session, redirect to login
+      if (!session) {
+        console.log(`[${requestTimestamp}] No session found for protected route ${path}`);
+        const loginUrl = new URL('/login', req.url);
+        loginUrl.searchParams.set('from', path);
+        return NextResponse.redirect(loginUrl);
+      }
+
+      // Special handling for /upload route
+      if (path.startsWith('/upload')) {
+        const isArtist = session.user?.user_metadata?.is_artist === true;
+        
+        if (!isArtist) {
+          console.log('User is not an artist, redirecting to home');
+          return NextResponse.redirect(new URL('/', req.url));
+        }
+      }
+    }
+
+    return res;
+  } catch (e: any) {
+    console.error(`[${requestTimestamp}] Critical error in middleware for path ${path}:`, e.message);
+    // On critical errors, redirect to login for protected routes
+    if (path.startsWith('/upload')) {
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+    return res;
   }
 }
 
-// Match all routes except API routes, static files, and _next
+// Configure which paths this middleware will run on
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|public|musicSS.svg).*)',
+    /*
+     * Match all request paths except:
+     * 1. /api/ routes
+     * 2. /_next/ (Next.js internals)
+     * 3. /static (public files)
+     * 4. /_vercel (Vercel internals)
+     * 5. all root files inside public (favicon.ico, robots.txt, etc.)
+     */
+    '/((?!api|_next|static|_vercel|[\\w-]+\\.\\w+).*)',
   ],
-}; 
+};

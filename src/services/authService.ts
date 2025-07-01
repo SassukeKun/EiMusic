@@ -5,7 +5,7 @@ import { getSupabaseBrowserClient } from '../utils/supabaseClient';
 // Helper for logging sessionStorage
 const PKCE_VERIFIER_KEY_PREFIX = 'sb-';
 const PKCE_VERIFIER_KEY_SUFFIX = '-auth-session-code-verifier';
-const PROJECT_REF = "rayacnytyvuytjmlklot"; // Hardcoded from user's Supabase URL
+const PROJECT_REF = "rayacnytyvuytjmlklot"; // From your Supabase URL
 const EXPECTED_PKCE_KEY = `${PKCE_VERIFIER_KEY_PREFIX}${PROJECT_REF}${PKCE_VERIFIER_KEY_SUFFIX}`;
 
 const logSessionStoragePkceVerifier = (context: string) => {
@@ -21,11 +21,11 @@ const logSessionStoragePkceVerifier = (context: string) => {
     const allKeys = Object.keys(sessionStorage);
     console.log(`  All sessionStorage keys (${allKeys.length}): [${allKeys.join(', ')}]`);
     if (allKeys.length > 0 && !verifierValue) {
-        allKeys.forEach(key => {
-            if (key.includes('verifier') || key.includes('pkce')) {
-                console.log(`  Other potential PKCE/verifier related key found: ${key} = ${sessionStorage.getItem(key)?.substring(0,50)}...`);
-            }
-        });
+      allKeys.forEach(key => {
+        if (key.includes('verifier') || key.includes('pkce')) {
+          console.log(`  Other potential PKCE/verifier related key found: ${key} = ${sessionStorage.getItem(key)?.substring(0,50)}...`);
+        }
+      });
     }
   } else {
     console.log('  sessionStorage not available or window is undefined.');
@@ -33,9 +33,97 @@ const logSessionStoragePkceVerifier = (context: string) => {
 };
 
 /**
- * Servico para operacoes de autenticacao
+ * Service for authentication operations
  */
 const authService = {
+  /**
+   * Clear all auth-related storage
+   */
+  clearAuthStorage() {
+    if (typeof window === 'undefined') return;
+
+    // Clear Supabase-specific items from localStorage
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-')) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    // Clear Supabase-specific items from sessionStorage
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith('sb-')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+  },
+
+  /**
+   * Login with email and password for artists
+   */
+  async signInArtist(email: string, password: string) {
+    // Clear any existing auth data first
+    this.clearAuthStorage();
+    
+    const supabaseClient = getSupabaseBrowserClient();
+    
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) {
+      throw error;
+    }
+    
+    if (!data.session?.refresh_token) {
+      throw new Error('Invalid Refresh Token: Refresh Token Not Found');
+    }
+
+    // Verify that this is an artist account
+    if (data.user?.user_metadata?.is_artist !== true) {
+      throw new Error('Esta conta não pertence a um artista. Por favor, use a área de login de usuário regular.');
+    }
+
+    // Get additional artist data
+    const { data: artistData, error: artistError } = await supabaseClient
+      .from('artists')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (artistError) {
+      if (artistError.code === 'PGRST116') {
+        const artistRecord = {
+          id: data.user.id,
+          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Artista',
+          email: data.user.email,
+          created_at: new Date().toISOString(),
+        };
+
+        const { data: newArtistData, error: insertError } = await supabaseClient
+          .from('artists')
+          .upsert(artistRecord)
+          .select()
+          .single();
+
+        if (insertError) {
+          throw new Error('Falha ao acessar perfil de artista. Por favor, contate o suporte.');
+        }
+
+        return {
+          session: data.session,
+          user: newArtistData
+        };
+      }
+      throw artistError;
+    }
+
+    return {
+      session: data.session,
+      user: artistData
+    };
+  },
+
   /**
    * Login com email e senha para usuarios regulares
    * @param email - Email do usuario
@@ -113,182 +201,57 @@ const authService = {
   },
   
   /**
-   * Login com email e senha para artistas
-   * @param email - Email do artista
-   * @param password - Senha do artista
-   * @returns Dados da sessao de autenticacao ou erro
-   */
-  async signInArtist(email: string, password: string) {
-    const supabaseClient = getSupabaseBrowserClient();
-    
-    // Autenticar artista com o Supabase auth
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) {
-      throw error;
-    }
-
-    // Check for valid refresh token
-    if (!data.session?.refresh_token) {
-      throw new Error('Invalid Refresh Token: Refresh Token Not Found');
-    }
-    
-    // Verificar se é realmente um artista - deve ter is_artist = true nos metadados
-    // Isso é a verificação primária mais confiável
-    const isArtistFromMetadata = data.user.user_metadata?.is_artist === true;
-    
-    if (!isArtistFromMetadata) {
-      throw new Error('Esta conta não pertence a um artista. Por favor, use a área de login de usuário regular.');
-    }
-    
-    // Buscar dados extras do artista (tabela artists)
-    const { data: artistData, error: artistError } = await supabaseClient
-      .from('artists')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
-      
-    if (artistError) {
-      // Se o erro for que nenhuma linha foi encontrada, vamos tentar criar o registro
-      if (artistError.code === 'PGRST116' || artistError.message?.includes('rows returned')) {
-        // Extrair dados dos metadados de autenticação para criar o registro
-        const userMetadata = data.user.user_metadata || {};
-        
-        // Criar registro na tabela artists
-        const artistRecord = {
-          id: data.user.id,
-          name: userMetadata.name || data.user.email?.split('@')[0] || 'Artista',
-          email: data.user.email,
-          bio: userMetadata.bio || null,
-          phone: userMetadata.phone || null,
-          monetization_plan_id: userMetadata.monetization_plan_id || null,
-          profile_image_url: userMetadata.profile_image_url || null,
-          social_links: userMetadata.social_links || null,
-        };
-        
-        const { data: newArtistData, error: insertError } = await supabaseClient
-          .from('artists')
-          .upsert(artistRecord, { onConflict: 'id' })
-          .select()
-          .single();
-          
-        if (insertError) {
-          // Apenas logamos o erro mas permitimos prosseguir, pois temos os metadados corretos
-          console.error('Erro ao criar registro de artista:', insertError.message);
-          
-          // Criamos um objeto temporário para retornar ao usuário mesmo sem registro no DB
-          const tempArtistData = {
-            id: data.user.id,
-            email: data.user.email,
-            name: userMetadata.name || data.user.email?.split('@')[0] || 'Artista',
-            is_artist: true
-          };
-          
-          return {
-            session: data.session,
-            user: tempArtistData as any
-          };
-        }
-        
-        return {
-          session: data.session,
-          user: newArtistData
-        };
-      } else {
-        // Se for outro tipo de erro, lançar normalmente
-      throw artistError;
-      }
-    }
-    
-    return {
-      session: data.session,
-      user: artistData as Artist
-    };
-  },
-  
-  /**
    * Login com provedor OAuth (Google, etc)
    * @param provider - Nome do provedor OAuth
    * @param userType - Tipo de usuário ('user' ou 'artist')
    * @returns URL de redirecionamento
    */
   async signInWithOAuth(provider: 'google' | 'facebook' | 'twitter', userType: 'user' | 'artist' = 'user') {
-    try {
-      if (typeof window === 'undefined') {
-        // This function should only run on the client
-        throw new Error('signInWithOAuth can only be called on the client side.');
-      }
+    if (typeof window === 'undefined') {
+      throw new Error('signInWithOAuth can only be called on the client side.');
+    }
 
-      // AGGRESSIVE STORAGE CLEARING
-      console.log('[signInWithOAuth] Aggressively clearing all localStorage and sessionStorage items...');
-      Object.keys(localStorage).forEach(key => {
-        localStorage.removeItem(key);
-        console.log(`  localStorage: Removed item with key: ${key}`);
-      });
-      Object.keys(sessionStorage).forEach(key => {
-        sessionStorage.removeItem(key);
-        console.log(`  sessionStorage: Removed item with key: ${key}`);
-      });
-      console.log('[signInWithOAuth] Finished aggressive storage clearing.');
-      // End of aggressive clearing
-
-      // The userType parameter is kept for now, but not stored in localStorage temporarily
-      console.log('Iniciando autenticação com', provider /*, 'como', userType (temporarily removed from log) */);
-      logSessionStoragePkceVerifier('signInWithOAuth - Start (after aggressive clear)');
-
-      const supabaseClient = getSupabaseBrowserClient();
-
-      await supabaseClient.auth.signOut();
-      console.log('Sessão Supabase anterior encerrada.');
-      logSessionStoragePkceVerifier('signInWithOAuth - After signOut');
-
-      // Temporarily remove setting oauth_user_type in localStorage
-      // localStorage.setItem('oauth_user_type', userType);
-      // console.log('oauth_user_type definido no localStorage:', userType);
-      
-      const origin = window.location.origin;
-      const callbackUrl = `${origin}/auth/callback`;
-      console.log('Callback URL configurada:', callbackUrl);
-      
-      logSessionStoragePkceVerifier('signInWithOAuth - Before supabaseClient.auth.signInWithOAuth call');
-      const { data, error } = await supabaseClient.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: callbackUrl,
+    // Clear existing auth data
+    this.clearAuthStorage();
+    
+    logSessionStoragePkceVerifier('signInWithOAuth - Start');
+    
+    const supabaseClient = getSupabaseBrowserClient();
+    
+    await supabaseClient.auth.signOut();
+    logSessionStoragePkceVerifier('signInWithOAuth - After signOut');
+    
+    const origin = window.location.origin;
+    const callbackUrl = `${origin}/auth/callback`;
+    
+    logSessionStoragePkceVerifier('signInWithOAuth - Before OAuth');
+    
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: callbackUrl,
+        queryParams: {
+          userType // Pass userType as a query parameter
         }
-      });
-      logSessionStoragePkceVerifier('signInWithOAuth - After supabaseClient.auth.signInWithOAuth call');
-      
-      if (error) {
-        console.error('Erro ao iniciar OAuth:', error);
-        logSessionStoragePkceVerifier('signInWithOAuth - OAuth Error Occurred');
-        throw error;
       }
-      
-      if (!data?.url) {
-        console.error('URL de autenticação ausente na resposta');
-        logSessionStoragePkceVerifier('signInWithOAuth - No Auth URL in Response');
-        throw new Error('Falha ao gerar URL de autenticação');
-      }
-      
-      console.log('URL de redirecionamento recebida:', data.url);
-      console.log('Redirecionando AGORA para URL de autenticação...');
-      // IMPORTANT: Log one last time just before the actual redirect
-      logSessionStoragePkceVerifier('signInWithOAuth - Immediately before redirect');
-      window.location.href = data.url;
-      
-      return data;
-    } catch (error) {
-      console.error('Exceção no signInWithOAuth:', error);
-      logSessionStoragePkceVerifier('signInWithOAuth - Catch Block');
-      // Garantir que o erro seja propagado para tratamento na UI, se necessário
+    });
+    
+    if (error) {
+      console.error('OAuth Error:', error);
+      logSessionStoragePkceVerifier('signInWithOAuth - Error');
       throw error;
     }
+    
+    if (!data?.url) {
+      console.error('No redirect URL in OAuth response');
+      logSessionStoragePkceVerifier('signInWithOAuth - No URL');
+      throw new Error('Failed to generate auth URL');
+    }
+    
+    logSessionStoragePkceVerifier('signInWithOAuth - Success');
+    return data.url;
   },
-  
+
   /**
    * Cadastro de usuario regular
    * @param userData - Dados do usuário para cadastro

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Artist } from './artist';
 
 /**
  * Interface de track representando uma musica no banco de dados
@@ -7,11 +8,14 @@ export interface Track {
   id: string;
   title: string;
   artist_id: string;
+  artist?: Pick<Artist, 'id' | 'name'> & {
+    profile_image_url?: string | null;  // Allow both undefined and null
+  }; // Campos específicos do artista que precisamos
   duration: number; // em segundos
   file_url: string;
   cover_url?: string;
   created_at: string;
-  release_date?: string;
+  release_date?: string | null; // Updated to allow null
   genre_ids?: string[];
   plays_count?: number;
   likes_count?: number;
@@ -29,7 +33,7 @@ export const trackSchema = z.object({
   duration: z.number().min(1, 'Duração deve ser maior que zero'),
   file_url: z.string().url('URL do arquivo inválida').optional(), // Opcional para o fluxo de criacao
   cover_url: z.string().url('URL da capa inválida').optional(),
-  release_date: z.string().optional(),
+  release_date: z.string().nullable().optional(),  // Updated to allow null
   genre_ids: z.array(z.string()).optional(),
   is_explicit: z.boolean().default(false),
   featuring: z.array(z.string()).optional(),
@@ -40,4 +44,4 @@ export const trackSchema = z.object({
  */
 export type CreateTrackInput = z.infer<typeof trackSchema>;
 
-export default Track; 
+export default Track;

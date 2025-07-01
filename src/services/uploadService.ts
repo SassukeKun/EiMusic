@@ -1,8 +1,29 @@
 import { v4 as uuidv4 } from 'uuid';
 import { createFolderStructure, generateCloudinaryPublicId } from '@/utils/cloudinary/folderStructure';
-import { uploadSignedFile, uploadMetadata, CloudinaryUploadResponse } from '@/utils/cloudinary/signedUpload';
-import { VideoMetadata, AudioMetadata } from '@/models/cloudinary/mediaTypes';
-import { CLOUDINARY_FOLDERS, getArtistMediaPath } from '@/utils/cloudinary/config';
+import { uploadSignedFile, uploadMetadata } from '@/utils/cloudinary/signedUpload';
+import type { CloudinaryUploadResponse } from '@/utils/cloudinary/signedUpload';
+import { VideoMetadata } from '@/models/cloudinary/mediaTypes';
+import { CLOUDINARY_FOLDERS, getArtistMediaPath, getCommunityMediaPath } from '@/utils/cloudinary/config';
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Helper to get duration from audio file
+async function getAudioDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const audio = document.createElement('audio');
+    audio.preload = 'metadata';
+    const url = URL.createObjectURL(file);
+    audio.src = url;
+    audio.onloadedmetadata = () => {
+      resolve(audio.duration);
+      URL.revokeObjectURL(url);
+    };
+    audio.onerror = () => {
+      reject(new Error('Failed to load audio metadata'));
+      URL.revokeObjectURL(url);
+    };
+  });
+}
 
 // Tipos de mídia para classificação no Cloudinary
 const MEDIA_TYPES = {
@@ -38,7 +59,8 @@ const uploadService = {
       visibility?: 'public' | 'private' | 'followers';
       description?: string;
     },
-    coverArt?: File
+    coverArt?: File,
+    supabaseClient?: SupabaseClient,
   ) {
     try {
       const songTitle = metadata?.title || file.name.split('.')[0];
@@ -117,12 +139,32 @@ const uploadService = {
         commonTags.join(',')
       );
 
+      // Compute audio duration
+      const computedDuration = await getAudioDuration(file);
+      // Initialize Supabase client
+      const supabase = supabaseClient ?? getSupabaseBrowserClient();
+      // Persist track metadata to Supabase
+      const {error: trackError } = await supabase
+        .from('singles')
+        .insert([{
+          id: trackId,
+          title: songTitle,
+          artist_id: artistId,
+          duration: computedDuration,
+          file_url: audioResult.secure_url,
+          cover_url: coverArtResult ? coverArtResult.secure_url : null,
+        }]);
+      if (trackError) {
+        console.error('Error inserting track to Supabase:', trackError);
+        throw trackError;
+      }
+
       return {
         trackId,
         url: audioResult.secure_url,
         publicId: audioResult.public_id,
         format: audioResult.format,
-        duration: audioResult.duration,
+        duration: computedDuration,
         coverArt: coverArtResult ? {
           url: coverArtResult.secure_url,
           publicId: coverArtResult.public_id
@@ -175,6 +217,7 @@ const uploadService = {
 
       // Upload do arquivo de vídeo
       const videoResult = await uploadSignedFile(
+
         file,
         "", // Folder argument is empty as public_id dictates the path
         {
@@ -236,7 +279,7 @@ const uploadService = {
         director: metadata?.director,
         video_public_id: videoResult.public_id,
         thumbnail_public_id: thumbnailResult ? thumbnailResult.public_id : null,
-        duration: videoResult.duration,
+        duration: Math.round(videoResult.duration ?? 0),
         format: videoResult.format
       };
       
@@ -247,12 +290,29 @@ const uploadService = {
         commonTags
       );
 
+      // Persist video record to Supabase
+      const supabase = getSupabaseBrowserClient();
+      const { error: insertError } = await supabase
+        .from('videos')
+        .insert([{ id: clipId,
+  artist_id: artistId,
+  title: videoTitle,
+  video_url: videoResult.secure_url,
+  thumbnail_url: thumbnailResult ? thumbnailResult.secure_url : null,
+  duration: Math.round(videoResult.duration ?? 0),
+  format: videoResult.format,
+  is_video_clip: metadata?.isVideoClip ?? false,
+  description: metadata?.description || '',
+  genre: metadata?.genre || null
+}]);
+      if (insertError) throw insertError;
+
       return {
         clipId,
         url: videoResult.secure_url,
         publicId: videoResult.public_id,
         format: videoResult.format,
-        duration: videoResult.duration,
+        duration: Math.round(videoResult.duration ?? 0),
         thumbnail: thumbnailResult ? {
           url: thumbnailResult.secure_url,
           publicId: thumbnailResult.public_id
@@ -512,6 +572,68 @@ const uploadService = {
     } catch (error) {
       console.error('Erro ao fazer upload de álbum:', error);
       throw error;
+    }
+  },
+  /**
+   * Upload a community media file to Cloudinary
+   * @param communityId - ID of the community
+   * @param file - File to upload
+   * @param mediaType - Type of media (image, video, other)
+   * @param metadata - Optional metadata for the media
+   * @returns Cloudinary upload response for the file
+   */
+  async uploadCommunityMedia(
+    communityId: string,
+    file: File,
+    mediaType: 'image' | 'video' | 'other',
+    metadata?: { 
+      title?: string; 
+      description?: string; 
+      tags?: string[];
+      artist_id?: string;
+    }
+  ): Promise<CloudinaryUploadResponse> {
+    try {
+      const folder = getCommunityMediaPath(communityId, mediaType, metadata?.title)
+      const mediaId = uuidv4()
+      const publicId = `${mediaType}_${mediaId}`
+      const resourceType = mediaType === 'video' ? 'video' : 'image'
+      const tags = [
+        `community_${communityId}`,
+        mediaType,
+        ...(metadata?.tags || [])
+      ]
+      const context: Record<string, any> = {
+        community_id: communityId,
+        media_type: mediaType,
+        upload_date: new Date().toISOString()
+      }
+      if (metadata?.title) context.title = metadata.title
+      if (metadata?.description) context.description = metadata.description
+      const result = await uploadSignedFile(file, folder, {
+        resourceType,
+        publicId,
+        tags,
+        context
+      })
+      const metadataPublicId = `${folder}/${publicId}_metadata`
+      await uploadMetadata(
+        {
+          communityId,
+          mediaType,
+          title: metadata?.title,
+          description: metadata?.description,
+          tags: metadata?.tags,
+          uploadDate: context.upload_date
+        },
+        '',
+        metadataPublicId,
+        tags
+      )
+      return result
+    } catch (error) {
+      console.error('Error uploading community media:', error)
+      throw error
     }
   }
 };

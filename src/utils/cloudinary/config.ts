@@ -5,10 +5,10 @@
 
 // Cloudinary configuration types
 export interface CloudinaryConfig {
-  cloudName: string;
-  apiKey: string;
-  uploadPreset: string;
-  folder: string;
+  cloudName: string
+  apiKey: string
+  uploadPreset: string
+  folder: string
 }
 
 // Folder structure for organizing assets in Cloudinary
@@ -23,19 +23,19 @@ export const CLOUDINARY_FOLDERS = {
   PROFILE: 'profile',
   COVER_ART: 'cover',
   THUMBNAILS: 'thumbnails',
-  METADATA: 'metadata'
-};
+  METADATA: 'metadata',
+  COMMUNITIES: 'communities',
+}
 
-/**
- * Get Cloudinary configuration from environment variables
- */
+// Get Cloudinary configuration from environment variables
 export function getCloudinaryConfig(): CloudinaryConfig {
   return {
     cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '',
     apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '',
-    uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '',
+    uploadPreset:
+      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '',
     folder: 'eimusic/temp/uploads', // Default folder for temp uploads
-  };
+  }
 }
 
 /**
@@ -49,22 +49,16 @@ export function getArtistMediaPath(
   mediaType: 'single' | 'album' | 'video' | 'profile',
   title?: string
 ): string {
-  // Convert artist name to lowercase and remove special characters for folder name
-  const safeArtistId = artistId.toLowerCase().replace(/[^a-z0-9]/g, '');
-  
-  // Base path for the artist
-  const basePath = `${CLOUDINARY_FOLDERS.ROOT}/${safeArtistId}`;
-  
-  // If no title provided, return the path to the media type folder
-  if (!title) {
-    return `${basePath}/${mediaType}`;
-  }
-  
-  // Convert title to safe folder name (lowercase, no special chars)
-  const safeTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  
-  // Return complete path including title
-  return `${basePath}/${mediaType}/${safeTitle}`;
+  const safeArtistId = artistId
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_')
+  const basePath = `${CLOUDINARY_FOLDERS.ROOT}/${safeArtistId}`
+  if (!title) return `${basePath}/${mediaType}`
+
+  const safeTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_')
+  return `${basePath}/${mediaType}/${safeTitle}`
 }
 
 /**
@@ -76,7 +70,30 @@ export function getUserMediaPath(
   userId: string,
   mediaType: 'avatar' | 'banner'
 ): string {
-  return `${CLOUDINARY_FOLDERS.USERS}/${userId}/profile/${mediaType}`;
+  return `${CLOUDINARY_FOLDERS.USERS}/${userId}/profile/${mediaType}`
+}
+
+/**
+ * Generate folder path for community media
+ * @param communityId Community unique ID
+ * @param mediaType Type of media (image, video, other)
+ * @param title Optional title for the media (for subfolder)
+ */
+export function getCommunityMediaPath(
+  communityId: string,
+  mediaType: 'image' | 'video' | 'other',
+  title?: string
+): string {
+  const safeId = communityId
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_')
+  const base = `${CLOUDINARY_FOLDERS.ROOT}/${CLOUDINARY_FOLDERS.COMMUNITIES}/${safeId}`
+  if (!title) return `${base}/${mediaType}`
+
+  const safeTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_')
+  return `${base}/${mediaType}/${safeTitle}`
 }
 
 /**
@@ -84,6 +101,7 @@ export function getUserMediaPath(
  * @param publicId Public ID of the Cloudinary asset
  */
 export function getCloudinaryUrl(publicId: string): string {
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${publicId}`;
-} 
+  const cloudName =
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || ''
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${publicId}`
+}
