@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Shield, CreditCard } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient'
 import PaymentMethods from './components/PaymentMethods'
 import PaymentForm from './components/PaymentForm'
 import PaymentSummary from './components/PaymentSummary'
@@ -105,23 +106,34 @@ export default function PaymentPage() {
       // Se o utilizador escolheu M-Pesa, seguir o fluxo real via API
       if (selectedMethod.id === 'mpesa') {
         // Gera um UUID para identificar esta assinatura como sourceId
-        const sourceId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-          ? crypto.randomUUID()
-          : Math.random().toString(36).substring(2, 10)
+        // Código de referência visível ao utilizador e usado na transação
+        const referenceCode = `EM${Date.now().toString().slice(-8)}`;
 
         // Iniciar pagamento no backend
+        const supabase = getSupabaseBrowserClient();
+        // Timeout de 30 s para evitar 504 se o lambda atrasar
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+
         const initRes = await fetch('/api/payments/initiate', {
+          signal: controller.signal,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
           body: JSON.stringify({
             amount: selectedPlan.price,
-            msisdn: paymentData.phoneNumber.replace(/\D/g, ''),
+            phone: paymentData.phoneNumber.replace(/\D/g, ''),
             sourceType: 'subscription',
-            sourceId,
+            reference: referenceCode,
           }),
         })
 
-        const initJson = await initRes.json()
+        clearTimeout(timeout);
+            const initJson = await initRes.json()
         if (!initRes.ok) {
           throw new Error(initJson.error || 'Falha ao iniciar pagamento')
         }
@@ -138,13 +150,15 @@ export default function PaymentPage() {
         }
 
         // Esperar até completar ou falhar
-        const maxAttempts = 15 // ~1 min
+        const POLL_INTERVAL_MS = 5000; // ajuste livre
+          const MAX_WAIT_MS = 120_000; // 2 min
+          let waited = 0
         let attempts = 0
-        while (status === 'PENDING' && attempts < maxAttempts) {
-          await new Promise(r => setTimeout(r, 4000))
-          status = await poll()
-          attempts++
-        }
+        while (status === 'PENDING' && waited < MAX_WAIT_MS) {
+            await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+            waited += POLL_INTERVAL_MS;
+            status = await poll();
+          }
 
         if (status === 'COMPLETED') {
           router.push(`/dashboard?payment=success&plan=${selectedPlan.id}`)

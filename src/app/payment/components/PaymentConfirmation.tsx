@@ -151,9 +151,7 @@ export default function PaymentConfirmation({
             <div className="mt-4 p-3 bg-emerald-500/5 rounded border border-emerald-500/10">
               <p className="text-emerald-400 text-xs font-medium mb-1">📱 Instruções:</p>
               <ol className="text-gray-300 text-xs space-y-1 list-decimal list-inside">
-                <li>Receberás um SMS para confirmar o pagamento</li>
-                <li>Insere o código {referenceCode} quando solicitado</li>
-                <li>Confirma o pagamento de {totalAmount} MT</li>
+                <li>Receberás um modal USSD para confirmar o pagamento (pin)</li>
                 <li>A tua assinatura será ativada automaticamente</li>
               </ol>
             </div>
