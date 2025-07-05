@@ -1,30 +1,15 @@
-// 📁 CAMINHO: src/app/payment/page.tsx
-// 🎯 FUNÇÃO: Página principal de pagamento com integração às telas de sucesso/erro
-// 📝 DESCRIÇÃO: Fluxo completo de pagamento com simulação e redirecionamento automático
-
 'use client'
 
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-<<<<<<< HEAD
 import { ArrowLeft, Shield, CreditCard } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { getSupabaseBrowserClient } from '@/utils/supabaseClient'
-=======
-import { ArrowLeft, Shield } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
->>>>>>> origin/allen-env
 import PaymentMethods from './components/PaymentMethods'
 import PaymentForm from './components/PaymentForm'
 import PaymentSummary from './components/PaymentSummary'
 import PaymentConfirmation from './components/PaymentConfirmation'
-import { paymentService } from '@/services/paymentService'
-
-// Configuração do Supabase (ajustar conforme necessário)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Interface para dados do plano selecionado
 interface PlanData {
@@ -34,7 +19,7 @@ interface PlanData {
   description: string
 }
 
-// Interface para método de pagamento selecionado
+// Interface para método de pagamento selecionado (versão simplificada)
 interface SelectedPaymentMethod {
   id: 'mpesa' | 'paypal'
   name: string
@@ -43,17 +28,13 @@ interface SelectedPaymentMethod {
 
 /**
  * Página principal de pagamento
- * Gerencia todo o fluxo de pagamento e integra com telas de sucesso/erro
+ * Recebe parâmetros do PlansModal e gerencia todo o fluxo de pagamento
  */
 export default function PaymentPage() {
-  // Hooks para navegação
+  // Hooks para navegação e autenticação
   const router = useRouter()
   const searchParams = useSearchParams()
-
-  // Estados de autenticação
-  const [user, setUser] = useState<any>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { user, isAuthenticated, loading } = useAuth()
 
   // Estados do fluxo de pagamento
   const [currentStep, setCurrentStep] = useState<'methods' | 'form' | 'confirmation'>('methods')
@@ -62,63 +43,28 @@ export default function PaymentPage() {
   const [paymentData, setPaymentData] = useState<any>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // Verificar autenticação
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (user) {
-          setUser(user)
-          setIsAuthenticated(true)
-        } else {
-          // Redirecionar para login se não autenticado
-          router.push('/login?redirect=/payment')
-          return
-        }
-      } catch (error) {
-        console.error('Erro ao verificar autenticação:', error)
-        router.push('/login?redirect=/payment')
-        return
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    checkAuth()
-  }, [router])
-
-  // Carregar dados do plano a partir dos parâmetros da URL
+  // Efeito para carregar dados do plano a partir dos parâmetros da URL
   useEffect(() => {
     const planId = searchParams.get('plan') as 'premium' | 'vip'
     const planPrice = searchParams.get('price')
     const planName = searchParams.get('name')
 
-    // Definir planos padrão se não vier nos parâmetros
-    const defaultPlans = {
-      premium: { name: 'Premium', price: 199, description: 'Para verdadeiros amantes da música moçambicana' },
-      vip: { name: 'VIP', price: 399, description: 'Experiência completa e exclusiva da cultura musical' }
-    }
-
-    if (planId && (planId === 'premium' || planId === 'vip')) {
+    // Validar se todos os parâmetros necessários estão presentes
+    if (planId && planPrice && planName) {
       const planData: PlanData = {
         id: planId,
-        name: planName || defaultPlans[planId].name,
-        price: planPrice ? parseInt(planPrice) : defaultPlans[planId].price,
-        description: defaultPlans[planId].description
+        name: planName,
+        price: parseInt(planPrice),
+        description: planId === 'premium' 
+          ? 'Para verdadeiros amantes da música moçambicana'
+          : 'Experiência completa e exclusiva da cultura musical'
       }
       setSelectedPlan(planData)
     } else {
-      // Se não há parâmetros válidos, usar plano premium como padrão
-      const planData: PlanData = {
-        id: 'premium',
-        name: defaultPlans.premium.name,
-        price: defaultPlans.premium.price,
-        description: defaultPlans.premium.description
-      }
-      setSelectedPlan(planData)
+      // Se não há parâmetros válidos, redirecionar para home
+      router.push('/')
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
   // Handler para voltar à página anterior
   const handleGoBack = () => {
@@ -134,6 +80,7 @@ export default function PaymentPage() {
 
   // Handler para seleção de método de pagamento
   const handleMethodSelect = (method: any) => {
+    // Converter do formato completo para o formato simplificado
     const selectedMethodData: SelectedPaymentMethod = {
       id: method.id,
       name: method.name,
@@ -149,18 +96,13 @@ export default function PaymentPage() {
     setCurrentStep('confirmation')
   }
 
-  // ✅ HANDLER PRINCIPAL - INTEGRADO COM TELAS DE SUCESSO/ERRO
+  // Handler para processamento final do pagamento
   const handlePaymentProcess = async () => {
-<<<<<<< HEAD
     if (!selectedPlan || !selectedMethod) return
-=======
-    if (!selectedPlan || !selectedMethod || !paymentData || !user) return
->>>>>>> origin/allen-env
 
     setIsProcessing(true)
 
     try {
-<<<<<<< HEAD
       // Se o utilizador escolheu M-Pesa, seguir o fluxo real via API
       if (selectedMethod.id === 'mpesa') {
         // Gera um UUID para identificar esta assinatura como sourceId
@@ -169,9 +111,9 @@ export default function PaymentPage() {
 
         // Iniciar pagamento no backend
         const supabase = getSupabaseBrowserClient();
-        // Timeout de 30 s para evitar 504 se o lambda atrasar
+        // Timeout de 110 s para alinhar com backend (120 s)
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
+        const timeout = setTimeout(() => controller.abort(), 110000);
         const { data: { session } } = await supabase.auth.getSession();
         const accessToken = session?.access_token;
 
@@ -219,77 +161,18 @@ export default function PaymentPage() {
           }
 
         if (status === 'COMPLETED') {
-          router.push(`/dashboard?payment=success&plan=${selectedPlan.id}`)
+          router.push(`/payment/success?plan=${selectedPlan.id}`)
         } else {
           router.push('/payment?error=payment_failed')
         }
       } else {
         // Outros métodos mantêm simulação local
         await new Promise(resolve => setTimeout(resolve, 2500))
-        router.push(`/dashboard?payment=success&plan=${selectedPlan.id}`)
+        router.push(`/payment/success?plan=${selectedPlan.id}`)
       }
     } catch (err) {
       console.error(err)
       alert('Ocorreu um erro ao processar o pagamento. Tenta novamente.')
-=======
-      console.log('🚀 Iniciando processamento de pagamento...', {
-        plan: selectedPlan.name,
-        method: selectedMethod.id,
-        user: user.email
-      })
-
-      // Preparar dados para o serviço de pagamento
-      const paymentProcessData = {
-        method: selectedMethod.id,
-        planName: selectedPlan.name,
-        planPrice: selectedPlan.price,
-        userEmail: user.email!,
-        formData: paymentData
-      }
-
-      // Validar dados antes do processamento
-      const validation = paymentService.validatePaymentData(paymentProcessData)
-      
-      if (!validation.isValid) {
-        console.error('❌ Validação falhou:', validation.errors)
-        
-        // Construir URL de erro para validação
-        const errorParams = new URLSearchParams({
-          errorCode: 'VALIDATION_ERROR',
-          errorMessage: validation.errors.join(', '),
-          method: selectedMethod.id,
-          planName: selectedPlan.name,
-          planPrice: selectedPlan.price.toString()
-        })
-
-        router.push(`/payment/error?${errorParams.toString()}`)
-        return
-      }
-
-      console.log('✅ Dados validados, processando pagamento...')
-
-      // Processar pagamento através do serviço
-      const redirectUrl = await paymentService.processPayment(paymentProcessData)
-      
-      console.log('🎯 Redirecionando para:', redirectUrl)
-
-      // Redirecionar para a URL retornada (sucesso ou erro)
-      router.push(redirectUrl)
-
-    } catch (error: any) {
-      console.error('💥 Erro no processamento do pagamento:', error)
-      
-      // Redirecionar para tela de erro genérico
-      const errorParams = new URLSearchParams({
-        errorCode: 'UNEXPECTED_ERROR',
-        errorMessage: error.message || 'Erro inesperado. Tenta novamente.',
-        method: selectedMethod?.id || 'unknown',
-        planName: selectedPlan?.name || 'Plano',
-        planPrice: selectedPlan?.price?.toString() || '0'
-      })
-
-      router.push(`/payment/error?${errorParams.toString()}`)
->>>>>>> origin/allen-env
     } finally {
       setIsProcessing(false)
     }
@@ -309,6 +192,7 @@ export default function PaymentPage() {
 
   // Redirecionar se não estiver autenticado
   if (!isAuthenticated) {
+    router.push('/login?redirect=/payment')
     return null
   }
 
@@ -448,32 +332,6 @@ export default function PaymentPage() {
           </div>
         </div>
       </main>
-
-      {/* Botão de teste rápido (remover em produção) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 right-4 space-y-2">
-          <button
-            onClick={async () => {
-              const result = await paymentService.testPayment('mpesa')
-              console.log('Teste M-Pesa:', result)
-              router.push(result)
-            }}
-            className="block w-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-white text-sm"
-          >
-            🧪 Teste M-Pesa
-          </button>
-          <button
-            onClick={async () => {
-              const result = await paymentService.testPayment('paypal')
-              console.log('Teste PayPal:', result)
-              router.push(result)
-            }}
-            className="block w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm"
-          >
-            🧪 Teste PayPal
-          </button>
-        </div>
-      )}
     </div>
   )
 }

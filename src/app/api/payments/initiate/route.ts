@@ -1,9 +1,10 @@
 "use server";
 
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/utils/supabaseServer";
-import { createPayment } from "@/services/mpesaService";
+import { createPayment, getPaymentByReference } from "@/services/mpesaService";
 
 console.log('Environment:', {
   E2PAYMENTS_BASE_URL: process.env.E2PAYMENTS_BASE_URL,
@@ -53,21 +54,69 @@ export async function POST(request: Request) {
       sms_reference: `Pg${payload.sourceType}`,
     });
 
-    // 2. Registra na tabela payments (service key)
-    const { error } = await supabase.from("payments").insert({
-      id: payRes.id,
-      user_id: user.id,
-      amount: payload.amount,
-      source_type: payload.sourceType,
-      source_id: payload.reference,
-      status: "PENDING",
-      provider: "mpesa",
-      external_id: payRes.id,
-    });
-    if (error) throw error;
+    // Sempre gerar um UUID válido para inserção no banco
+    const paymentId = randomUUID();
+    
+    // Se o pagamento já veio concluído (casos raros), grava diretamente
+    if (payRes.status === "COMPLETED") {
+      const { error } = await supabase.from("payments").insert({
+        id: paymentId,
+        user_id: user.id,
+        amount: payload.amount,
+        source_type: payload.sourceType,
+        source_id: payload.reference,
+        status: "COMPLETED",
+        provider: "mpesa",
+        external_id: payRes.id,
+      });
+      if (error) throw error;
+    }
 
-    return NextResponse.json({ paymentId: payRes.id, status: payRes.status });
+    return NextResponse.json({ paymentId, status: payRes.status });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    console.warn("createPayment falhou, tentando fallback por referência:", err.message);
+    const fallback = await getPaymentByReference(payload.reference, payload.amount);
+    
+    if (fallback) {
+      // Se o fallback encontrou um pagamento
+      if (fallback.status === "COMPLETED") {
+        // Geramos UUID e tentamos inserir no banco
+        const paymentId = randomUUID();
+        const { error } = await supabase.from("payments").insert({
+          id: paymentId,
+          user_id: user.id,
+          amount: payload.amount,
+          source_type: payload.sourceType,
+          source_id: payload.reference,
+          status: "COMPLETED",
+          provider: "mpesa",
+          external_id: fallback.id,
+        });
+        
+        if (error) {
+          console.error("Erro ao inserir pagamento via fallback:", error.message);
+          // Se falhar a inserção, ainda devolvemos o status do gateway
+          return NextResponse.json({ 
+            paymentId: fallback.id, 
+            status: "COMPLETED",
+            error: "Erro ao salvar no banco, mas pagamento foi concluído no gateway"
+          });
+        }
+        
+        // Se inserção bem sucedida, devolvemos o UUID gerado
+        return NextResponse.json({ paymentId, status: "COMPLETED" });
+      } else {
+        // Se não está COMPLETED, devolvemos o status do gateway
+        return NextResponse.json({ paymentId: fallback.id, status: fallback.status });
+      }
+    }
+    
+    // Se não encontrou no fallback, devolvemos o erro original
+    return NextResponse.json({ 
+      error: err.message,
+      details: err.response?.data || null
+    }, { status: 504 });
   }
+  return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 }
+

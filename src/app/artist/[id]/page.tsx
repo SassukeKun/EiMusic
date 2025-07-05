@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import { useParams } from 'next/navigation'
-import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  FaPlay, 
-  FaHeart, 
-  FaShare, 
-  FaInstagram, 
-  FaTwitter, 
+import React, { useState } from "react";
+import { useParams } from "next/navigation";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FaPlay,
+  FaHeart,
+  FaShare,
+  FaInstagram,
+  FaTwitter,
   FaGlobe,
   FaMapMarkerAlt,
   FaCalendarAlt,
@@ -21,82 +21,90 @@ import {
   FaHeadphones,
   FaEllipsisH,
   FaChevronDown,
-  FaChevronUp
-} from 'react-icons/fa'
-import { useAuth } from '@/hooks/useAuth'
-import { useQuery } from '@tanstack/react-query'
-import artistService from '@/services/artistService'
+  FaChevronUp,
+} from "react-icons/fa";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import artistService from "@/services/artistService";
 
 // Componentes para monetização
-import DonationButton from '@/components/monetization/DonationButton'
-import SupportModal from '@/components/monetization/SupportModal'
-import PremiumBadge from '@/components/monetization/PremiumBadge'
+import DonationButton from "@/components/monetization/DonationButton";
+import SupportModal from "@/components/monetization/SupportModal";
+import PremiumBadge from "@/components/monetization/PremiumBadge";
 
 interface ArtistDetailPageProps {
   // Props serão definidas quando necessário
 }
 
 export default function ArtistDetailPage() {
-  const { id } = useParams() as { id: string }
-  const { user, isAuthenticated } = useAuth()
-  const [activeTab, setActiveTab] = useState<'overview' | 'music' | 'videos' | 'about'>('overview')
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [showSupportModal, setShowSupportModal] = useState(false)
-  const [showFullBio, setShowFullBio] = useState(false)
-  
+  const { id } = useParams() as { id: string };
+  const { user, isAuthenticated } = useAuth();
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "music" | "videos" | "about"
+  >("overview");
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showFullBio, setShowFullBio] = useState(false);
+
   // Fetch artist data
-  const { 
+  const {
     data: artist,
     isLoading: artistLoading,
-    error: artistError 
+    error: artistError,
   } = useQuery({
-    queryKey: ['artist', id],
+    queryKey: ["artist", id],
     queryFn: () => artistService.getArtistById(id),
-  })
-  
+  });
+
   // Fetch artist tracks
-  const { 
-    data: tracks,
-    isLoading: tracksLoading
-  } = useQuery({
-    queryKey: ['artist-tracks', id],
+  const { data: tracks, isLoading: tracksLoading } = useQuery({
+    queryKey: ["artist-tracks", id],
     queryFn: () => artistService.getArtistTracks(id),
     enabled: !!id,
-  })
-  
+  });
+
   // Dados mockados para demonstração (substituir por dados reais)
   const artistStats = {
     monthlyListeners: 45230,
     totalStreams: 1240000,
     followers: 8547,
     supportersThisMonth: 127,
-    totalEarned: 15600 // em MT
-  }
-  
+  };
+
   const recentSupports = [
-    { user: 'Maria Silva', amount: 50, message: 'Música incrível!', time: '2 min' },
-    { user: 'João Santos', amount: 30, message: 'Continue assim!', time: '1 h' },
-    { user: 'Ana Costa', amount: 100, message: '🔥🔥🔥', time: '3 h' },
-  ]
+    {
+      user: "Maria Silva",
+      amount: 50,
+      message: "Música incrível!",
+      time: "2 min",
+    },
+    {
+      user: "João Santos",
+      amount: 30,
+      message: "Continue assim!",
+      time: "1 h",
+    },
+    { user: "Ana Costa", amount: 100, message: "🔥🔥🔥", time: "3 h" },
+  ];
 
   const upcomingEvents = [
     {
-      id: '1',
-      title: 'Live Acústica',
-      date: '2024-12-20',
-      time: '20:00',
+      id: "1",
+      title: "Live Acústica",
+      date: "2024-12-20",
+      time: "20:00",
       price: 50,
-      type: 'live_concert'
+      type: "live_concert",
     },
     {
-      id: '2', 
-      title: 'Masterclass de Produção',
-      date: '2024-12-25',
-      time: '15:00',
+      id: "2",
+      title: "Masterclass de Produção",
+      date: "2024-12-25",
+      time: "15:00",
       price: 150,
-      type: 'masterclass'
-    }
-  ]
+      type: "masterclass",
+    },
+  ];
 
   // Handle loading states
   if (artistLoading) {
@@ -113,7 +121,7 @@ export default function ArtistDetailPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Content skeleton */}
           <div className="container mx-auto px-6 py-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -133,7 +141,7 @@ export default function ArtistDetailPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (artistError || !artist) {
@@ -144,7 +152,7 @@ export default function ArtistDetailPage() {
           <p className="text-gray-400 mb-6">
             Não foi possível carregar os dados deste artista.
           </p>
-          <button 
+          <button
             onClick={() => window.history.back()}
             className="px-6 py-2 bg-indigo-600 rounded-full hover:bg-indigo-700 transition"
           >
@@ -152,7 +160,7 @@ export default function ArtistDetailPage() {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -160,15 +168,15 @@ export default function ArtistDetailPage() {
       {/* Hero Section */}
       <div className="relative h-80 bg-gradient-to-b from-gray-800 to-gray-900">
         {/* Background com imagem do artista ou gradiente */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: artist.profile_image_url 
-              ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url(${artist.profile_image_url})` 
-              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+          style={{
+            backgroundImage: artist.profile_image_url
+              ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url(${artist.profile_image_url})`
+              : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
           }}
         />
-        
+
         {/* Conteúdo do hero */}
         <div className="relative container mx-auto px-6 h-full flex items-end pb-8">
           <div className="flex items-end space-x-6 w-full">
@@ -189,31 +197,32 @@ export default function ArtistDetailPage() {
                   </div>
                 )}
               </div>
-              
+
               {/* Badge de artista verificado */}
               <div className="absolute -bottom-2 -right-2">
                 <PremiumBadge verified={true} />
               </div>
             </div>
-            
+
             {/* Informações principais */}
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
                 <h1 className="text-4xl font-bold">{artist.name}</h1>
                 <FaCrown className="text-yellow-500" />
               </div>
-              
+
               <div className="flex items-center space-x-6 text-gray-300 mb-4">
                 <span className="flex items-center">
                   <FaHeadphones className="mr-1" />
-                  {artistStats.monthlyListeners.toLocaleString()} ouvintes mensais
+                  {artistStats.monthlyListeners.toLocaleString()} ouvintes
+                  mensais
                 </span>
                 <span className="flex items-center">
                   <FaUsers className="mr-1" />
                   {artistStats.followers.toLocaleString()} seguidores
                 </span>
               </div>
-              
+
               {/* Ações principais */}
               <div className="flex items-center space-x-4">
                 <motion.button
@@ -224,20 +233,20 @@ export default function ArtistDetailPage() {
                   <FaPlay className="mr-2" />
                   Reproduzir
                 </motion.button>
-                
+
                 <motion.button
                   onClick={() => setIsFollowing(!isFollowing)}
                   className={`px-6 py-3 rounded-full border-2 transition-colors font-semibold ${
                     isFollowing
-                      ? 'bg-indigo-600 border-indigo-600 text-white'
-                      : 'border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white'
+                      ? "bg-indigo-600 border-indigo-600 text-white"
+                      : "border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white"
                   }`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {isFollowing ? 'Seguindo' : 'Seguir'}
+                  {isFollowing ? "Seguindo" : "Seguir"}
                 </motion.button>
-                
+
                 {/* Botão de apoio financeiro */}
                 <DonationButton
                   artistId={artist.id}
@@ -246,11 +255,11 @@ export default function ArtistDetailPage() {
                     // Refresh artist data ou mostrar feedback
                   }}
                 />
-                
+
                 <button className="p-3 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition">
                   <FaShare />
                 </button>
-                
+
                 <button className="p-3 rounded-full bg-gray-800/50 hover:bg-gray-700/50 transition">
                   <FaEllipsisH />
                 </button>
@@ -265,18 +274,18 @@ export default function ArtistDetailPage() {
         <div className="container mx-auto px-6">
           <nav className="flex space-x-8">
             {[
-              { id: 'overview', label: 'Visão Geral', icon: <FaMusic /> },
-              { id: 'music', label: 'Músicas', icon: <FaMusic /> },
-              { id: 'videos', label: 'Vídeos', icon: <FaVideo /> },
-              { id: 'about', label: 'Sobre', icon: <FaUsers /> }
+              { id: "overview", label: "Visão Geral", icon: <FaMusic /> },
+              { id: "music", label: "Músicas", icon: <FaMusic /> },
+              { id: "videos", label: "Vídeos", icon: <FaVideo /> },
+              { id: "about", label: "Sobre", icon: <FaUsers /> },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center space-x-2 py-4 border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? 'border-indigo-500 text-indigo-500'
-                    : 'border-transparent text-gray-400 hover:text-white'
+                    ? "border-indigo-500 text-indigo-500"
+                    : "border-transparent text-gray-400 hover:text-white"
                 }`}
               >
                 {tab.icon}
@@ -293,7 +302,7 @@ export default function ArtistDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2">
             <AnimatePresence mode="wait">
-              {activeTab === 'overview' && (
+              {activeTab === "overview" && (
                 <motion.div
                   key="overview"
                   initial={{ opacity: 0, y: 20 }}
@@ -308,19 +317,17 @@ export default function ArtistDetailPage() {
                       <div className="text-2xl font-bold text-indigo-400">
                         {artistStats.totalStreams.toLocaleString()}
                       </div>
-                      <div className="text-sm text-gray-400">Total de Streams</div>
+                      <div className="text-sm text-gray-400">
+                        Total de Streams
+                      </div>
                     </div>
                     <div className="bg-gray-800 rounded-xl p-4 text-center">
                       <div className="text-2xl font-bold text-green-400">
                         {artistStats.supportersThisMonth}
                       </div>
-                      <div className="text-sm text-gray-400">Apoios este Mês</div>
-                    </div>
-                    <div className="bg-gray-800 rounded-xl p-4 text-center">
-                      <div className="text-2xl font-bold text-yellow-400">
-                        {artistStats.totalEarned.toLocaleString()} MT
+                      <div className="text-sm text-gray-400">
+                        Apoios este Mês
                       </div>
-                      <div className="text-sm text-gray-400">Total Arrecadado</div>
                     </div>
                     <div className="bg-gray-800 rounded-xl p-4 text-center">
                       <div className="text-2xl font-bold text-purple-400">
@@ -332,10 +339,12 @@ export default function ArtistDetailPage() {
 
                   {/* Músicas populares */}
                   <div>
-                    <h3 className="text-xl font-bold mb-4">Músicas Populares</h3>
+                    <h3 className="text-xl font-bold mb-4">
+                      Músicas Populares
+                    </h3>
                     <div className="space-y-2">
                       {tracks?.slice(0, 5).map((track, index) => (
-                        <div 
+                        <div
                           key={track.id}
                           className="flex items-center p-3 hover:bg-gray-800/50 rounded-lg transition group"
                         >
@@ -345,11 +354,13 @@ export default function ArtistDetailPage() {
                           <div className="flex-1 ml-4">
                             <h4 className="font-medium">{track.title}</h4>
                             <p className="text-sm text-gray-400">
-                              {track.plays_count?.toLocaleString() || 0} reproduções
+                              {track.plays_count?.toLocaleString() || 0}{" "}
+                              reproduções
                             </p>
                           </div>
                           <div className="text-gray-400">
-                            {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
+                            {Math.floor(track.duration / 60)}:
+                            {(track.duration % 60).toString().padStart(2, "0")}
                           </div>
                           <button className="ml-4 opacity-0 group-hover:opacity-100 transition">
                             <FaPlay className="text-indigo-400" />
@@ -362,20 +373,26 @@ export default function ArtistDetailPage() {
                   {/* Próximos eventos */}
                   {upcomingEvents.length > 0 && (
                     <div>
-                      <h3 className="text-xl font-bold mb-4">Próximos Eventos</h3>
+                      <h3 className="text-xl font-bold mb-4">
+                        Próximos Eventos
+                      </h3>
                       <div className="space-y-4">
                         {upcomingEvents.map((event) => (
-                          <div 
+                          <div
                             key={event.id}
                             className="bg-gray-800 rounded-xl p-6 hover:bg-gray-700/50 transition"
                           >
                             <div className="flex justify-between items-start">
                               <div>
-                                <h4 className="font-semibold text-lg">{event.title}</h4>
+                                <h4 className="font-semibold text-lg">
+                                  {event.title}
+                                </h4>
                                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
                                   <span className="flex items-center">
                                     <FaCalendarAlt className="mr-1" />
-                                    {new Date(event.date).toLocaleDateString('pt-PT')}
+                                    {new Date(event.date).toLocaleDateString(
+                                      "pt-PT"
+                                    )}
                                   </span>
                                   <span>{event.time}</span>
                                   <span className="text-indigo-400 font-semibold">
@@ -395,7 +412,7 @@ export default function ArtistDetailPage() {
                 </motion.div>
               )}
 
-              {activeTab === 'music' && (
+              {activeTab === "music" && (
                 <motion.div
                   key="music"
                   initial={{ opacity: 0, y: 20 }}
@@ -407,13 +424,16 @@ export default function ArtistDetailPage() {
                   {tracksLoading ? (
                     <div className="space-y-4">
                       {[...Array(8)].map((_, i) => (
-                        <div key={i} className="h-16 bg-gray-800 rounded animate-pulse"></div>
+                        <div
+                          key={i}
+                          className="h-16 bg-gray-800 rounded animate-pulse"
+                        ></div>
                       ))}
                     </div>
                   ) : tracks && tracks.length > 0 ? (
                     <div className="space-y-2">
                       {tracks.map((track, index) => (
-                        <div 
+                        <div
                           key={track.id}
                           className="flex items-center p-4 hover:bg-gray-800/50 rounded-lg transition group"
                         >
@@ -423,11 +443,16 @@ export default function ArtistDetailPage() {
                           <div className="flex-1">
                             <h4 className="font-medium">{track.title}</h4>
                             <p className="text-sm text-gray-400">
-                              {new Date(track.release_date || track.created_at).getFullYear()} • {track.plays_count?.toLocaleString() || 0} reproduções
+                              {new Date(
+                                track.release_date || track.created_at
+                              ).getFullYear()}{" "}
+                              • {track.plays_count?.toLocaleString() || 0}{" "}
+                              reproduções
                             </p>
                           </div>
                           <div className="text-gray-400 mr-4">
-                            {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
+                            {Math.floor(track.duration / 60)}:
+                            {(track.duration % 60).toString().padStart(2, "0")}
                           </div>
                           <button className="opacity-0 group-hover:opacity-100 transition">
                             <FaPlay className="text-indigo-400" />
@@ -443,7 +468,7 @@ export default function ArtistDetailPage() {
                 </motion.div>
               )}
 
-              {activeTab === 'about' && (
+              {activeTab === "about" && (
                 <motion.div
                   key="about"
                   initial={{ opacity: 0, y: 20 }}
@@ -456,21 +481,26 @@ export default function ArtistDetailPage() {
                     <h3 className="text-2xl font-bold mb-4">Biografia</h3>
                     <div className="bg-gray-800 rounded-xl p-6">
                       <p className="text-gray-300 leading-relaxed">
-                        {showFullBio ? 
-                          (artist.bio || 'Este artista ainda não adicionou uma biografia.') :
-                          (artist.bio ? 
-                            `${artist.bio.substring(0, 300)}${artist.bio.length > 300 ? '...' : ''}` :
-                            'Este artista ainda não adicionou uma biografia.'
-                          )
-                        }
+                        {showFullBio
+                          ? artist.bio ||
+                            "Este artista ainda não adicionou uma biografia."
+                          : artist.bio
+                          ? `${artist.bio.substring(0, 300)}${
+                              artist.bio.length > 300 ? "..." : ""
+                            }`
+                          : "Este artista ainda não adicionou uma biografia."}
                       </p>
                       {artist.bio && artist.bio.length > 300 && (
-                        <button 
+                        <button
                           onClick={() => setShowFullBio(!showFullBio)}
                           className="mt-3 text-indigo-400 hover:text-indigo-300 transition flex items-center"
                         >
-                          {showFullBio ? 'Ver menos' : 'Ver mais'}
-                          {showFullBio ? <FaChevronUp className="ml-1" /> : <FaChevronDown className="ml-1" />}
+                          {showFullBio ? "Ver menos" : "Ver mais"}
+                          {showFullBio ? (
+                            <FaChevronUp className="ml-1" />
+                          ) : (
+                            <FaChevronDown className="ml-1" />
+                          )}
                         </button>
                       )}
                     </div>
@@ -482,9 +512,9 @@ export default function ArtistDetailPage() {
                       <h3 className="text-xl font-bold mb-4">Redes Sociais</h3>
                       <div className="flex space-x-4">
                         {artist.social_links.instagram && (
-                          <a 
-                            href={artist.social_links.instagram} 
-                            target="_blank" 
+                          <a
+                            href={artist.social_links.instagram}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded-lg transition"
                           >
@@ -493,9 +523,9 @@ export default function ArtistDetailPage() {
                           </a>
                         )}
                         {artist.social_links.twitter && (
-                          <a 
-                            href={artist.social_links.twitter} 
-                            target="_blank" 
+                          <a
+                            href={artist.social_links.twitter}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded-lg transition"
                           >
@@ -504,9 +534,9 @@ export default function ArtistDetailPage() {
                           </a>
                         )}
                         {artist.social_links.website && (
-                          <a 
-                            href={artist.social_links.website} 
-                            target="_blank" 
+                          <a
+                            href={artist.social_links.website}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded-lg transition"
                           >
@@ -532,7 +562,10 @@ export default function ArtistDetailPage() {
               </h3>
               <div className="space-y-3">
                 {recentSupports.map((support, index) => (
-                  <div key={index} className="flex items-center space-x-3 text-sm">
+                  <div
+                    key={index}
+                    className="flex items-center space-x-3 text-sm"
+                  >
                     <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-xs font-bold">
                       {support.user.charAt(0)}
                     </div>
@@ -541,14 +574,18 @@ export default function ArtistDetailPage() {
                       <div className="text-gray-400">{support.message}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-green-400">{support.amount} MT</div>
-                      <div className="text-xs text-gray-400">{support.time}</div>
+                      <div className="font-bold text-green-400">
+                        {support.amount} MT
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {support.time}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => setShowSupportModal(true)}
                 className="w-full mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-2 rounded-lg transition font-semibold"
               >
@@ -566,7 +603,9 @@ export default function ArtistDetailPage() {
                 </div>
                 <div className="flex items-center">
                   <FaCalendarAlt className="mr-2 text-gray-400" />
-                  <span>Membro desde {new Date(artist.created_at).getFullYear()}</span>
+                  <span>
+                    Membro desde {new Date(artist.created_at).getFullYear()}
+                  </span>
                 </div>
                 <div className="flex items-center">
                   <FaMusic className="mr-2 text-gray-400" />
@@ -599,10 +638,10 @@ export default function ArtistDetailPage() {
         onClose={() => setShowSupportModal(false)}
         artist={artist}
         onSuccess={(amount) => {
-          setShowSupportModal(false)
+          setShowSupportModal(false);
           // Refresh data ou mostrar feedback
         }}
       />
     </div>
-  )
+  );
 }
