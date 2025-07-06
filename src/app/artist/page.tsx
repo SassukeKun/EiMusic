@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
+import artistService from '@/services/artistService'
 import {
   FaPlay,
   FaPause,
@@ -18,47 +19,40 @@ import {
   FaSearch,
   FaChevronLeft,
   FaChevronRight,
-  FaFilter,
-  FaSort,
   FaThLarge,
   FaList,
   FaEllipsisV,
-  FaPlus,
-  FaEye,
-  FaUserCircle,
-  FaClock,
-  FaRandom,
-  FaLock,
-  FaGlobe,
-  FaStar,
-  FaFireAlt,
-  FaMapMarkerAlt,
+  FaCheckCircle,
   FaMicrophone,
-  FaCheckCircle
+  FaMapMarkerAlt
 } from 'react-icons/fa'
 
-// Interface para artistas seguindo o padrão das outras páginas
+// Interface para artistas baseada na tabela artists.csv
 interface Artist {
   id: string;
   name: string;
-  bio: string;
-  profileImage: string;
-  coverImage: string;
-  followers: number;
-  monthlyListeners: number;
-  songsCount: number;
-  city: string;
-  genre: string[];
-  isVerified: boolean;
-  joinedDate: string;
-  lastRelease: string;
-  totalPlays: number;
-  socialMedia: {
+  bio?: string;
+  profile_image_url: string;
+  city?: string;
+  genre?: string[];
+  verified: boolean;
+  created_at: string;
+  subscribers: number;
+  social_links?: {
     instagram?: string;
     facebook?: string;
     youtube?: string;
+    twitter?: string;
+    website?: string;
   };
+  monthlyListeners?: number;
+  songsCount?: number;
 }
+
+// Helper functions for safe access to artist properties
+const getSafeGenre = (artist: Artist): string[] => artist.genre || [];
+const getSafeMonthlyListeners = (artist: Artist): number => artist.monthlyListeners || 0;
+const getSafeSongsCount = (artist: Artist): number => artist.songsCount || 0;
 
 export default function ArtistsPage() {
   const { user, isAuthenticated } = useAuth()
@@ -77,198 +71,45 @@ export default function ArtistsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 12
 
-  // Mock data para artistas moçambicanos
-  const mockArtists: Artist[] = [
-    {
-      id: '1',
-      name: 'Hernâni da Silva',
-      bio: 'Rapper e compositor moçambicano, conhecido pelo seu estilo único que mistura rap com sonoridades tradicionais de Moçambique.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80',
-      followers: 125000,
-      monthlyListeners: 890000,
-      songsCount: 23,
-      city: 'Maputo',
-      genre: ['Rap', 'Hip-Hop'],
-      isVerified: true,
-      joinedDate: '2020-03-15',
-      lastRelease: '2024-02-28',
-      totalPlays: 5600000,
-      socialMedia: {
-        instagram: '@hernanioficial',
-        facebook: 'hernanimusic',
-        youtube: 'hernaniofficial'
-      }
-    },
-    {
-      id: '2',
-      name: 'Laylizzy',
-      bio: 'Artista versátil que combina rap, R&B e afrobeats. Uma das vozes mais influentes da nova geração musical moçambicana.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?auto=format&fit=crop&w=1200&q=80',
-      followers: 98000,
-      monthlyListeners: 750000,
-      songsCount: 18,
-      city: 'Maputo',
-      genre: ['Rap', 'R&B', 'Afrobeats'],
-      isVerified: true,
-      joinedDate: '2019-11-20',
-      lastRelease: '2024-01-15',
-      totalPlays: 4200000,
-      socialMedia: {
-        instagram: '@laylizzy',
-        youtube: 'laylizzyofficial'
-      }
-    },
-    {
-      id: '3',
-      name: 'MC Mastoni',
-      bio: 'Rapper nascido em Maputo, conhecido pelas suas letras sociais e batidas envolventes que retratam a realidade urbana moçambicana.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1200&q=80',
-      followers: 76000,
-      monthlyListeners: 560000,
-      songsCount: 15,
-      city: 'Maputo',
-      genre: ['Hip-Hop', 'Rap'],
-      isVerified: false,
-      joinedDate: '2021-05-10',
-      lastRelease: '2024-03-10',
-      totalPlays: 3100000,
-      socialMedia: {
-        instagram: '@mcmastoni',
-        facebook: 'mcmastoni'
-      }
-    },
-    {
-      id: '4',
-      name: 'Stewart Sukuma',
-      bio: 'Cantor e compositor que fusiona sons tradicionais moçambicanos com música contemporânea, criando um estilo único e autêntico.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80',
-      followers: 89000,
-      monthlyListeners: 650000,
-      songsCount: 21,
-      city: 'Beira',
-      genre: ['Afrobeats', 'Traditional', 'Pop'],
-      isVerified: true,
-      joinedDate: '2018-09-05',
-      lastRelease: '2024-02-20',
-      totalPlays: 3800000,
-      socialMedia: {
-        instagram: '@stewartsukuma',
-        facebook: 'stewartsukuma',
-        youtube: 'stewartsukuma'
-      }
-    },
-    {
-      id: '5',
-      name: 'Mr. Bow',
-      bio: 'Veterano da música moçambicana, pioneiro da marrabenta moderna e influência para toda uma geração de artistas.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?auto=format&fit=crop&w=1200&q=80',
-      followers: 156000,
-      monthlyListeners: 920000,
-      songsCount: 45,
-      city: 'Nampula',
-      genre: ['Marrabenta', 'Traditional', 'Afrobeats'],
-      isVerified: true,
-      joinedDate: '2017-02-14',
-      lastRelease: '2024-01-05',
-      totalPlays: 8900000,
-      socialMedia: {
-        instagram: '@mrbow_oficial',
-        facebook: 'mrbowoficial',
-        youtube: 'mrbowmusic'
-      }
-    },
-    {
-      id: '6',
-      name: 'Zena Bakar',
-      bio: 'Cantora que combina a marrabenta tradicional com influências modernas, representando a nova geração da música moçambicana.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1200&q=80',
-      followers: 67000,
-      monthlyListeners: 480000,
-      songsCount: 12,
-      city: 'Maputo',
-      genre: ['Marrabenta', 'Pop', 'Traditional'],
-      isVerified: false,
-      joinedDate: '2020-08-22',
-      lastRelease: '2024-02-12',
-      totalPlays: 2800000,
-      socialMedia: {
-        instagram: '@zenabakar',
-        facebook: 'zenabakar'
-      }
-    },
-    {
-      id: '7',
-      name: 'Twenty Fingers',
-      bio: 'Grupo musical que representa a juventude moçambicana através do R&B e pop, com mensagens positivas e melodias cativantes.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80',
-      followers: 91000,
-      monthlyListeners: 680000,
-      songsCount: 16,
-      city: 'Maputo',
-      genre: ['R&B', 'Pop', 'Soul'],
-      isVerified: true,
-      joinedDate: '2019-06-30',
-      lastRelease: '2024-01-28',
-      totalPlays: 4100000,
-      socialMedia: {
-        instagram: '@twentyfingers',
-        youtube: 'twentyfingersofficial'
-      }
-    },
-    {
-      id: '8',
-      name: 'DJ Tarico',
-      bio: 'DJ e produtor que revolucionou a cena eletrônica moçambicana, misturando beats modernos com sons tradicionais africanos.',
-      profileImage: 'https://res.cloudinary.com/ddyuofu2d/image/upload/sample.jpg',
-      coverImage: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?auto=format&fit=crop&w=1200&q=80',
-      followers: 134000,
-      monthlyListeners: 1200000,
-      songsCount: 28,
-      city: 'Maputo',
-      genre: ['Electronic', 'Afrobeats', 'Dance'],
-      isVerified: true,
-      joinedDate: '2018-04-12',
-      lastRelease: '2024-03-05',
-      totalPlays: 6700000,
-      socialMedia: {
-        instagram: '@djtarico',
-        facebook: 'djtaricoofficial',
-        youtube: 'djtarico'
-      }
-    }
-  ]
-
   // Cidades de Moçambique
   const cities = ['Maputo', 'Beira', 'Nampula', 'Tete', 'Quelimane', 'Lichinga', 'Pemba', 'Xai-Xai']
 
-  // Gêneros musicais
+  // Gêneros musicais (não está na tabela, mas mantido para UI)
   const genres = ['Rap', 'Hip-Hop', 'R&B', 'Afrobeats', 'Marrabenta', 'Traditional', 'Pop', 'Electronic', 'Soul', 'Dance']
 
   // Opções de ordenação
   const sortOptions = [
     { value: 'popular', label: 'Mais Populares' },
-    { value: 'followers', label: 'Mais Seguidores' },
-    { value: 'listeners', label: 'Mais Ouvintes' },
+    { value: 'subscribers', label: 'Mais Seguidores' },
     { value: 'recent', label: 'Recém-chegados' },
-    { value: 'alphabetical', label: 'A-Z' },
-    { value: 'songs', label: 'Mais Músicas' },
-    { value: 'plays', label: 'Mais Reproduzidos' }
+    { value: 'alphabetical', label: 'A-Z' }
   ]
 
-  // Inicializar dados
+  // Buscar artistas do banco de dados
   useEffect(() => {
-    setTimeout(() => {
-      setArtists(mockArtists)
-      setFilteredArtists(mockArtists)
-      setLoading(false)
-    }, 1000)
+    setLoading(true)
+    artistService.getTrendingArtists(100)
+      .then((data) => {
+        // Mapeamento para garantir compatibilidade com UI
+        const mapped = data.map((artist: any) => ({
+          ...artist,
+          profileImage: artist.profile_image_url || artist.user_metadata?.avatar_url || '/placeholder-profile.png',
+          coverImage: artist.profile_image_url || '/placeholder-cover.png',
+          subscribers: artist.subscribers ?? 0,
+          monthlyListeners: artist.subscribers ?? 0,
+          songsCount: 0, // Não disponível na tabela, pode ser buscado depois
+          city: artist.city || '',
+          genre: [], // Não disponível na tabela
+          isVerified: artist.verified,
+          created_at: artist.created_at,
+          lastRelease: '',
+          totalPlays: 0,
+          socialMedia: artist.social_links || {},
+        }))
+        setArtists(mapped)
+        setFilteredArtists(mapped)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   // Aplicar filtros e busca
@@ -279,9 +120,8 @@ export default function ArtistsPage() {
     if (searchTerm) {
       filtered = filtered.filter(artist => 
         artist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        artist.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        artist.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        artist.genre.some(g => g.toLowerCase().includes(searchTerm.toLowerCase()))
+        (artist.bio?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (artist.city?.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     }
 
@@ -290,33 +130,24 @@ export default function ArtistsPage() {
       filtered = filtered.filter(artist => artist.city === selectedCity)
     }
 
-    // Filtro de gênero
+    // Filtro de gênero (não disponível, mas mantido para UI)
     if (selectedGenre !== 'all') {
-      filtered = filtered.filter(artist => artist.genre.includes(selectedGenre))
+      filtered = filtered.filter(artist => artist.genre && artist.genre.includes(selectedGenre))
     }
 
     // Ordenação
     switch (sortBy) {
       case 'popular':
-        filtered.sort((a, b) => b.monthlyListeners - a.monthlyListeners)
+        filtered.sort((a, b) => (b.monthlyListeners ?? 0) - (a.monthlyListeners ?? 0))
         break
-      case 'followers':
-        filtered.sort((a, b) => b.followers - a.followers)
-        break
-      case 'listeners':
-        filtered.sort((a, b) => b.monthlyListeners - a.monthlyListeners)
+      case 'subscribers':
+        filtered.sort((a, b) => (b.subscribers ?? 0) - (a.subscribers ?? 0))
         break
       case 'recent':
-        filtered.sort((a, b) => new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime())
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         break
       case 'alphabetical':
         filtered.sort((a, b) => a.name.localeCompare(b.name))
-        break
-      case 'songs':
-        filtered.sort((a, b) => b.songsCount - a.songsCount)
-        break
-      case 'plays':
-        filtered.sort((a, b) => b.totalPlays - a.totalPlays)
         break
     }
 
@@ -595,7 +426,7 @@ function ArtistCard({ artist }: { artist: Artist }) {
         {/* Cover Image */}
         <div className="relative h-48 overflow-hidden">
           <Image
-            src={artist.coverImage}
+            src={artist.profile_image_url === "" ? "/avatar.svg" : artist.profile_image_url}
             alt={`${artist.name} cover`}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -616,7 +447,7 @@ function ArtistCard({ artist }: { artist: Artist }) {
           </div>
 
           {/* Verified Badge */}
-          {artist.isVerified && (
+          {artist.verified && (
             <div className="absolute top-3 right-3">
               <div className="bg-blue-600/80 backdrop-blur-sm p-2 rounded-full">
                 <FaCheckCircle className="text-white" size={14} />
@@ -629,7 +460,7 @@ function ArtistCard({ artist }: { artist: Artist }) {
         <div className="relative px-6 -mt-12">
           <div className="relative w-20 h-20 mx-auto">
             <Image
-              src={artist.profileImage}
+              src={artist.profile_image_url === "" ? '/placeholder.png' : artist.profile_image_url}
               alt={artist.name}
               fill
               className="object-cover rounded-full border-4 border-gray-800"
@@ -644,21 +475,21 @@ function ArtistCard({ artist }: { artist: Artist }) {
             <h3 className="font-bold text-lg text-white group-hover:text-purple-300 transition-colors">
               {artist.name}
             </h3>
-            {artist.isVerified && (
+            {artist.verified && (
               <FaCheckCircle className="text-blue-400" size={16} />
             )}
           </div>
 
           <div className="flex items-center justify-center space-x-2 text-sm text-gray-400 mb-3">
             <FaMapMarkerAlt size={12} />
-            <span>{artist.city}</span>
+            <span>{artist.city || 'Localização não informada'}</span>
           </div>
 
           <p className="text-gray-400 text-sm mb-4 line-clamp-2">
             {artist.bio}
           </p>
 
-          {/* Genres */}
+          {/* Genres
           <div className="flex flex-wrap justify-center gap-1 mb-4">
             {artist.genre.slice(0, 2).map((genre) => (
               <span
@@ -673,23 +504,19 @@ function ArtistCard({ artist }: { artist: Artist }) {
                 +{artist.genre.length - 2}
               </span>
             )}
-          </div>
+          </div> */}
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4 text-sm text-gray-400 mb-4">
             <div className="text-center">
-              <div className="font-semibold text-white">{formatNumber(artist.followers)}</div>
+              <div className="font-semibold text-white">{formatNumber(artist.subscribers)}</div>
               <div>Seguidores</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold text-white">{artist.songsCount}</div>
-              <div>Músicas</div>
             </div>
           </div>
 
           {/* Monthly Listeners */}
           <div className="text-center mb-4">
-            <div className="text-lg font-bold text-purple-300">{formatNumber(artist.monthlyListeners)}</div>
+            <div className="text-lg font-bold text-purple-300">{formatNumber(artist.monthlyListeners || 0)}</div>
             <div className="text-xs text-gray-500">ouvintes mensais</div>
           </div>
 
@@ -750,7 +577,7 @@ function ArtistListItem({ artist }: { artist: Artist }) {
           {/* Profile Image */}
           <div className="relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
             <Image
-              src={artist.profileImage}
+              src={artist.profile_image_url === "" ? "/placeholder-profile.png" : artist.profile_image_url}
               alt={artist.name}
               fill
               className="object-cover"
@@ -774,16 +601,16 @@ function ArtistListItem({ artist }: { artist: Artist }) {
                   <h3 className="font-semibold text-white truncate group-hover:text-purple-300 transition-colors">
                     {artist.name}
                   </h3>
-                  {artist.isVerified && (
+                  {artist.verified && (
                     <FaCheckCircle className="text-blue-400" size={14} />
                   )}
                 </div>
                 
                 <div className="flex items-center space-x-2 text-sm text-gray-400 mb-2">
                   <FaMapMarkerAlt size={12} />
-                  <span>{artist.city}</span>
+                  <span>{artist.city || 'Localização não informada'}</span>
                   <span>•</span>
-                  <span>{artist.genre.slice(0, 2).join(', ')}</span>
+                  <span>{getSafeGenre(artist).slice(0, 2).join(', ')}</span>
                 </div>
                 
                 <p className="text-gray-500 text-sm truncate mb-2">{artist.bio}</p>
@@ -791,28 +618,17 @@ function ArtistListItem({ artist }: { artist: Artist }) {
                 <div className="flex items-center space-x-4 text-xs text-gray-400">
                   <span className="flex items-center">
                     <FaUsers size={10} className="mr-1" />
-                    {formatNumber(artist.followers)} seguidores
+                    {formatNumber(artist.subscribers)} seguidores
                   </span>
                   <span className="flex items-center">
                     <FaMusic size={10} className="mr-1" />
                     {artist.songsCount} músicas
-                  </span>
-                  <span className="flex items-center">
-                    <FaPlay size={10} className="mr-1" />
-                    {formatNumber(artist.monthlyListeners)} ouvintes/mês
                   </span>
                 </div>
               </div>
               
               <div className="flex items-center space-x-3 ml-4">
                 {/* Monthly Listeners - Desktop apenas */}
-                <div className="hidden lg:block text-right">
-                  <div className="text-sm font-semibold text-purple-300">
-                    {formatNumber(artist.monthlyListeners)}
-                  </div>
-                  <div className="text-xs text-gray-500">ouvintes mensais</div>
-                </div>
-                
                 {/* Follow Button */}
                 <button
                   onClick={handleFollowClick}

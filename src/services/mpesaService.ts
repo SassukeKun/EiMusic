@@ -53,7 +53,6 @@ export async function createPayment(
       phone: input.phone,
     } as const;
 
-    // sms_reference só é aceite em alguns contratos; envia se definido
     if (input.sms_reference) {
       Object.assign(params, { sms_reference: input.sms_reference.slice(0, 20) });
     }

@@ -1,7 +1,3 @@
-// 📁 CAMINHO: src/services/paymentService.ts (VERSÃO SIMPLIFICADA)
-// 🎯 FUNÇÃO: Serviço de pagamento sem dependências complexas
-// 📝 DESCRIÇÃO: Funciona mesmo sem Supabase configurado
-
 // Interfaces simples para o serviço
 interface PaymentProcessData {
   method: 'mpesa' | 'paypal'

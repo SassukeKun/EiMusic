@@ -13,6 +13,9 @@ export interface Artist {
   bio?: string; // Biografia
   phone?: string; // Telefone
   profile_image_url?: string;
+  subscribers?: number; // Seguidores (contador)
+  monthlyListeners?: number; // Ouvintes mensais calculados
+  songsCount?: number; // Total de músicas
   social_links?: {
     instagram?: string;
     twitter?: string;

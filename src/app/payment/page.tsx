@@ -128,6 +128,7 @@ export default function PaymentPage() {
             amount: selectedPlan.price,
             phone: paymentData.phoneNumber.replace(/\D/g, ''),
             sourceType: 'subscription',
+            planId: selectedPlan.id,
             reference: referenceCode,
           }),
         })

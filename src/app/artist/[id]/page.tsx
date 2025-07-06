@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -63,12 +63,65 @@ export default function ArtistDetailPage() {
     enabled: !!id,
   });
 
-  // Dados mockados para demonstração (substituir por dados reais)
+  // Contagem de apoios (doações) nos últimos 30 dias
+  const { data: monthlyDonationsCount, isLoading: donationsLoading } = useQuery({
+    queryKey: ["artist-donations-month", id],
+    queryFn: () => artistService.getMonthlyDonationsCount(id),
+    enabled: !!id,
+  });
+
+  // ----------------------- Dynamic artist stats & follow state -----------------------
+  const [followers, setFollowers] = useState<number>(artist?.subscribers ?? 0);
+
+  // Keep followers state in sync with artist row
+  useEffect(() => {
+    if (artist?.subscribers !== undefined) {
+      setFollowers(artist.subscribers);
+    }
+  }, [artist]);
+
+  // Load initial following status for this user ↴
+  const { data: initialFollowing } = useQuery({
+    queryKey: ["artist-following", id, user?.id],
+    queryFn: () => (user ? artistService.isUserFollowing(id, user.id) : false),
+    enabled: !!id && !!user,
+  });
+
+  useEffect(() => {
+    if (initialFollowing !== undefined) {
+      setIsFollowing(initialFollowing);
+    }
+  }, [initialFollowing]);
+
+  const totalStreams =
+    tracks?.reduce((sum, t) => sum + (t.plays_count ?? 0), 0) ?? 0;
+
+  const router = useRouter();
+
+  const handleFollow = async () => {
+    if (!isAuthenticated || !user) {
+      // Optionally redirect to login page
+      return;
+    }
+
+    try {
+      if (isFollowing) {
+        await artistService.unfollowArtist(id, user.id);
+        setIsFollowing(false);
+        setFollowers((prev) => Math.max(prev - 1, 0));
+      } else {
+        await artistService.followArtist(id, user.id);
+        setIsFollowing(true);
+        setFollowers((prev) => prev + 1);
+      }
+    } catch (err) {
+      console.error("Error updating follow status", err);
+    }
+  };
   const artistStats = {
     monthlyListeners: 45230,
     totalStreams: 1240000,
     followers: 8547,
-    supportersThisMonth: 127,
   };
 
   const recentSupports = [
@@ -167,6 +220,12 @@ export default function ArtistDetailPage() {
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Hero Section */}
       <div className="relative h-80 bg-gradient-to-b from-gray-800 to-gray-900">
+        <button
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 bg-gray-800/60 text-white px-3 py-2 rounded-full hover:bg-gray-700"
+        >
+          Voltar
+        </button>
         {/* Background com imagem do artista ou gradiente */}
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -214,12 +273,12 @@ export default function ArtistDetailPage() {
               <div className="flex items-center space-x-6 text-gray-300 mb-4">
                 <span className="flex items-center">
                   <FaHeadphones className="mr-1" />
-                  {artistStats.monthlyListeners.toLocaleString()} ouvintes
+                  {(artist?.monthlyListeners ?? 0).toLocaleString()} ouvintes
                   mensais
                 </span>
                 <span className="flex items-center">
                   <FaUsers className="mr-1" />
-                  {artistStats.followers.toLocaleString()} seguidores
+                  {followers.toLocaleString()} seguidores
                 </span>
               </div>
 
@@ -235,7 +294,7 @@ export default function ArtistDetailPage() {
                 </motion.button>
 
                 <motion.button
-                  onClick={() => setIsFollowing(!isFollowing)}
+                  onClick={handleFollow}
                   className={`px-6 py-3 rounded-full border-2 transition-colors font-semibold ${
                     isFollowing
                       ? "bg-indigo-600 border-indigo-600 text-white"
@@ -315,7 +374,7 @@ export default function ArtistDetailPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-gray-800 rounded-xl p-4 text-center">
                       <div className="text-2xl font-bold text-indigo-400">
-                        {artistStats.totalStreams.toLocaleString()}
+                        {totalStreams.toLocaleString()}
                       </div>
                       <div className="text-sm text-gray-400">
                         Total de Streams
@@ -323,7 +382,7 @@ export default function ArtistDetailPage() {
                     </div>
                     <div className="bg-gray-800 rounded-xl p-4 text-center">
                       <div className="text-2xl font-bold text-green-400">
-                        {artistStats.supportersThisMonth}
+                        {(monthlyDonationsCount ?? 0).toLocaleString()}
                       </div>
                       <div className="text-sm text-gray-400">
                         Apoios este Mês
@@ -599,7 +658,7 @@ export default function ArtistDetailPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex items-center">
                   <FaMapMarkerAlt className="mr-2 text-gray-400" />
-                  <span>Maputo, Moçambique</span>
+                  <span>{"Localização não especificada"}</span>
                 </div>
                 <div className="flex items-center">
                   <FaCalendarAlt className="mr-2 text-gray-400" />
