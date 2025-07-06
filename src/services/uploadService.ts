@@ -151,6 +151,7 @@ const uploadService = {
           title: songTitle,
           artist_id: artistId,
           duration: computedDuration,
+          genre: metadata?.genre || null,
           file_url: audioResult.secure_url,
           cover_url: coverArtResult ? coverArtResult.secure_url : null,
         }]);

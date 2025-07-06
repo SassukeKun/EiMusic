@@ -96,6 +96,40 @@ export const artistService = {
   },
   
   /**
+   * Deletar uma música do artista
+   * @param musicId - ID da música a ser deletada
+   * @returns Promise<void>
+   */
+  async deleteMusic(musicId: string): Promise<void> {
+    const supabase = getSafeSupabaseClient();
+    const { error } = await supabase
+      .from('tracks')
+      .delete()
+      .eq('id', musicId);
+    
+    if (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * Deletar um vídeo do artista
+   * @param videoId - ID do vídeo a ser deletado
+   * @returns Promise<void>
+   */
+  async deleteVideo(videoId: string): Promise<void> {
+    const supabase = getSafeSupabaseClient();
+    const { error } = await supabase
+      .from('videos')
+      .delete()
+      .eq('id', videoId);
+    
+    if (error) {
+      throw error;
+    }
+  },
+
+  /**
    * Criar um novo artista
    * @param artistData - Dados do artista para criacao
    * @returns Dados do artista criado
@@ -129,8 +163,6 @@ export const artistService = {
       .from('artists')
       .update(artistData)
       .eq('id', id)
-      .select()
-      .maybeSingle();
     
     if (error && error.code !== 'PGRST116') {
       throw error;

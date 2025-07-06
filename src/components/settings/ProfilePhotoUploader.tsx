@@ -12,9 +12,11 @@ interface ProfilePhotoUploaderProps {
   id: string
   /** Current profile image URL so we can show a preview */
   initialUrl: string
+  /** Callback when upload is successful */
+  onUploadSuccess?: (url: string) => void
 }
 
-const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({ mode, id, initialUrl }) => {
+const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({ mode, id, initialUrl, onUploadSuccess }) => {
   const [preview, setPreview] = useState<string>(initialUrl)
   const [loading, setLoading] = useState(false)
 
@@ -27,14 +29,24 @@ const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({ mode, id, i
     setLoading(true)
 
     try {
+      let uploadedUrl: string | undefined
       if (mode === 'user') {
-        await profileService.updateUserAvatar(id, file)
+        uploadedUrl = await profileService.updateUserAvatar(id, file)
       } else {
-        await profileService.updateArtistAvatar(id, file)
+        uploadedUrl = await profileService.updateArtistAvatar(id, file)
+      }
+      // Caso o upload retorne uma URL válida, atualiza o preview para a URL definitiva
+      if (uploadedUrl) {
+        setPreview(uploadedUrl)
+        if (onUploadSuccess) {
+          onUploadSuccess(uploadedUrl)
+        }
       }
     } catch (err) {
       console.error('Erro ao atualizar foto de perfil', err)
       alert('Falha ao atualizar imagem de perfil')
+      // Se o upload falhar, reverte o preview para imagem inicial
+      setPreview(initialUrl)
     } finally {
       setLoading(false)
     }
