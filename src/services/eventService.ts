@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
 import { CreateEventInput, eventSchema } from '@/models/event';
 
@@ -53,6 +52,14 @@ export async function fetchEventById(id: string) {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function deleteEvent(id: string) {
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
 }
 
 export async function purchaseTicket(eventId: string, userId: string) {

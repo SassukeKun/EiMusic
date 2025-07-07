@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { Post } from './post';
 
 /**
  * Interface de community representando uma comunidade no banco de dados

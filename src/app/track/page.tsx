@@ -2,6 +2,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -88,6 +89,9 @@ export default function TracksPage() {
   const [likedTracks, setLikedTracks] = useState<Set<string>>(new Set())
 
   // Mock data para músicas moçambicanas
+  // Dados das músicas vindos do Supabase
+  const supabase = getSupabaseBrowserClient();
+
   const mockTracks: Track[] = [
     {
       id: '1',
@@ -341,7 +345,7 @@ export default function TracksPage() {
       key: 'E Minor',
       language: 'Sena'
     }
-  ]
+  ];
 
   // Filtros baseados no contexto moçambicano
   const genres = ['Rap', 'Hip-Hop', 'Afrobeats', 'Marrabenta', 'R&B', 'Electronic', 'Jazz', 'Traditional', 'Trapsoul']
@@ -349,7 +353,7 @@ export default function TracksPage() {
   const years = ['2024', '2023', '2022', '2021', '2020']
   
   // Extrair artistas únicos dos dados
-  const artists = Array.from(new Set(mockTracks.map(track => track.artist))).sort()
+  const artists = React.useMemo(() => Array.from(new Set(tracks.map(track => track.artist))).sort(), [tracks])
 
   // Opções de ordenação
   const sortOptions = [
@@ -361,13 +365,64 @@ export default function TracksPage() {
     { value: 'duration', label: 'Duração' }
   ]
 
-  // Inicializar dados
+  // Inicializar dados a partir do Supabase
   useEffect(() => {
-    setTimeout(() => {
-      setTracks(mockTracks)
-      setFilteredTracks(mockTracks)
-      setLoading(false)
-    }, 1000)
+    async function fetchTracks() {
+      try {
+        const { data: trackData, error: trackErr } = await supabase
+          .from('tracks')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        const { data: singlesData, error: singlesErr } = await supabase
+          .from('singles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (trackErr) console.error(trackErr.message);
+        if (singlesErr) console.error(singlesErr.message);
+
+        // Fetch artist names for mapping
+        const { data: artistData, error: artistErr } = await supabase
+          .from('artists')
+          .select('id, name');
+
+        if (artistErr) console.error(artistErr.message);
+
+        const artistMap = new Map<string, string>([
+          ...(artistData ?? []).map((a: any) => [a.id, a.name])
+        ] as [string, string][]);
+
+        const normalizedTracks = [...(trackData ?? []), ...(singlesData ?? [])].map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          artist: artistMap.get(t.artist_id) ?? 'Desconhecido',
+          artistId: t.artist_id,
+          album: '',
+          duration: typeof t.duration === 'number' ? `${Math.floor(t.duration/60)}:${String(t.duration%60).padStart(2,'0')}` : '0:00',
+          coverImage: t.cover_url ?? '',
+          audioUrl: t.file_url,
+          genre: t.genre ?? 'Desconhecido',
+          city: t.city ?? 'Desconhecido',
+          releaseDate: t.release_date ?? t.created_at,
+          playCount: t.streams ?? 0,
+          likes: t.likes_count ?? 0,
+          isExplicit: t.is_explicit ?? false,
+          isPopular: t.is_popular ?? false,
+          featured: t.featured ?? false,
+          language: 'Português'
+        })) as Track[];
+
+        setTracks(normalizedTracks);
+        setFilteredTracks(normalizedTracks);
+      } catch (err:any) {
+        console.error('Erro ao buscar músicas:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTracks();
   }, [])
 
   // Aplicar filtros e busca
@@ -862,7 +917,7 @@ function TrackCard({ track, index }: { track: Track; index: number }) {
         {/* Cover Image */}
         <div className="relative aspect-square overflow-hidden">
           <Image
-            src={track.coverImage}
+            src={track.coverImage === "" ? "/placeholder.png" : track.coverImage}
             alt={track.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -1017,7 +1072,7 @@ function TrackListItem({ track, index }: { track: Track; index: number }) {
           {/* Cover Image */}
           <div className="relative w-12 h-12 bg-gray-600 rounded overflow-hidden flex-shrink-0">
             <Image
-              src={track.coverImage}
+              src={track.coverImage === "" ? "/placeholder.png" : track.coverImage}
               alt={track.title}
               fill
               className="object-cover"

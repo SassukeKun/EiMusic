@@ -2,9 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import ProfilePhotoUploader from "@/components/settings/ProfilePhotoUploader";
 import ArtistConfigSection from "@/components/artist/ArtistConfigSection";
+import DashboardOverviewSection from "@/components/artist/dashboard/OverviewSection";
+import DashboardMusicasSection from "@/components/artist/dashboard/MusicasSection";
+import DashboardVideosSection from "@/components/artist/dashboard/VideosSection";
+import DashboardComunidadesSection from "@/components/artist/dashboard/ComunidadesSection";
+import DashboardEventosSection from "@/components/artist/dashboard/EventosSection";
+import DashboardAnalyticsSection from "@/components/artist/dashboard/AnalyticsSection";
+import DashboardDeleteConfirmModal from "@/components/artist/dashboard/DeleteConfirmModal";
+import DashboardEditEventModal from "@/components/artist/dashboard/EditEventModal";
+import { CreateEventModal } from "@/app/events/CreateEventModal";
 import artistService from "@/services/artistService";
+import { fetchCommunities } from "@/services/communityService";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3,
@@ -40,6 +49,41 @@ import {
 } from "lucide-react";
 
 import type { Artist as DBArtist } from "@/models/artist";
+import type { Track } from "@/models/track";
+import { getArtistTracks, getArtistSingles } from "@/services/trackService";
+import type { Video as VideoModel } from "@/models/video";
+import type { Community as CommunityModel } from "@/models/community";
+import type { Event as EventModel } from "@/models/event";
+import { createEvent } from "@/services/eventService";
+import uploadService from "@/services/uploadService";
+
+// 🎬 MODEL PARA UI DE VÍDEOS NA DASHBOARD
+interface VideoData {
+  id: string;
+  title: string;
+  thumbnail: string;
+  views: number;
+  likes: number;
+  comments: number;
+  status: "publicado" | "rascunho" | "agendado";
+  duration: string; // formato mm:ss
+}
+
+// Helper para converter modelo de banco (VideoModel) em VideoData de UI
+const toVideoData = (video: VideoModel): VideoData => {
+  const minutes = Math.floor(video.duration / 60);
+  const seconds = video.duration % 60;
+  return {
+    id: video.id,
+    title: video.title,
+    thumbnail: video.thumbnail_url ?? "/placeholder-video.jpg",
+    views: video.views,
+    likes: video.likes,
+    comments: 0, // TODO: integrar comentários reais
+    status: "publicado",
+    duration: `${minutes}:${seconds.toString().padStart(2, "0")}`,
+  };
+};
 
 // 🔧 INTERFACES SIMPLIFICADAS E CORRIGIDAS (para mock apenas)
 interface DashboardArtist {
@@ -57,49 +101,6 @@ type FullArtist = DBArtist & {
   subscribers?: number;
   verified?: boolean;
 };
-
-interface Music {
-  id: string;
-  titulo: string;
-  genero: string;
-  duracao: string;
-  capa: string;
-  data_lancamento: string;
-  status: "publicada" | "rascunho" | "agendada";
-  streams: number;
-  curtidas: number;
-  receita_gerada: number;
-}
-
-interface VideoContent {
-  id: string;
-  titulo: string;
-  thumbnail: string;
-  duracao: string;
-  data_lancamento: string;
-  status: "publicada" | "rascunho";
-  views: number;
-  curtidas: number;
-  tipo: "videoclipe" | "live" | "documentario";
-}
-
-interface Community {
-  id: string;
-  nome: string;
-  membros: number;
-  ativa: boolean;
-  tipo: "publica" | "premium" | "vip";
-  engajamento: number;
-}
-
-interface Event {
-  id: string;
-  titulo: string;
-  data: string;
-  local: string;
-  status: "agendado" | "confirmado" | "realizado";
-  participantes: number;
-}
 
 // 🔧 REMOVIDO 'upload' das seções (não precisa mais)
 type DashboardSection =
@@ -167,12 +168,141 @@ export default function ArtistDashboard() {
   }, [user]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContent, setSelectedContent] = useState<
-    Music | VideoContent | null
+    Track | VideoModel | CommunityModel | EventModel | null
   >(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // 🔄 ESTADOS PARA O MODAL DE EDIÇÃO DE EVENTOS
   const [showEditEventModal, setShowEditEventModal] = useState<boolean>(false);
-  const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
+  const [showCreateEventModal, setShowCreateEventModal] = useState<boolean>(false);
+  const [eventToEdit, setEventToEdit] = useState<EventModel | null>(null);
+  const [videos, setVideos] = useState<VideoModel[]>([]); // will fetch later
+  const [comunidades, setComunidades] = useState<CommunityModel[]>([]); // will fetch
+  const [eventos, setEventos] = useState<EventModel[]>([]);
+
+  // 📥 Carregar comunidades criadas pelo artista
+  useEffect(() => {
+    const loadCommunities = async () => {
+      if (!user?.id) return;
+      try {
+        const all = await fetchCommunities();
+        const mine = all.filter(
+          (c) => c.artist_id === user.id || c.artist?.artist_id === user.id
+        );
+        setComunidades(mine);
+      } catch (err) {
+        console.error("Erro ao carregar comunidades", err);
+      }
+    };
+    loadCommunities();
+  }, [user]);
+
+  // 👉 Centralized content selection handler
+  const handleSelectContent = (content: any) => {
+    setSelectedContent(content);
+    if (content && "start_time" in content && "location" in content) {
+      setEventToEdit(content as EventModel);
+    }
+  };
+
+  // 👉 Confirm delete handler
+  const handleDeleteConfirm = () => {
+    if (!selectedContent) return;
+
+    if ("duration" in selectedContent && !("video_url" in selectedContent)) {
+      // Track
+      setMusicas((prev) => prev.filter((m) => m.id !== selectedContent.id));
+    } else if ("thumbnail" in selectedContent) {
+      // Video
+      setVideos((prev) => prev.filter((v) => v.id !== selectedContent.id));
+    } else if ("members" in selectedContent) {
+      // Community
+      setComunidades((prev) => prev.filter((c) => c.id !== selectedContent.id));
+    } else if (
+      "start_time" in selectedContent &&
+      "location" in selectedContent
+    ) {
+      // Event
+      setEventos((prev) => prev.filter((e) => e.id !== selectedContent.id));
+    }
+
+    setShowDeleteConfirm(false);
+    setSelectedContent(null);
+  };
+
+  // 👉 Create event handler
+  const handleCreateEvent = async (formData: any) => {
+    try {
+      // 1. Upload da imagem (se existir)
+      let uploadedImageUrl: string | undefined;
+      if (formData.imagem) {
+        try {
+          const uploadRes = await uploadService.uploadImage(
+            user?.id ?? "anon",
+            formData.imagem,
+            "cover",
+            true
+          );
+          uploadedImageUrl = uploadRes.url;
+        } catch (err) {
+          console.error("Falha ao fazer upload da imagem do evento:", err);
+        }
+      }
+
+      // 2. Construir input para Supabase
+      const startIso = new Date(`${formData.data}T${formData.hora}:00`).toISOString();
+      const input = {
+        artist_id: user?.id ?? "",
+        name: formData.titulo,
+        event_type: formData.tipo,
+        price: formData.preco_min ?? 0,
+        description: formData.descricao,
+        start_time: startIso,
+        location: `${formData.venue_nome}, ${formData.venue_cidade}`,
+        capacity: formData.capacidade ?? null,
+        status: "agendado" as const,
+        image_url: uploadedImageUrl,
+      } as any;
+
+      const created = await createEvent(input);
+      setEventos((prev) => [...prev, created]);
+      setShowCreateEventModal(false);
+    } catch (err) {
+      console.error("Erro ao criar evento", err);
+    }
+  };
+
+  // 👉 Save / update event handler
+  const handleSaveEvent = (eventData: any) => {
+    // Converter dados do formulário para o modelo Event
+    const eventToSave: EventModel = {
+      id: eventData.id || Date.now().toString(),
+      artist_id: eventData.artist_id,
+      title: eventData.title,
+      event_type: eventData.event_type,
+      event_date: eventData.event_date,
+      price_min: eventData.price_min,
+      price_max: eventData.price_max,
+      description: eventData.description,
+      start_time: eventData.start_time,
+      location: eventData.location,
+      capacity: eventData.capacity,
+      created_at: new Date().toISOString(),
+      event_status: eventData.event_status || "agendado",
+    };
+
+    if (eventData.id) {
+      // Atualizar evento existente
+      setEventos((prev) =>
+        prev.map((e) => (e.id === eventData.id ? eventToSave : e))
+      );
+    } else {
+      // Criar novo evento
+      setEventos((prev) => [...prev, eventToSave]);
+    }
+
+    setShowEditEventModal(false);
+    setEventToEdit(null);
+  };
 
   // 🎭 MOCK DATA ARTISTA
   const mockArtist: DashboardArtist = {
@@ -186,106 +316,24 @@ export default function ArtistDashboard() {
   };
 
   // 🎵 MOCK DATA MÚSICAS
-  const [musicas, setMusicas] = useState<Music[]>([
-    {
-      id: "1",
-      titulo: "Marrabenta do Futuro",
-      genero: "Marrabenta",
-      duracao: "3:45",
-      capa: "/avatar.svg",
-      data_lancamento: "2024-11-20T00:00:00Z",
-      status: "publicada",
-      streams: 45623,
-      curtidas: 1247,
-      receita_gerada: 456.23,
-    },
-    {
-      id: "2",
-      titulo: "Noites de Maputo",
-      genero: "Afrobeats",
-      duracao: "4:12",
-      capa: "/avatar.svg",
-      data_lancamento: "2024-10-15T00:00:00Z",
-      status: "publicada",
-      streams: 32189,
-      curtidas: 892,
-      receita_gerada: 321.89,
-    },
-  ]);
+  const [musicas, setMusicas] = useState<Track[]>([]); // fetched from Supabase
 
-  // 🎬 MOCK DATA VÍDEOS
-  const [videos, setVideos] = useState<VideoContent[]>([
-    {
-      id: "1",
-      titulo: "Marrabenta do Futuro - Videoclipe",
-      thumbnail: "/avatar.svg",
-      duracao: "3:45",
-      data_lancamento: "2024-11-20T00:00:00Z",
-      status: "publicada",
-      views: 25847,
-      curtidas: 1532,
-      tipo: "videoclipe",
-    },
-    {
-      id: "2",
-      titulo: "Live Session - Acústico",
-      thumbnail: "/avatar.svg",
-      duracao: "15:30",
-      data_lancamento: "2024-12-01T00:00:00Z",
-      status: "publicada",
-      views: 8904,
-      curtidas: 445,
-      tipo: "live",
-    },
-  ]);
-
-  // 👥 MOCK DATA COMUNIDADES
-  const [comunidades, setComunidades] = useState<Community[]>([
-    {
-      id: "1",
-      nome: "Fãs da Zena",
-      membros: 3254,
-      ativa: true,
-      tipo: "publica",
-      engajamento: 8.7,
-    },
-    {
-      id: "2",
-      nome: "VIP Members",
-      membros: 145,
-      ativa: true,
-      tipo: "vip",
-      engajamento: 9.2,
-    },
-    {
-      id: "3",
-      nome: "Marrabenta Lovers",
-      membros: 856,
-      ativa: false,
-      tipo: "premium",
-      engajamento: 6.1,
-    },
-  ]);
-
-  // 📅 MOCK DATA EVENTOS
-  const [eventos, setEventos] = useState<Event[]>([
-    {
-      id: "1",
-      titulo: "Show Acústico",
-      data: "2025-01-20T20:00:00Z",
-      local: "Centro Cultural Franco-Moçambicano",
-      status: "confirmado",
-      participantes: 145,
-    },
-    {
-      id: "2",
-      titulo: "Lançamento EP",
-      data: "2025-02-15T18:00:00Z",
-      local: "Polana Serena Hotel",
-      status: "agendado",
-      participantes: 0,
-    },
-  ]);
+  // Fetch tracks once artist is available
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchTracksAndSingles = async () => {
+      try {
+        const [tracks, singles] = await Promise.all([
+          getArtistTracks(user.id),
+          getArtistSingles(user.id),
+        ]);
+        setMusicas([...tracks, ...singles]);
+      } catch (err) {
+        console.error("Erro ao carregar músicas e singles", err);
+      }
+    };
+    fetchTracksAndSingles();
+  }, [user]);
 
   // 🔄 LOADING RÁPIDO
   useEffect(() => {
@@ -440,1235 +488,6 @@ export default function ArtistDashboard() {
       </div>
     );
   };
-  // 📊 COMPONENTE STATSCARD MELHORADO
-  const StatsCard = ({
-    title,
-    value,
-    icon: Icon,
-    color,
-    trend,
-  }: {
-    title: string;
-    value: string | number;
-    icon: any;
-    color: string;
-    trend?: string;
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, scale: 1.02 }}
-      className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 shadow-lg"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-400 text-sm mb-2">{title}</p>
-          <p className="text-2xl font-bold text-white mb-1">{value}</p>
-          {trend && (
-            <p className="text-green-400 text-sm flex items-center space-x-1">
-              <TrendingUp className="w-3 h-3" />
-              <span>{trend}</span>
-            </p>
-          )}
-        </div>
-        <div className={`p-4 rounded-xl bg-gradient-to-r ${color} shadow-lg`}>
-          {" "}
-          {/* 🔧 Ícone maior com sombra */}
-          <Icon className="w-7 h-7 text-white" />
-        </div>
-      </div>
-    </motion.div>
-  );
-  // 🎯 SEÇÃO OVERVIEW - COM REDIRECIONAMENTOS CORRIGIDOS
-  const OverviewSection = () => (
-    <div className="space-y-8">
-      {" "}
-      {/* 🔧 Mais espaçamento entre seções */}
-      {/* 📊 STATS PRINCIPAIS COM ESPAÇAMENTO MELHORADO */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        {" "}
-        {/* 🔧 Gap maior */}
-        <StatsCard
-          title="Total de Streams"
-          value={mockArtist.total_streams.toLocaleString()}
-          icon={Play}
-          color="from-blue-500 to-purple-500"
-          trend="+12.5%"
-        />
-        <StatsCard
-          title="Seguidores"
-          value={mockArtist.total_seguidores.toLocaleString()}
-          icon={Users}
-          color="from-green-500 to-blue-500"
-          trend="+8.3%"
-        />
-        <StatsCard
-          title="Receita Mensal"
-          value={`${mockArtist.receita_mensal} MT`}
-          icon={DollarSign}
-          color="from-green-500 to-emerald-500"
-          trend="+15.7%"
-        />
-        <StatsCard
-          title="Conteúdos"
-          value={musicas.length + videos.length}
-          icon={Music}
-          color="from-purple-500 to-pink-500"
-        />
-      </div>
-      {/* 🚀 AÇÕES RÁPIDAS - REDIRECIONAMENTOS CORRIGIDOS */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 shadow-lg">
-        {" "}
-        {/* 🔧 Mais padding */}
-        <h3 className="text-white font-semibold text-xl mb-6">
-          Ações Rápidas
-        </h3>{" "}
-        {/* 🔧 Título maior */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {" "}
-          {/* 🔧 Gap maior */}
-          {/* 🔧 UPLOAD - REDIRECIONA PARA PÁGINA REAL */}
-          <motion.button
-            onClick={() => (window.location.href = "/upload")}
-            whileHover={{ scale: 1.03, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-6 rounded-xl transition-all flex items-center space-x-4 shadow-lg hover:shadow-xl"
-          >
-            <div className="p-3 bg-white/20 rounded-lg">
-              {" "}
-              {/* 🔧 Ícone com background */}
-              <Upload className="w-6 h-6" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-lg">Upload Conteúdo</p>{" "}
-              {/* 🔧 Texto maior */}
-              <p className="text-sm opacity-90">Música ou vídeo</p>
-            </div>
-          </motion.button>
-          {/* CRIAR EVENTO */}
-          <motion.button
-            onClick={() => setActiveSection("eventos")}
-            whileHover={{ scale: 1.03, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white p-6 rounded-xl transition-all flex items-center space-x-4 shadow-lg hover:shadow-xl"
-          >
-            <div className="p-3 bg-white/20 rounded-lg">
-              <Calendar className="w-6 h-6" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-lg">Criar Evento</p>
-              <p className="text-sm opacity-90">Shows e lançamentos</p>
-            </div>
-          </motion.button>
-          {/* GERIR COMUNIDADES */}
-          <motion.button
-            onClick={() => setActiveSection("comunidades")}
-            whileHover={{ scale: 1.03, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white p-6 rounded-xl transition-all flex items-center space-x-4 shadow-lg hover:shadow-xl"
-          >
-            <div className="p-3 bg-white/20 rounded-lg">
-              <Users className="w-6 h-6" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-lg">Gerir Comunidades</p>
-              <p className="text-sm opacity-90">Interação com fãs</p>
-            </div>
-          </motion.button>
-        </div>
-      </div>
-      {/* 📈 RESUMO RÁPIDO COM ESPAÇAMENTO MELHORADO */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {" "}
-        {/* 🔧 Gap maior */}
-        {/* 🎵 TOP MÚSICAS */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 shadow-lg"
-        >
-          <h3 className="text-white font-semibold text-lg mb-6">Top Músicas</h3>{" "}
-          {/* 🔧 Título maior */}
-          <div className="space-y-4">
-            {" "}
-            {/* 🔧 Mais espaçamento */}
-            {musicas.slice(0, 3).map((music, index) => (
-              <motion.div
-                key={music.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-700/30 transition-colors cursor-pointer"
-              >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    /* 🔧 Ranking maior */
-                    index === 0
-                      ? "bg-yellow-500 text-black"
-                      : index === 1
-                      ? "bg-gray-400 text-black"
-                      : "bg-orange-600 text-white"
-                  }`}
-                >
-                  {index + 1}
-                </div>
-                <img
-                  src={music.capa}
-                  alt={music.titulo}
-                  className="w-12 h-12 rounded-lg object-cover"
-                />{" "}
-                {/* 🔧 Imagem maior */}
-                <div className="flex-1">
-                  <p className="text-white font-medium">{music.titulo}</p>
-                  <p className="text-gray-400 text-sm">
-                    {music.streams.toLocaleString()} streams
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-green-400 font-medium text-sm">
-                    +{music.receita_gerada.toFixed(0)} MT
-                  </p>{" "}
-                  {/* 🔧 Receita destacada */}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-        {/* 📅 PRÓXIMOS EVENTOS */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 shadow-lg"
-        >
-          <h3 className="text-white font-semibold text-lg mb-6">
-            Próximos Eventos
-          </h3>
-          <div className="space-y-4">
-            {eventos.slice(0, 2).map((evento) => (
-              <motion.div
-                key={evento.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center space-x-4 p-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 transition-colors"
-              >
-                <div className="p-2 bg-yellow-500/20 rounded-lg">
-                  <Calendar className="w-5 h-5 text-yellow-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-medium">{evento.titulo}</p>
-                  <p className="text-gray-400 text-sm">
-                    {new Date(evento.data).toLocaleDateString("pt-MZ")} •{" "}
-                    {evento.local}
-                  </p>
-                  <p className="text-yellow-400 text-xs mt-1">
-                    {evento.participantes} participantes
-                  </p>{" "}
-                  {/* 🔧 Info adicional */}
-                </div>
-                <div
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    evento.status === "confirmado"
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-yellow-500/20 text-yellow-400"
-                  }`}
-                >
-                  {evento.status}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  );
-
-  // 🎵 SEÇÃO DE MÚSICAS COM REDIRECIONAMENTO CORRIGIDO
-  const MusicasSection = () => {
-    const filteredMusicas = musicas.filter((music) =>
-      music.titulo.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    return (
-      <div className="space-y-8">
-        {" "}
-        {/* 🔧 Mais espaçamento */}
-        {/* 🔍 HEADER COM BUSCA E ESPAÇAMENTO MELHORADO */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          {" "}
-          {/* 🔧 Gap maior */}
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">
-              Gestão de Músicas
-            </h2>{" "}
-            {/* 🔧 Título maior */}
-            <p className="text-gray-400 text-lg">
-              Gere as tuas músicas e acompanha a performance
-            </p>{" "}
-            {/* 🔧 Descrição maior */}
-          </div>
-          <div className="flex items-center space-x-4">
-            {" "}
-            {/* 🔧 Mais espaçamento */}
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />{" "}
-              {/* 🔧 Ícone maior */}
-              <input
-                type="text"
-                placeholder="Buscar músicas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 pr-6 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 w-80"
-              />
-            </div>
-            {/* 🔧 BOTÃO NOVA MÚSICA - REDIRECIONA PARA PÁGINA REAL */}
-            <button
-              onClick={() => (window.location.href = "/upload")}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl transition-colors flex items-center space-x-2 shadow-lg hover:shadow-xl"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="font-medium">Nova Música</span>
-            </button>
-          </div>
-        </div>
-        {/* 📊 STATS DAS MÚSICAS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatsCard
-            title="Total de Músicas"
-            value={musicas.length}
-            icon={Music}
-            color="from-purple-500 to-pink-500"
-          />
-          <StatsCard
-            title="Publicadas"
-            value={musicas.filter((m) => m.status === "publicada").length}
-            icon={Eye}
-            color="from-green-500 to-emerald-500"
-          />
-          <StatsCard
-            title="Total de Streams"
-            value={musicas
-              .reduce((acc, m) => acc + m.streams, 0)
-              .toLocaleString()}
-            icon={Play}
-            color="from-blue-500 to-purple-500"
-          />
-          <StatsCard
-            title="Receita Total"
-            value={`${musicas
-              .reduce((acc, m) => acc + m.receita_gerada, 0)
-              .toFixed(0)} MT`}
-            icon={DollarSign}
-            color="from-green-500 to-blue-500"
-          />
-        </div>
-        {/* 🎵 LISTA DE MÚSICAS COM ESPAÇAMENTO MELHORADO */}
-        <div className="space-y-6">
-          {" "}
-          {/* 🔧 Mais espaçamento */}
-          {filteredMusicas.length === 0 ? (
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-16 border border-gray-700 text-center">
-              {" "}
-              {/* 🔧 Mais padding */}
-              <Music className="w-20 h-20 text-gray-600 mx-auto mb-6" />{" "}
-              {/* 🔧 Ícone maior */}
-              <h3 className="text-2xl font-semibold text-gray-400 mb-4">
-                {searchTerm
-                  ? "Nenhuma música encontrada"
-                  : "Nenhuma música ainda"}
-              </h3>
-              <p className="text-gray-500 mb-8 text-lg">
-                {searchTerm
-                  ? "Tenta ajustar o termo de busca"
-                  : "Comece fazendo upload da sua primeira música"}
-              </p>
-              {!searchTerm && (
-                <button
-                  onClick={() => (window.location.href = "/upload")}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl"
-                >
-                  Upload Primeira Música
-                </button>
-              )}
-            </div>
-          ) : (
-            filteredMusicas.map((music, index) => (
-              <motion.div
-                key={music.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-                <div className="flex items-center space-x-6">
-                  {" "}
-                  {/* 🔧 Mais espaçamento */}
-                  <img
-                    src={music.capa}
-                    alt={music.titulo}
-                    className="w-20 h-20 rounded-xl object-cover shadow-lg"
-                  />{" "}
-                  {/* 🔧 Imagem maior */}
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold text-xl mb-2">
-                      {music.titulo}
-                    </h3>{" "}
-                    {/* 🔧 Título maior */}
-                    <p className="text-gray-400 mb-3">
-                      {music.genero} • {music.duracao}
-                    </p>
-                    <div className="flex items-center space-x-6 text-sm text-gray-500">
-                      {" "}
-                      {/* 🔧 Mais espaçamento */}
-                      <span className="flex items-center space-x-2">
-                        <Play className="w-4 h-4" />
-                        <span>{music.streams.toLocaleString()}</span>
-                      </span>
-                      <span className="flex items-center space-x-2">
-                        <Heart className="w-4 h-4" />
-                        <span>{music.curtidas.toLocaleString()}</span>
-                      </span>
-                      <span className="flex items-center space-x-2 text-green-400">
-                        <DollarSign className="w-4 h-4" />
-                        <span>{music.receita_gerada.toFixed(2)} MT</span>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    {" "}
-                    {/* 🔧 Mais espaçamento */}
-                    <button className="p-3 text-gray-400 hover:text-blue-400 hover:bg-blue-400/20 rounded-xl transition-all">
-                      {" "}
-                      {/* 🔧 Botões maiores */}
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedContent(music);
-                        setShowDeleteConfirm(true);
-                      }}
-                      className="p-3 text-gray-400 hover:text-red-400 hover:bg-red-400/20 rounded-xl transition-all"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // 🎬 SEÇÃO DE VÍDEOS COM REDIRECIONAMENTO CORRIGIDO
-  const VideosSection = () => {
-    const filteredVideos = videos.filter((video) =>
-      video.titulo.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    return (
-      <div className="space-y-8">
-        {/* 🔍 HEADER COM BUSCA */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">
-              Gestão de Vídeos
-            </h2>
-            <p className="text-gray-400 text-lg">
-              Gere os teus videoclipes e conteúdo visual
-            </p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar vídeos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 pr-6 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 w-80"
-              />
-            </div>
-            {/* 🔧 BOTÃO NOVO VÍDEO - REDIRECIONA PARA PÁGINA REAL */}
-            <button
-              onClick={() => (window.location.href = "/upload")}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl transition-colors flex items-center space-x-2 shadow-lg hover:shadow-xl"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="font-medium">Novo Vídeo</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 📊 STATS DOS VÍDEOS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatsCard
-            title="Total de Vídeos"
-            value={videos.length}
-            icon={Video}
-            color="from-red-500 to-pink-500"
-          />
-          <StatsCard
-            title="Publicados"
-            value={videos.filter((v) => v.status === "publicada").length}
-            icon={Eye}
-            color="from-green-500 to-emerald-500"
-          />
-          <StatsCard
-            title="Total de Views"
-            value={videos.reduce((acc, v) => acc + v.views, 0).toLocaleString()}
-            icon={Play}
-            color="from-blue-500 to-purple-500"
-          />
-          <StatsCard
-            title="Curtidas Totais"
-            value={videos
-              .reduce((acc, v) => acc + v.curtidas, 0)
-              .toLocaleString()}
-            icon={Heart}
-            color="from-pink-500 to-red-500"
-          />
-        </div>
-
-        {/* 🎬 GRID DE VÍDEOS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {" "}
-          {/* 🔧 Gap maior */}
-          {filteredVideos.map((video, index) => (
-            <motion.div
-              key={video.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-700 hover:border-gray-600 transition-all duration-300 shadow-lg hover:shadow-xl"
-            >
-              <div className="relative">
-                <img
-                  src={video.thumbnail}
-                  alt={video.titulo}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                  <button className="bg-white/90 text-black rounded-full p-4 shadow-lg hover:scale-110 transition-transform">
-                    {" "}
-                    {/* 🔧 Botão maior */}
-                    <Play className="w-8 h-8" />
-                  </button>
-                </div>
-                <div className="absolute bottom-3 right-3 bg-black/70 text-white px-3 py-1 rounded-lg text-sm font-medium">
-                  {" "}
-                  {/* 🔧 Badge melhorado */}
-                  {video.duracao}
-                </div>
-                <div
-                  className={`absolute top-3 left-3 px-3 py-1 rounded-lg text-sm font-medium ${
-                    video.tipo === "videoclipe"
-                      ? "bg-purple-500"
-                      : video.tipo === "live"
-                      ? "bg-red-500"
-                      : "bg-blue-500"
-                  } text-white`}
-                >
-                  {video.tipo}
-                </div>
-              </div>
-              <div className="p-6">
-                {" "}
-                {/* 🔧 Mais padding */}
-                <h3 className="text-white font-semibold text-lg mb-3">
-                  {video.titulo}
-                </h3>{" "}
-                {/* 🔧 Título maior */}
-                <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
-                  {" "}
-                  {/* 🔧 Mais espaçamento */}
-                  <span className="flex items-center space-x-2">
-                    <Eye className="w-4 h-4" />
-                    <span>{video.views.toLocaleString()}</span>
-                  </span>
-                  <span className="flex items-center space-x-2">
-                    <Heart className="w-4 h-4" />
-                    <span>{video.curtidas.toLocaleString()}</span>
-                  </span>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm transition-colors">
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedContent(video);
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm transition-colors"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-  // 👥 SEÇÃO DE COMUNIDADES COM FILTROS MELHORADOS
-  const ComunidadesSection = () => {
-    const [filtroTipo, setFiltroTipo] = useState<
-      "todas" | "publica" | "premium" | "vip"
-    >("todas");
-    const [filtroStatus, setFiltroStatus] = useState<
-      "todas" | "ativa" | "inativa"
-    >("todas");
-
-    const filteredComunidades = comunidades.filter((com) => {
-      const matchesTipo = filtroTipo === "todas" || com.tipo === filtroTipo;
-      const matchesStatus =
-        filtroStatus === "todas" ||
-        (filtroStatus === "ativa" && com.ativa) ||
-        (filtroStatus === "inativa" && !com.ativa);
-      return matchesTipo && matchesStatus;
-    });
-
-    return (
-      <div className="space-y-8">
-        {/* 🔍 HEADER COM ESPAÇAMENTO MELHORADO */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">
-              Gestão de Comunidades
-            </h2>
-            <p className="text-gray-400 text-lg">
-              Gere as tuas comunidades de fãs e acompanha o engajamento
-            </p>
-          </div>
-          <button
-            onClick={() => window.open("/comunidades/criar", "_blank")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-colors flex items-center space-x-2 shadow-lg hover:shadow-xl"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="font-medium">Nova Comunidade</span>
-          </button>
-        </div>
-
-        {/* 🎛️ FILTROS COM ESPAÇAMENTO */}
-        <div className="flex flex-wrap gap-4">
-          <select
-            value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value as any)}
-            className="bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
-          >
-            <option value="todas">Todos os tipos</option>
-            <option value="publica">🌍 Pública</option>
-            <option value="premium">👑 Premium</option>
-            <option value="vip">💎 VIP</option>
-          </select>
-          <select
-            value={filtroStatus}
-            onChange={(e) => setFiltroStatus(e.target.value as any)}
-            className="bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
-          >
-            <option value="todas">Todos os status</option>
-            <option value="ativa">✅ Ativa</option>
-            <option value="inativa">⏸️ Inativa</option>
-          </select>
-        </div>
-
-        {/* 📊 STATS DAS COMUNIDADES */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatsCard
-            title="Total Comunidades"
-            value={comunidades.length}
-            icon={Users}
-            color="from-blue-500 to-purple-500"
-          />
-          <StatsCard
-            title="Membros Totais"
-            value={comunidades
-              .reduce((acc, c) => acc + c.membros, 0)
-              .toLocaleString()}
-            icon={Heart}
-            color="from-green-500 to-blue-500"
-          />
-          <StatsCard
-            title="Comunidades Ativas"
-            value={comunidades.filter((c) => c.ativa).length}
-            icon={Zap}
-            color="from-green-500 to-emerald-500"
-          />
-          <StatsCard
-            title="Engajamento Médio"
-            value={`${(
-              comunidades.reduce((acc, c) => acc + c.engajamento, 0) /
-              comunidades.length
-            ).toFixed(1)}/10`}
-            icon={Target}
-            color="from-yellow-500 to-orange-500"
-          />
-        </div>
-
-        {/* 👥 LISTA DE COMUNIDADES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredComunidades.map((comunidade, index) => (
-            <motion.div
-              key={comunidade.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 shadow-lg hover:shadow-xl"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-white font-semibold text-lg">
-                  {comunidade.nome}
-                </h3>
-                <div
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    comunidade.ativa
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-gray-500/20 text-gray-400"
-                  }`}
-                >
-                  {comunidade.ativa ? "Ativa" : "Inativa"}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Membros</span>
-                  <span className="text-white font-semibold text-lg">
-                    {comunidade.membros.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Engajamento</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-20 bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{
-                          width: `${(comunidade.engajamento / 10) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-blue-400 font-medium text-sm">
-                      {comunidade.engajamento}/10
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Tipo</span>
-                  <span
-                    className={`px-3 py-1 rounded-lg text-sm font-medium ${
-                      comunidade.tipo === "publica"
-                        ? "bg-blue-500/20 text-blue-400"
-                        : comunidade.tipo === "premium"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-purple-500/20 text-purple-400"
-                    }`}
-                  >
-                    {comunidade.tipo}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex space-x-3 mt-6">
-                <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors">
-                  Gerir
-                </button>
-                <button className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-medium transition-colors">
-                  Estatísticas
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // 📅 SEÇÃO DE EVENTOS MELHORADA
-  const EventosSection = () => (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-        <div>
-          <h2 className="text-3xl font-bold text-white mb-2">
-            Gestão de Eventos
-          </h2>
-          <p className="text-gray-400 text-lg">
-            Organiza shows, lançamentos e encontros com os fãs
-          </p>
-        </div>
-        <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-xl transition-colors flex items-center space-x-2 shadow-lg hover:shadow-xl">
-          <Plus className="w-5 h-5" />
-          <span className="font-medium">Novo Evento</span>
-        </button>
-      </div>
-
-      {/* 📊 STATS DOS EVENTOS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatsCard
-          title="Total de Eventos"
-          value={eventos.length}
-          icon={Calendar}
-          color="from-yellow-500 to-orange-500"
-        />
-        <StatsCard
-          title="Confirmados"
-          value={eventos.filter((e) => e.status === "confirmado").length}
-          icon={Star}
-          color="from-green-500 to-emerald-500"
-        />
-        <StatsCard
-          title="Participantes Totais"
-          value={eventos.reduce((acc, e) => acc + e.participantes, 0)}
-          icon={Users}
-          color="from-blue-500 to-purple-500"
-        />
-        <StatsCard
-          title="Próximos 30 dias"
-          value={eventos.filter((e) => new Date(e.data) > new Date()).length}
-          icon={Clock}
-          color="from-purple-500 to-pink-500"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {eventos.map((evento, index) => (
-          <motion.div
-            key={evento.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 shadow-lg hover:shadow-xl"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white font-semibold text-lg">
-                {evento.titulo}
-              </h3>
-              <div
-                className={`px-4 py-2 rounded-full text-sm font-medium ${
-                  evento.status === "confirmado"
-                    ? "bg-green-500/20 text-green-400"
-                    : evento.status === "agendado"
-                    ? "bg-yellow-500/20 text-yellow-400"
-                    : "bg-blue-500/20 text-blue-400"
-                }`}
-              >
-                {evento.status}
-              </div>
-            </div>
-
-            <div className="space-y-4 text-sm">
-              <div className="flex items-center space-x-3">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-300 text-base">
-                  {new Date(evento.data).toLocaleDateString("pt-MZ", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <MapPin className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-300 text-base">{evento.local}</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Users className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-300 text-base">
-                  {evento.participantes} participantes
-                </span>
-              </div>
-            </div>
-
-            <div className="flex space-x-3 mt-6">
-              <button
-                onClick={() => {
-                  setEventToEdit(evento);
-                  setShowEditEventModal(true);
-                }}
-                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-medium transition-colors"
-              >
-                Editar
-              </button>
-              <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors">
-                Promover
-              </button>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // 📊 SEÇÃO DE ANALYTICS MELHORADA
-  const AnalyticsSection = () => (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold text-white mb-2">
-          Analytics Detalhados
-        </h2>
-        <p className="text-gray-400 text-lg">
-          Análise completa da tua performance e audiência
-        </p>
-      </div>
-
-      {/* 📈 STATS PRINCIPAIS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatsCard
-          title="Streams (30 dias)"
-          value="78,012"
-          icon={Play}
-          color="from-blue-500 to-purple-500"
-          trend="+12.5%"
-        />
-        <StatsCard
-          title="Novos Seguidores"
-          value="1,247"
-          icon={Users}
-          color="from-green-500 to-blue-500"
-          trend="+8.3%"
-        />
-        <StatsCard
-          title="Engajamento"
-          value="7.8%"
-          icon={Heart}
-          color="from-pink-500 to-red-500"
-          trend="+2.1%"
-        />
-        <StatsCard
-          title="Receita (mês)"
-          value="2,840 MT"
-          icon={DollarSign}
-          color="from-green-500 to-emerald-500"
-          trend="+15.7%"
-        />
-      </div>
-
-      {/* 📊 GRÁFICOS E DEMOGRAFIA */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 shadow-lg">
-          <h3 className="text-white font-semibold text-xl mb-6">
-            Crescimento de Audiência
-          </h3>
-          <div className="h-64 bg-gray-700/30 rounded-xl flex items-center justify-center">
-            <div className="text-center">
-              <BarChart3 className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-400">Gráfico em desenvolvimento</p>
-              <p className="text-gray-500 text-sm mt-2">
-                Dados sendo processados...
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 shadow-lg">
-          <h3 className="text-white font-semibold text-xl mb-6">
-            Demografia dos Ouvintes
-          </h3>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 font-medium">Maputo</span>
-              <div className="flex items-center space-x-3">
-                <div className="w-24 bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-blue-500 h-3 rounded-full"
-                    style={{ width: "45%" }}
-                  ></div>
-                </div>
-                <span className="text-white font-semibold min-w-[60px]">
-                  45%
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 font-medium">Beira</span>
-              <div className="flex items-center space-x-3">
-                <div className="w-24 bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-green-500 h-3 rounded-full"
-                    style={{ width: "22%" }}
-                  ></div>
-                </div>
-                <span className="text-white font-semibold min-w-[60px]">
-                  22%
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 font-medium">Nampula</span>
-              <div className="flex items-center space-x-3">
-                <div className="w-24 bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-purple-500 h-3 rounded-full"
-                    style={{ width: "15%" }}
-                  ></div>
-                </div>
-                <span className="text-white font-semibold min-w-[60px]">
-                  15%
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 font-medium">Matola</span>
-              <div className="flex items-center space-x-3">
-                <div className="w-24 bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-yellow-500 h-3 rounded-full"
-                    style={{ width: "12%" }}
-                  ></div>
-                </div>
-                <span className="text-white font-semibold min-w-[60px]">
-                  12%
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 font-medium">Outras</span>
-              <div className="flex items-center space-x-3">
-                <div className="w-24 bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-orange-500 h-3 rounded-full"
-                    style={{ width: "6%" }}
-                  ></div>
-                </div>
-                <span className="text-white font-semibold min-w-[60px]">
-                  6%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // 🗑️ MODAL DE CONFIRMAÇÃO DE DELETE
-  const DeleteConfirmModal = () => (
-    <AnimatePresence>
-      {showDeleteConfirm && selectedContent && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick= {() => setShowDeleteConfirm(false)}
-          >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-gray-800 rounded-2xl p-8 max-w-md w-full border border-gray-700 shadow-2xl"
-          >
-            <div className="text-center">
-              <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Trash2 className="w-10 h-10 text-red-400" />
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">
-                Eliminar Conteúdo
-              </h3>
-              <p className="text-gray-400 mb-8 text-lg">
-                Tens a certeza que queres eliminar "{selectedContent.titulo}"?
-                Esta ação não pode ser desfeita.
-              </p>
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setSelectedContent(null);
-                  }}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-xl transition-colors font-medium"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => {
-                    if ("genero" in selectedContent) {
-                      setMusicas(
-                        musicas.filter((m) => m.id !== selectedContent.id)
-                      );
-                    } else {
-                      setVideos(
-                        videos.filter((v) => v.id !== selectedContent.id)
-                      );
-                    }
-                    setShowDeleteConfirm(false);
-                    setSelectedContent(null);
-                  }}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl transition-colors font-medium"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-        )
-      }
-    </AnimatePresence>
-  );
-
-  // 📅 MODAL DE EDIÇÃO DE EVENTOS
-  const EditEventModal = () => {
-    // Estados para controlar os valores do formulário
-    const [formValues, setFormValues] = useState<{
-      titulo: string;
-      data: string;
-      local: string;
-      status: "agendado" | "confirmado" | "realizado";
-    }>({
-      titulo: eventToEdit?.titulo || "",
-      data: eventToEdit?.data || "",
-      local: eventToEdit?.local || "",
-      status: eventToEdit?.status || "agendado",
-    });
-
-    // Atualizar valores do formulário quando eventToEdit mudar
-    useEffect(() => {
-      if (eventToEdit) {
-        setFormValues({
-          titulo: eventToEdit.titulo,
-          data: eventToEdit.data,
-          local: eventToEdit.local,
-          status: eventToEdit.status,
-        });
-      }
-    }, [eventToEdit]);
-
-    // Função para atualizar o evento
-    const handleSaveEvent = () => {
-      if (!eventToEdit) return;
-
-      // Atualizar o evento na lista
-      const updatedEventos = eventos.map((evento) =>
-        evento.id === eventToEdit.id ? { ...evento, ...formValues } : evento
-      );
-
-      setEventos(updatedEventos);
-      setShowEditEventModal(false);
-      setEventToEdit(null);
-    };
-
-    return (
-      <AnimatePresence>
-        {showEditEventModal && eventToEdit && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowEditEventModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-gray-800 rounded-2xl p-8 max-w-2xl w-full border border-gray-700 shadow-2xl"
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-white">Editar Evento</h3>
-                <button
-                  onClick={() => setShowEditEventModal(false)}
-                  className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-gray-400 font-medium mb-2">
-                    Título do Evento
-                  </label>
-                  <input
-                    type="text"
-                    value={formValues.titulo}
-                    onChange={(e) =>
-                      setFormValues({ ...formValues, titulo: e.target.value })
-                    }
-                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                    placeholder="Nome do evento"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 font-medium mb-2">
-                    Data e Hora
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formValues.data.slice(0, 16)} // Formatar para datetime-local
-                    onChange={(e) =>
-                      setFormValues({ ...formValues, data: e.target.value })
-                    }
-                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 font-medium mb-2">
-                    Local
-                  </label>
-                  <input
-                    type="text"
-                    value={formValues.local}
-                    onChange={(e) =>
-                      setFormValues({ ...formValues, local: e.target.value })
-                    }
-                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                    placeholder="Local do evento"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 font-medium mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={formValues.status}
-                    onChange={(e) =>
-                      setFormValues({
-                        ...formValues,
-                        status: e.target.value as
-                          | "agendado"
-                          | "confirmado"
-                          | "realizado",
-                      })
-                    }
-                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                  >
-                    <option value="agendado">Agendado</option>
-                    <option value="confirmado">Confirmado</option>
-                    <option value="realizado">Realizado</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex space-x-4 mt-8">
-                <button
-                  onClick={() => setShowEditEventModal(false)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl transition-colors font-medium"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSaveEvent}
-                  className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-xl transition-colors font-medium"
-                >
-                  Salvar Alterações
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    );
-  };
 
   // 🔄 LOADING ELEGANTE
   if (loading) {
@@ -1676,7 +495,7 @@ export default function ArtistDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-6 animate-pulse shadow-2xl">
-            <Music className="w-10 h-10 text-white" />
+            <Play className="w-10 h-10 text-white animate-ping" />
           </div>
           <h2 className="text-white font-bold text-2xl mb-4">EiMusic</h2>
           <p className="text-gray-400 text-lg">Carregando dashboard...</p>
@@ -1739,7 +558,15 @@ export default function ArtistDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <OverviewSection />
+                <DashboardOverviewSection
+                  mockArtist={mockArtist}
+                  musicas={musicas}
+                  videos={videos.map(toVideoData)}
+                  eventos={eventos}
+                  setActiveSection={(section: string) =>
+                    setActiveSection(section as DashboardSection)
+                  }
+                />
               </motion.div>
             )}
             {activeSection === "musicas" && (
@@ -1750,7 +577,13 @@ export default function ArtistDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <MusicasSection />
+                <DashboardMusicasSection
+                  musicas={musicas}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  setSelectedContent={handleSelectContent}
+                  setShowDeleteConfirm={setShowDeleteConfirm}
+                />
               </motion.div>
             )}
             {activeSection === "videos" && (
@@ -1761,7 +594,13 @@ export default function ArtistDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <VideosSection />
+                <DashboardVideosSection
+                  videos={videos.map(toVideoData)}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  setSelectedContent={handleSelectContent}
+                  setShowDeleteConfirm={setShowDeleteConfirm}
+                />
               </motion.div>
             )}
             {activeSection === "comunidades" && (
@@ -1772,7 +611,13 @@ export default function ArtistDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <ComunidadesSection />
+                <DashboardComunidadesSection
+                  comunidades={comunidades}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  setSelectedContent={handleSelectContent}
+                  setShowDeleteConfirm={setShowDeleteConfirm}
+                />
               </motion.div>
             )}
             {activeSection === "eventos" && (
@@ -1783,7 +628,15 @@ export default function ArtistDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <EventosSection />
+                <DashboardEventosSection
+                  eventos={eventos}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  setSelectedContent={handleSelectContent}
+                  setShowEditModal={setShowEditEventModal}
+                  setShowCreateModal={setShowCreateEventModal}
+                  setShowDeleteConfirm={setShowDeleteConfirm}
+                />
               </motion.div>
             )}
             {activeSection === "analytics" && (
@@ -1794,7 +647,7 @@ export default function ArtistDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <AnalyticsSection />
+                <DashboardAnalyticsSection />
               </motion.div>
             )}
             {activeSection === "configuracoes" && (
@@ -1817,8 +670,29 @@ export default function ArtistDashboard() {
       </div>
 
       {/* 🎭 MODAIS */}
-      <DeleteConfirmModal />
-      <EditEventModal />
+      {/* Modal criação de evento */}
+      <CreateEventModal
+        isOpen={showCreateEventModal}
+        onClose={() => setShowCreateEventModal(false)}
+        onSubmit={handleCreateEvent}
+      />
+
+      <DashboardDeleteConfirmModal
+        show={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteConfirm}
+        content={selectedContent}
+      />
+      <DashboardEditEventModal
+        show={showEditEventModal}
+        onClose={() => {
+          setShowEditEventModal(false);
+          setEventToEdit(null);
+        }}
+        onSave={handleSaveEvent}
+        event={eventToEdit}
+        artistId={user?.id || ""}
+      />
 
       {/* 📱 FOOTER MÓVEL */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-xl border-t border-gray-700 p-4">
