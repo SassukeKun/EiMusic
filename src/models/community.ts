@@ -34,6 +34,11 @@ export interface Community {
     profile_image_url: string | null;
     verified: boolean;
   };
+  /** member details */
+  member_user_id?: string;
+  member_artist_id?: string;
+  member_role?: string;
+  member_joined_at?: string;
 }
 
 /**
@@ -47,9 +52,12 @@ export const communitySchema = z.object({
   description: z.string().optional(),
   category: z.string().min(1, 'Category is required'),
   access_type: z.enum(['public', 'private', 'premium', 'vip']),
-  price: z.number().min(0).optional(),
   tags: z.array(z.string()).optional(),
   artist_id: z.string().uuid().optional(),
+  member_user_id: z.string().uuid().optional(),
+  member_artist_id: z.string().uuid().optional(),
+  member_role: z.string().optional(),
+  member_joined_at: z.string().datetime().optional(),
 });
 
 /**

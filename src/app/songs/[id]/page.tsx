@@ -1,20 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
-import Image from 'next/image';
-import SongControls from '@/components/SongControls';
+import { createClient } from "@supabase/supabase-js";
+import Image from "next/image";
+import SongControls from "@/components/SongControls";
 
-
-
-
-export default async function SinglePage({ params }: { params: { id: string } }) {
-    const { id } = await params;
+export default async function SinglePage({ params }: any) {
+  const { id } = params;
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   const { data: single, error } = await supabase
-    .from('singles')
-    .select('*')
-    .eq('id', id)
+    .from("singles")
+    .select("*")
+    .eq("id", id)
     .single();
   if (error || !single) {
     return <div className="text-center p-8">Single não encontrado</div>;
@@ -47,8 +44,12 @@ export default async function SinglePage({ params }: { params: { id: string } })
             />
           )}
           <div className="space-y-2">
-            <h1 className="text-5xl font-bold tracking-tight">{single.title}</h1>
-            {single.description && <p className="text-gray-300 max-w-lg">{single.description}</p>}
+            <h1 className="text-5xl font-bold tracking-tight">
+              {single.title}
+            </h1>
+            {single.description && (
+              <p className="text-gray-300 max-w-lg">{single.description}</p>
+            )}
             <SongControls single={single} />
           </div>
         </div>

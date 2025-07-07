@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, MapPin, Users, Type } from 'lucide-react';
+import { X, Calendar, MapPin, Type } from 'lucide-react';
 import { Event as EventModel } from '@/models/event';
 
 // Interface para dados do formulário (compatível com o modelo Event)
 interface EventFormData {
   id?: string;
   artist_id: string;
-  name: string;
+  title: string;
   event_type: string;
-  price: number;
+  price_min: number;
+  price_max: number;
   description?: string;
   start_time: string; // ISO timestamp
   location?: string;
@@ -34,9 +35,10 @@ const EditEventModal: React.FC<EditEventModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<EventFormData>({
     artist_id: artistId,
-    name: '',
+    title: '',
     event_type: 'show',
-    price: 0,
+    price_min: 0,
+    price_max: 0,
     description: '',
     start_time: '',
     location: '',
@@ -49,9 +51,10 @@ const EditEventModal: React.FC<EditEventModalProps> = ({
       setFormData({
         id: event.id,
         artist_id: event.artist_id,
-        name: event.name,
+        title: event.title,
         event_type: event.event_type,
-        price: event.price,
+        price_min: event.price_min,
+        price_max: event.price_max,
         description: event.description || '',
         start_time: event.start_time ? new Date(event.start_time).toISOString().substring(0, 16) : '',
         location: event.location || '',
@@ -61,9 +64,10 @@ const EditEventModal: React.FC<EditEventModalProps> = ({
     } else {
       setFormData({
         artist_id: artistId,
-        name: '',
+        title: '',
         event_type: 'show',
-        price: 0,
+        price_min: 0,
+        price_max: 0,
         description: '',
         start_time: '',
         location: '',
@@ -77,7 +81,7 @@ const EditEventModal: React.FC<EditEventModalProps> = ({
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'price' || name === 'capacity' ? Number(value) : value
+      [name]: name === 'price_min' || name === 'price_max' || name === 'capacity' ? Number(value) : value
     }));
   };
 
@@ -122,9 +126,9 @@ const EditEventModal: React.FC<EditEventModalProps> = ({
                 <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  name="name"
+                  name="title"
                   placeholder="Nome do Evento"
-                  value={formData.name}
+                  value={formData.title}
                   onChange={handleChange}
                   required
                   className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -174,9 +178,9 @@ const EditEventModal: React.FC<EditEventModalProps> = ({
                 <div>
                   <input
                     type="number"
-                    name="price"
+                    name="price_min"
                     placeholder="Preço (MT)"
-                    value={formData.price}
+                    value={formData.price_min}
                     onChange={handleChange}
                     min="0"
                     step="0.01"

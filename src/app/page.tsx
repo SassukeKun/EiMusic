@@ -1,7 +1,6 @@
-// src/app/page.tsx
 "use client";
 import PaymentTestButtons from '@/components/PaymentTestButtons'
-import React, { useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +17,23 @@ interface ReleaseBase {
 }
 type RecentRelease = ReleaseBase & { type: "album" | "single" | "video" };
 
-export default function HomePage() {
+// Types for Supabase data
+interface SingleData {
+  id: string;
+  title: string;
+  cover_url: string | null;
+  file_url: string;
+  created_at: string;
+}
+
+interface VideoData {
+  id: string;
+  title: string;
+  video_url: string;
+  created_at: string;
+}
+
+function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showOAuthError, setShowOAuthError] = useState(false);
@@ -94,7 +109,7 @@ export default function HomePage() {
         .select("id,title,video_url,created_at")
         .order("created_at", { ascending: false })
         .limit(5);
-      const videoRows: ReleaseBase[] = (videosData ?? []).map((v: any) => ({
+            const videoRows: ReleaseBase[] = (videosData ?? []).map((v: VideoData) => ({
         id: v.id,
         title: v.title,
         cover_url: v.video_url,
@@ -102,7 +117,7 @@ export default function HomePage() {
       }));
 
       const albumRows: ReleaseBase[] = albums ?? [];
-      const singleRows: ReleaseBase[] = (singlesData ?? []).map((s) => ({
+            const singleRows: ReleaseBase[] = (singlesData ?? []).map((s: SingleData) => ({
         id: s.id,
         title: s.title,
         cover_url: s.cover_url ?? s.file_url,
@@ -467,5 +482,13 @@ export default function HomePage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="w-full h-screen bg-gray-900 flex items-center justify-center"><p className="text-white">Loading...</p></div>}>
+      <Home />
+    </Suspense>
   );
 }

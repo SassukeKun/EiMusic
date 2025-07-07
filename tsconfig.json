@@ -22,7 +22,6 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".", // ← adiciona baseUrl
     "paths": {
       "@/*": [
         "./src/*"
@@ -31,7 +30,7 @@
         "./src/components/*"
       ],
       "@styles/*": [
-        "./styles/*"
+        "./src/styles/*"
       ]
     }
   },

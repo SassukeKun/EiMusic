@@ -7,7 +7,6 @@ import {
   Star,
   Clock,
   MessageCircle,
-  Heart,
   Lock,
   Globe,
   Search,

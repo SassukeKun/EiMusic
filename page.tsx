@@ -8,7 +8,7 @@ import {
   Clock,
   MessageCircle,
   Heart,
-  Lock,
+  Lock as LockIcon,
   Globe,
   Search,
   Filter,
@@ -20,7 +20,6 @@ import {
   TrendingUp,
   Flame,
 } from "lucide-react";
-import { CreateCommunityModal } from './CreateCommunityModal';
 import { useAuth } from '@/hooks/useAuth';
 
 // Interface TypeScript para tipagem forte - Boa prática fundamental
@@ -59,18 +58,28 @@ interface CommunityFormData {
 // Página de Comunidades - EiMusic Platform
 export default function CommunityPage() {
   // Hook de autenticação para verificar se é artista
-  const { user, isArtist, isAuthenticated } = useAuth();
+  const { user, isArtist } = useAuth();
+  const isAuthenticated = !!user;
 
   // Estados para gerenciamento de dados e UI
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "public" | "private">(
-    "all"
-  );
-
-  // Estado para controle do modal
+  const [filterType, setFilterType] = useState<"all" | "public" | "private">("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Simulação de carregamento assíncrono
+  useEffect(() => {
+    const loadCommunities = async () => {
+      setLoading(true);
+      // Simular delay de rede
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setCommunities(mockCommunities);
+      setLoading(false);
+    };
+
+    loadCommunities();
+  }, []);
 
   // Mock data realista seguindo padrões moçambicanos
   const mockCommunities: Community[] = [
@@ -208,57 +217,23 @@ export default function CommunityPage() {
     },
   ];
 
-  // Simulação de carregamento assíncrono
-  useEffect(() => {
-    const loadCommunities = async () => {
-      setLoading(true);
-      // Simular delay de rede
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setCommunities(mockCommunities);
-      setLoading(false);
-    };
 
-    loadCommunities();
-  }, []);
 
-  // Handler para criar nova comunidade
-  const handleCreateCommunity = async (formData: CommunityFormData) => {
-    try {
-      // Simular criação da comunidade (aqui você faria a chamada real à API)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Criar nova comunidade com dados do formulário
-      const newCommunity: Community = {
-        id: Date.now().toString(),
-        nome: formData.nome,
-        artista: {
-          id: user?.id || 'temp',
-          nome: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Artista',
-          avatar: '/api/placeholder/64/64',
-          verificado: isArtist || false,
-        },
-        descricao: formData.descricao,
-        membros: 1, // Criador é o primeiro membro
-        tipo_acesso: formData.privacidade === 'invite_only' ? 'private' : formData.privacidade,
-        data_criacao: new Date().toISOString(),
-        categoria: formData.categoria,
-        ativo: true,
-        posts_recentes: 0,
-        is_trending: false,
-        activity_level: "low",
-        tags: formData.tags.map(tag => `#${tag}`),
-        gradient_colors: ["from-purple-600", "via-pink-600", "to-blue-600"],
-      };
 
-      // Adicionar à lista de comunidades
-      setCommunities(prev => [newCommunity, ...prev]);
-      
-      console.log('Nova comunidade criada:', newCommunity);
-    } catch (error) {
-      console.error('Erro ao criar comunidade:', error);
-      throw error;
-    }
-  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Lógica de filtros reativa
   const filteredCommunities = communities.filter((community) => {
@@ -430,7 +405,7 @@ export default function CommunityPage() {
                         whileHover={{ scale: 1.2 }}
                         className="text-yellow-400"
                       >
-                        <Lock className="w-4 h-4" />
+                        <LockIcon className="w-4 h-4" />
                       </motion.div>
                     ) : (
                       <motion.div
@@ -853,12 +828,7 @@ export default function CommunityPage() {
         </AnimatePresence>
       </div>
 
-      {/* Modal de Criação de Comunidade */}
-      <CreateCommunityModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateCommunity}
-      />
+      {/* Community creation functionality has been moved to /community route */}
     </div>
   );
 }

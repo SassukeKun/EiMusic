@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Play, Users, DollarSign, Music, Upload, Calendar } from 'lucide-react';
 import StatsCard from './StatsCard';
@@ -16,7 +17,7 @@ interface OverviewSectionProps {
     receita_mensal: number;
   };
   musicas: Track[];
-  videos: any[];
+  videos: { id: string; title: string; thumbnail: string; views: number; likes: number; comments: number; status: 'publicado' | 'rascunho' | 'agendado'; duration: string }[];
   eventos: EventModel[];
   setActiveSection: (section: string) => void;
 }
@@ -127,10 +128,11 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({ mockArtist, musicas, 
                 }`}>
                 {index + 1}
               </div>
-              <img
+              <Image
                 src={music.cover_url ?? '/placeholder.png'}
-                
                 alt={music.title}
+                width={48}
+                height={48}
                 className="w-12 h-12 rounded-lg object-cover"
               />
               <div className="flex-1">
@@ -166,7 +168,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({ mockArtist, musicas, 
                 <Calendar className="w-5 h-5 text-yellow-400" />
               </div>
               <div className="flex-1">
-                <p className="text-white font-medium">{evento.name}</p>
+                <p className="text-white font-medium">{evento.title}</p>
                 <p className="text-gray-400 text-sm">
                   {new Date(evento.start_time).toLocaleDateString('pt-MZ')} •{' '}
                   {evento.location}
@@ -177,7 +179,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({ mockArtist, musicas, 
               </div>
               <div
                 className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  evento.event_type === 'confirmado'
+                  evento.event_status === 'agendado'
                     ? 'bg-green-500/20 text-green-400'
                     : 'bg-yellow-500/20 text-yellow-400'
                 }`}>

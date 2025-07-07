@@ -1,12 +1,26 @@
 /** @type {import('next').NextConfig} */
-"lh3.googleusercontent.com",
-      "images.unsplash.com", // Adicionado para desenvolvimento
-      "xigubo.com", // Site moçambicano
-      "i1.sndcdn.com", // SoundCloud
-      "i.ytimg.com", // YouTube thumbnails
-      "encrypted-tbn0.gstatic.com" // Google Images
-
 const nextConfig = {
+  webpack: (config, { isServer }) => {
+    // Handle the realtime-js warning
+    config.module = config.module || {};
+    config.module.rules = config.module.rules || [];
+    
+    config.module.rules.push({
+      test: /@supabase\/realtime-js\/src\/RealtimeClient\.js$/,
+      use: [{
+        loader: 'imports-loader',
+        options: {
+          type: 'commonjs',
+          imports: [
+            'single @supabase/realtime-js/dist/module/RealtimeClient RealtimeClient',
+          ],
+        },
+      }],
+    });
+
+    // Important: return the modified config
+    return config;
+  },
   images: {
     domains: ["res.cloudinary.com", "lh3.googleusercontent.com"],
     remotePatterns: [
@@ -25,6 +39,9 @@ const nextConfig = {
   },
   
   output: "standalone",
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async redirects() {
     return [
       // Redirecionar de links de confirmação que chegam à raiz

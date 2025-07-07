@@ -1,13 +1,12 @@
-'use server';
-
 import { NextResponse } from 'next/server';
+
 import { z } from 'zod';
 import { createSupabaseServerClient } from '@/utils/supabaseServer';
 import { getOrder } from '@/services/paypalService';
 
 const paramsSchema = z.object({ id: z.string() });
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: any) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

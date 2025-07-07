@@ -1,4 +1,7 @@
-import supabase from '../utils/supabaseClient';
+import { getSafeSupabaseClient } from '../utils/supabaseClient';
+
+// Obter o cliente Supabase
+const supabase = getSafeSupabaseClient();
 
 /**
  * Serviço para gerenciar operações relacionadas a usuários

@@ -65,7 +65,7 @@ export async function createCommunity(input: CreateCommunityInput): Promise<Comm
       category: input.category,
       tags: input.tags || [],
       banner: input.banner || null,
-      price: input.price ?? 0,
+
     })
     .select(
       `id,
@@ -88,8 +88,9 @@ export async function createCommunity(input: CreateCommunityInput): Promise<Comm
     .from('community_members')
     .insert({
       community_id: community.id,
-      user_id: input.artist_id,
-      role: 'admin'
+      artist_id: input.artist_id,
+      role: 'admin',
+      joined_at: new Date().toISOString()
     });
   if (membershipError) throw membershipError;
 
@@ -119,50 +120,66 @@ export async function getCommunityById(id: string): Promise<Community> {
 }
 
 // Get membership status for a user in a community
-export async function getCommunityMembership(communityId: string, userId: string): Promise<boolean> {
+export async function getCommunityMembership(communityId: string, memberId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('community_members')
     .select()
     .eq('community_id', communityId)
-    .eq('user_id', userId)
+    .or(`user_id.eq.${memberId},artist_id.eq.${memberId}`)
     .maybeSingle();
   if (error) throw error;
   return data !== null;
 }
 
+// Helper to determine if id exists in users table
+async function isUser(id: string): Promise<boolean> {
+  const { data } = await supabase.from('users').select('id').eq('id', id).maybeSingle();
+  return !!data;
+}
+
 // Join a community as a member
-export async function joinCommunity(communityId: string, userId: string): Promise<void> {
+export async function joinCommunity(communityId: string, memberId: string): Promise<void> {
   // 1. Buscar comunidade e tipo de acesso
   const { data: community, error: commErr } = await supabase
     .from('communities')
-    .select('access_type, price')
+    .select('access_type')
     .eq('id', communityId)
     .single();
   if (commErr) throw commErr;
 
   // 2. Se premium/vip, verificar assinatura ativa do usuário
   if (community.access_type === 'premium' || community.access_type === 'vip') {
-    const { data: user } = await supabase
-      .from('users')
-      .select('has_active_subscription')
-      .eq('id', userId)
-      .single();
-    if (!user?.has_active_subscription) {
-      throw new Error('É necessária uma assinatura ativa para entrar nesta comunidade');
+    if (await isUser(memberId)) {
+      const { data: user } = await supabase
+        .from('users')
+        .select('has_active_subscription')
+        .eq('id', memberId)
+        .single();
+      if (!user?.has_active_subscription) {
+        throw new Error('É necessária uma assinatura ativa para entrar nesta comunidade');
+      }
     }
   }
 
   const { error } = await supabase
     .from('community_members')
-    .insert({ community_id: communityId, user_id: userId });
+    .insert({ 
+      community_id: communityId,
+      ...(await isUser(memberId) ? { user_id: memberId } : { artist_id: memberId }),
+      joined_at: new Date().toISOString(),
+      role: 'member'
+    });
   if (error) throw error;
 }
 
 // Leave a community (remove membership)
-export async function leaveCommunity(communityId: string, userId: string): Promise<void> {
+export async function leaveCommunity(communityId: string, memberId: string): Promise<void> {
   const { error } = await supabase
     .from('community_members')
     .delete()
-    .match({ community_id: communityId, user_id: userId });
+    .match({ 
+      community_id: communityId,
+      ...(await isUser(memberId) ? { user_id: memberId } : { artist_id: memberId })
+    });
   if (error) throw error;
 }
