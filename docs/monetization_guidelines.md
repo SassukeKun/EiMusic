@@ -41,7 +41,7 @@ src/
 ### Ciclo de exemplo (Doação):
 1. UI chama `fetch('/api/donations', {artistId, amount})`.
 2. Handler valida corpo, autenticação, e chama `donationService.tipArtist()`.
-3. Service aplica regras (plano Free ≤50 MT/mês) e insere em `donations`.
+3. Service aplica regras (sem plano ≤50 MT/mês) e insere em `donations`.
 4. Trigger ou service grava `revenue_transactions` com split 85/15.
 5. RLS garante que apenas doador veja sua doação; artista enxerga receita agregada.
 

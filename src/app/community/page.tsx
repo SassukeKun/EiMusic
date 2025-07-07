@@ -280,7 +280,6 @@ export default function CommunityPage() {
         tags: raw.tags || [],
         artist_id: raw.artist_id,
         banner: raw.banner || undefined,
-
         recent_posts: raw.recent_posts || [],
       }));
       setCommunities(uiData);
@@ -294,7 +293,7 @@ export default function CommunityPage() {
   const filteredCommunities = communities.filter((community) => {
     const matchesSearch =
       community.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      community.artist?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      (community.artist?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesFilter =
       filterType === "all" || community.access_type === filterType;
 

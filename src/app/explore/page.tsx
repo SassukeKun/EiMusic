@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { trendingService, type TrendingItem } from "@/services/trendingService";
+import { getSupabaseBrowserClient } from "@/utils/supabaseClient";
 import { motion } from "framer-motion";
 import {
   FaSearch,
@@ -26,7 +28,7 @@ interface ExploreItem {
   image: string;
   preview_url?: string;
   genre: string;
-  city: string;
+  province: string;
   tags: string[];
   popularity_score: number;
   plays?: number;
@@ -134,7 +136,7 @@ const CategorySlider = ({
           {/* Imagem e badges */}
           <div className="aspect-square relative overflow-hidden">
             <Image
-              src={item.image}
+              src={item.image === "" ? "/placeholder.png" : item.image}
               alt={item.title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -220,7 +222,7 @@ const CategorySlider = ({
             <div className="flex items-center gap-2 mb-2">
               <div className="flex items-center gap-1 text-xs text-gray-500">
                 <FaMapMarkerAlt className="text-xs" />
-                <span>{item.city}</span>
+                <span>{item.province}</span>
               </div>
               <span className="text-gray-600">•</span>
               <span className="text-xs text-gray-500">{item.genre}</span>
@@ -365,230 +367,149 @@ export default function ExplorePage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Estado para itens trending reais
+  const [trendingItems, setTrendingItems] = useState<ExploreItem[]>([]);
+  const [newArtistItems, setNewArtistItems] = useState<ExploreItem[]>([]);
+const [genreItems, setGenreItems] = useState<ExploreItem[]>([]);
+
   // Estados para dados
   const [exploreData, setExploreData] = useState<ExploreItem[]>([]);
   const [filteredData, setFilteredData] = useState<ExploreItem[]>([]);
   const [categories, setCategories] = useState<ExploreCategory[]>([]);
 
-  // Mock data contextualizado para Moçambique
-  const mockExploreData: ExploreItem[] = [
-    // Música Emergente
-    {
-      id: "e1",
+  // Mapeia TrendingItem para ExploreItem
+  const mapTrendingToExplore = (item: TrendingItem): ExploreItem => ({
+    id: item.id,
+    type: "music", // Tratamos vídeos como música por agora
+    title: item.title,
+    artist: item.artist,
+    image: item.image,
+    genre: item.genre || "",
+    province: "", // Sem informação de província nos dados trending
+    tags: [],
+    popularity_score: item.trending_score,
+    plays: item.streams,
+    duration: item.duration,
+    isTrending: true,
+  });
+
+  // Converte um registro de artista em ExploreItem (Novos Talentos)
+  const mapArtistToExplore = (artist: any): ExploreItem => ({
+    id: artist.id,
+    type: "artist",
+    title: artist.name,
+    image: artist.profile_image_url || "",
+    genre: "", // Ajustar se existir campo genre
+    province: artist.province || "",
+    tags: [],
+    popularity_score: artist.subscribers ?? 0,
+    followers: artist.subscribers ?? 0,
+    plays: undefined,
+    duration: undefined,
+    isNew: true,
+  });
+
+  // Converte single (ou track) em ExploreItem para seção de gênero
+  const mapSingleToExplore = (single: any): ExploreItem => {
+    const artistObj = Array.isArray(single.artists) ? single.artists[0] : single.artists;
+    return {
+      id: single.id,
       type: "music",
-      title: "Xima de Maputo",
-      artist: "MC Nandinho",
-      image:
-        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=600&q=80",
-      genre: "Hip Hop",
-      city: "Maputo",
-      tags: ["rap", "urbano", "juventude"],
-      popularity_score: 78,
-      plays: 45000,
-      duration: "3:22",
-      isNew: true,
-      isTrending: true,
-    },
-    {
-      id: "e2",
-      type: "music",
-      title: "Marrabenta Moderna",
-      artist: "Grupo Fixe",
-      image:
-        "https://images.unsplash.com/photo-1511735111819-9a3f7709049c?auto=format&fit=crop&w=600&q=80",
-      genre: "Marrabenta",
-      city: "Inhambane",
-      tags: ["tradicional", "moderno", "fusão"],
-      popularity_score: 85,
-      plays: 67000,
-      duration: "4:15",
+      title: single.title,
+      artist: artistObj?.name || "",
+      image: single.cover_url || artistObj?.profile_image_url || "",
+      genre: single.genre || "",
+      province: "",
+      tags: [],
+      popularity_score: single.streams ?? 0,
+      plays: single.streams ?? 0,
+      duration: single.duration ? single.duration.toString() : "",
       isRecommended: true,
-    },
-    {
-      id: "e3",
-      type: "music",
-      title: "Nampula Love Song",
-      artist: "Anita Macuácua",
-      image:
-        "https://images.unsplash.com/photo-1586281380117-5a60ae2050cc?auto=format&fit=crop&w=600&q=80",
-      genre: "R&B",
-      city: "Nampula",
-      tags: ["romance", "melodia", "vocal"],
-      popularity_score: 82,
-      plays: 52000,
-      duration: "3:48",
-      isNew: true,
-    },
-    {
-      id: "e4",
-      type: "music",
-      title: "Pandza Revolution",
-      artist: "Os Kirrambas",
-      image:
-        "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?auto=format&fit=crop&w=600&q=80",
-      genre: "Pandza",
-      city: "Tete",
-      tags: ["dança", "energia", "festa"],
-      popularity_score: 76,
-      plays: 38000,
-      duration: "3:55",
-      isTrending: true,
-    },
-    {
-      id: "e5",
-      type: "music",
-      title: "Beira Sunset",
-      artist: "Sofia Waves",
-      image:
-        "https://images.unsplash.com/photo-1512733596533-7b00ccf8ebaf?auto=format&fit=crop&w=600&q=80",
-      genre: "Afrobeat",
-      city: "Beira",
-      tags: ["chill", "sunset", "vibes"],
-      popularity_score: 80,
-      plays: 41000,
-      duration: "4:02",
-      isRecommended: true,
-      isTrending: true,
-    },
-    {
-      id: "e6",
-      type: "music",
-      title: "Quelimane Dreams",
-      artist: "Zé Melodia",
-      image:
-        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80",
-      genre: "Soul",
-      city: "Quelimane",
-      tags: ["sonho", "alma", "profundo"],
-      popularity_score: 77,
-      plays: 33000,
-      duration: "3:38",
-      isNew: true,
-    },
-    // Artistas Emergentes
-    {
-      id: "ea1",
-      type: "artist",
-      title: "Kelvin Skabeche",
-      image:
-        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=600&q=80",
-      genre: "Afrobeat",
-      city: "Beira",
-      tags: ["inovador", "producer", "beat"],
-      popularity_score: 88,
-      followers: 12500,
-      isNew: true,
-      isRecommended: true,
-    },
-    {
-      id: "ea2",
-      type: "artist",
-      title: "Yara Mandela",
-      image:
-        "https://images.unsplash.com/photo-1494790108755-2616c9d2f4ee?auto=format&fit=crop&w=600&q=80",
-      genre: "Soul",
-      city: "Quelimane",
-      tags: ["voz", "emoção", "autêntica"],
-      popularity_score: 84,
-      followers: 9800,
-      isNew: true,
-    },
-    {
-      id: "ea3",
-      type: "artist",
-      title: "DJ Tarico Jr",
-      image:
-        "https://images.unsplash.com/photo-1539701938214-0d9736e1c16b?auto=format&fit=crop&w=600&q=80",
-      genre: "Amapiano",
-      city: "Maputo",
-      tags: ["dj", "amapiano", "remix"],
-      popularity_score: 91,
-      followers: 18700,
-      isTrending: true,
-      isRecommended: true,
-    },
-    {
-      id: "ea4",
-      type: "artist",
-      title: "Marllen Nova",
-      image:
-        "https://images.unsplash.com/photo-1499996860823-5214fcc65f8f?auto=format&fit=crop&w=600&q=80",
-      genre: "Pop",
-      city: "Nampula",
-      tags: ["pop", "jovem", "fresco"],
-      popularity_score: 83,
-      followers: 11200,
-      isNew: true,
-      isTrending: true,
-    },
-    {
-      id: "ea5",
-      type: "artist",
-      title: "Rui Beatz",
-      image:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=600&q=80",
-      genre: "Hip Hop",
-      city: "Inhambane",
-      tags: ["producer", "beats", "underground"],
-      popularity_score: 79,
-      followers: 8900,
-      isRecommended: true,
-    },
-    // Playlists Curadas
-    {
-      id: "ep1",
-      type: "playlist",
-      title: "Novos Talentos MZ",
-      image:
-        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=600&q=80",
-      genre: "Variado",
-      city: "Nacional",
-      tags: ["descoberta", "emergente", "potencial"],
-      popularity_score: 89,
-      trackCount: 25,
-      isRecommended: true,
-    },
-    {
-      id: "ep2",
-      type: "playlist",
-      title: "Sons de Moçambique",
-      image:
-        "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&w=600&q=80",
-      genre: "Tradicional",
-      city: "Nacional",
-      tags: ["cultura", "raízes", "identidade"],
-      popularity_score: 86,
-      trackCount: 40,
-      isRecommended: true,
-    },
-    {
-      id: "ep3",
-      type: "playlist",
-      title: "Beats Urbanos",
-      image:
-        "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?auto=format&fit=crop&w=600&q=80",
-      genre: "Hip Hop",
-      city: "Maputo",
-      tags: ["urbano", "cidade", "juventude"],
-      popularity_score: 84,
-      trackCount: 32,
-      isTrending: true,
-    },
-    {
-      id: "ep4",
-      type: "playlist",
-      title: "Afrobeat Vibes MZ",
-      image:
-        "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=600&q=80",
-      genre: "Afrobeat",
-      city: "Nacional",
-      tags: ["afrobeat", "energia", "dança"],
-      popularity_score: 87,
-      trackCount: 45,
-      isRecommended: true,
-      isTrending: true,
-    },
-  ];
+    };
+  };
+
+  // Fetch trending items on mount
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const data = await trendingService.getTrendingItems(
+          "week",
+          "music",
+          "",
+          20,
+          0,
+        );
+        const mapped = data
+          .filter((i) => i.type === "music")
+          .map(mapTrendingToExplore);
+        setTrendingItems(mapped);
+      } catch (error) {
+        console.error("Erro ao carregar itens trending:", error);
+      }
+    };
+
+    fetchTrending();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch recent artists (Novos Talentos)
+  useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data, error } = await supabase
+          .from('artists')
+          .select('id, name, profile_image_url, subscribers, created_at')
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (error) throw error;
+        const mapped = (data as any[]).map(mapArtistToExplore);
+        setNewArtistItems(mapped);
+      } catch (error) {
+        console.error('Erro ao carregar artistas recentes:', error);
+      }
+    };
+    fetchArtists();
+  }, []);
+
+  // Fetch singles/albums para recomendações por gênero
+  useEffect(() => {
+    const fetchGenres = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data, error } = await supabase
+          .from('singles')
+          .select('id, title, cover_url, duration, streams, genre, artist_id, artists(name, profile_image_url)')
+          .not('genre', 'is', null)
+          .order('streams', { ascending: false })
+          .limit(30);
+        if (error) throw error;
+        const singles = data as any[];
+        const unique: ExploreItem[] = [];
+        const seen = new Set<string>();
+        for (const s of singles) {
+          if (!s.genre) continue;
+          const genreKey = (s.genre as string).toLowerCase();
+          if (seen.has(genreKey)) continue;
+          unique.push(mapSingleToExplore(s));
+          seen.add(genreKey);
+          if (unique.length >= 6) break;
+        }
+        setGenreItems(unique);
+      } catch (error) {
+        console.error('Erro ao carregar recomendações por gênero:', error);
+      }
+    };
+
+    fetchGenres();
+  }, []);
+
+  // Atualiza dados combinados e categorias sempre que algo mudar
+  useEffect(() => {
+    const combined = [...trendingItems, ...newArtistItems, ...genreItems];
+    setExploreData(combined);
+    setCategories(createExploreCategories());
+  }, [trendingItems, newArtistItems, genreItems]);
 
   // Gêneros disponíveis em Moçambique
   const availableGenres = [
@@ -637,7 +558,7 @@ export default function ExplorePage() {
     "eletrônico",
   ];
 
-  // Função para criar categorias de exploração
+  // Função para criar categorias de exploração (somente dados dinâmicos)
   const createExploreCategories = (): ExploreCategory[] => {
     return [
       {
@@ -646,7 +567,7 @@ export default function ExplorePage() {
         icon: <FaFire className="text-orange-400" />,
         description: "O que está bombando agora em Moçambique",
         color: "from-orange-500 to-red-500",
-        items: mockExploreData.filter((item) => item.isTrending),
+        items: trendingItems,
       },
       {
         id: "new",
@@ -654,15 +575,7 @@ export default function ExplorePage() {
         icon: <FaStar className="text-yellow-400" />,
         description: "Artistas emergentes para descobrir",
         color: "from-yellow-500 to-orange-500",
-        items: mockExploreData.filter((item) => item.isNew),
-      },
-      {
-        id: "recommended",
-        name: "Recomendados",
-        icon: <FaHeart className="text-pink-400" />,
-        description: "Selecionados especialmente para você",
-        color: "from-pink-500 to-purple-500",
-        items: mockExploreData.filter((item) => item.isRecommended),
+        items: newArtistItems,
       },
       {
         id: "genres",
@@ -670,14 +583,14 @@ export default function ExplorePage() {
         icon: <FaMusic className="text-blue-400" />,
         description: "Explore por estilos musicais",
         color: "from-blue-500 to-indigo-500",
-        items: mockExploreData.slice(0, 6),
+        items: genreItems,
       },
     ];
   };
 
   // Função para filtrar dados
   const filterExploreData = () => {
-    let filtered = mockExploreData;
+    let filtered = exploreData;
 
     // Filtro por gênero
     if (selectedGenre !== "all") {
@@ -686,7 +599,7 @@ export default function ExplorePage() {
 
     // Filtro por cidade
     if (selectedCity !== "all") {
-      filtered = filtered.filter((item) => item.city === selectedCity);
+      filtered = filtered.filter((item) => item.province === selectedCity);
     }
 
     // Filtro por popularidade
@@ -719,7 +632,7 @@ export default function ExplorePage() {
           item.title.toLowerCase().includes(query) ||
           (item.artist && item.artist.toLowerCase().includes(query)) ||
           item.genre.toLowerCase().includes(query) ||
-          item.city.toLowerCase().includes(query) ||
+          item.province.toLowerCase().includes(query) ||
           item.tags.some((tag) => tag.toLowerCase().includes(query))
       );
     }
@@ -773,12 +686,11 @@ export default function ExplorePage() {
     popularityFilter,
     selectedTags,
     searchQuery,
+    exploreData,
   ]);
 
-  // Effect inicial
+  // Effect inicial – apenas cria categorias vazias até dados carregarem
   useEffect(() => {
-    setExploreData(mockExploreData);
-    setFilteredData(mockExploreData);
     setCategories(createExploreCategories());
   }, []);
 
@@ -798,7 +710,7 @@ export default function ExplorePage() {
           {/* Imagem e badges */}
           <div className="aspect-square relative overflow-hidden">
             <Image
-              src={item.image}
+              src={item.image === "" ? "/user_placeholder.png" : item.image}
               alt={item.title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -884,7 +796,7 @@ export default function ExplorePage() {
             <div className="flex items-center gap-2 mb-2">
               <div className="flex items-center gap-1 text-xs text-gray-500">
                 <FaMapMarkerAlt className="text-xs" />
-                <span>{item.city}</span>
+                <span>{item.province}</span>
               </div>
               <span className="text-gray-600">•</span>
               <span className="text-xs text-gray-500">{item.genre}</span>

@@ -111,9 +111,9 @@ export default function PaymentPage() {
 
         // Iniciar pagamento no backend
         const supabase = getSupabaseBrowserClient();
-        // Timeout de 30 s para evitar 504 se o lambda atrasar
+        // Timeout de 110 s para alinhar com backend (120 s)
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
+        const timeout = setTimeout(() => controller.abort(), 110000);
         const { data: { session } } = await supabase.auth.getSession();
         const accessToken = session?.access_token;
 
@@ -128,6 +128,7 @@ export default function PaymentPage() {
             amount: selectedPlan.price,
             phone: paymentData.phoneNumber.replace(/\D/g, ''),
             sourceType: 'subscription',
+            planId: selectedPlan.id,
             reference: referenceCode,
           }),
         })
@@ -161,14 +162,14 @@ export default function PaymentPage() {
           }
 
         if (status === 'COMPLETED') {
-          router.push(`/dashboard?payment=success&plan=${selectedPlan.id}`)
+          router.push(`/payment/success?plan=${selectedPlan.id}`)
         } else {
           router.push('/payment?error=payment_failed')
         }
       } else {
         // Outros métodos mantêm simulação local
         await new Promise(resolve => setTimeout(resolve, 2500))
-        router.push(`/dashboard?payment=success&plan=${selectedPlan.id}`)
+        router.push(`/payment/success?plan=${selectedPlan.id}`)
       }
     } catch (err) {
       console.error(err)

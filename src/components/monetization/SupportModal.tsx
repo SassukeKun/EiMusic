@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FaTimes, FaHeart, FaGift, FaCrown, FaGem } from 'react-icons/fa'
 import { useAuth } from '@/hooks/useAuth'
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient'
 
 interface SupportModalProps {
   isOpen: boolean
@@ -53,10 +54,22 @@ export default function SupportModal({ isOpen, onClose, artist, onSuccess }: Sup
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null)
   const [customAmount, setCustomAmount] = useState('')
   const [message, setMessage] = useState('')
+  const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<'select' | 'payment' | 'success'>('select')
 
   const handleSupport = async (amount: number) => {
+    const supabase = getSupabaseBrowserClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    // Validação número M-Pesa de Moçambique: começa com 84 ou 85 e possui 9 dígitos
+    if (!/^(84|85)\d{7}$/.test(phone)) {
+      setPhoneError('Número inválido. Deve iniciar com 84 ou 85 e ter 9 dígitos.')
+      return
+    }
+    setPhoneError('')
     if (!isAuthenticated) {
       // Redirect to login or show login modal
       alert('Faça login para apoiar artistas')
@@ -66,12 +79,25 @@ export default function SupportModal({ isOpen, onClose, artist, onSuccess }: Sup
     setIsLoading(true)
     
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Call success callback
-      onSuccess(amount)
-      setStep('success')
+      // Chama API de pagamento
+      const res = await fetch('/api/payments/donation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+        },
+        body: JSON.stringify({ artistId: artist.id, amount, phone })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro no pagamento')
+      if (data.status === 'COMPLETED') {
+        onSuccess(amount)
+        setStep('success')
+      } else {
+        alert('Pagamento iniciado. Conclua no seu telemóvel.')
+        onSuccess(amount)
+        setStep('success')
+      }
       
       // Close modal after showing success
       setTimeout(() => {
@@ -232,6 +258,19 @@ export default function SupportModal({ isOpen, onClose, artist, onSuccess }: Sup
                     <span className="text-green-400">{getFinalAmount() + (message ? 5 : 0)} MT</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Telefone M-Pesa */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Número M-Pesa</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))}
+                  placeholder="84xxxxxxx"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                {phoneError && <p className="text-red-400 text-sm mt-2">{phoneError}</p>}
               </div>
 
               {/* Action Button */}

@@ -13,6 +13,10 @@ export interface Artist {
   bio?: string; // Biografia
   phone?: string; // Telefone
   profile_image_url?: string;
+  subscribers?: number; // Seguidores (contador)
+  monthlyListeners?: number; // Ouvintes mensais calculados
+  songsCount?: number; // Total de músicas
+  province?: string; // Província
   social_links?: {
     instagram?: string;
     twitter?: string;
@@ -32,6 +36,7 @@ export const artistSchema = z.object({
   bio: z.string().max(500, 'Biografia limitada a 500 caracteres').optional(),
   phone: z.string().optional(),
   profile_image_url: z.string().url().optional(),
+  province: z.string().optional(),
   social_links: z.object({
     instagram: z.string().optional(),
     twitter: z.string().optional(),

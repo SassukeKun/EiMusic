@@ -413,7 +413,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start">
                   <div className="flex items-center space-x-3">
                     <SafeImage
-                      src={video.artist.avatar}
+                      src={video.artist.avatar === "" ? "/video_placeholder.png" : video.artist.avatar}
                       alt={video.artist.name}
                       width={40}
                       height={40}

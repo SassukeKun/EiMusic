@@ -10,7 +10,6 @@ export interface Community {
   description: string | null;
   category: string;
   access_type: 'public' | 'private' | 'premium' | 'vip';
-  price: number;
   tags: string[];
   is_active: boolean;
   activity_level: string;

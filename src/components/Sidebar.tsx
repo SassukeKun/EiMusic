@@ -14,7 +14,6 @@ import {
   FaUsers,
   FaCalendarAlt,
   FaListUl,
-  FaBook,
   FaUpload,
   FaCog,
   FaBell,
@@ -29,12 +28,8 @@ import {
   FaTimes,
   FaCheck,
   FaMoon,
-  FaSun,
   FaGlobe,
   FaLock,
-  FaUser,
-  FaVolumeUp,
-  FaEye,
   FaTrash,
   FaCircle
 } from 'react-icons/fa'

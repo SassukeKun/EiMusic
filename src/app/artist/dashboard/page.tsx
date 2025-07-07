@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAuth } from '@/hooks/useAuth';
-import ProfilePhotoUploader from '@/components/settings/ProfilePhotoUploader';
-import artistService from '@/services/artistService';
+import { useAuth } from "@/hooks/useAuth";
+import ProfilePhotoUploader from "@/components/settings/ProfilePhotoUploader";
+import ArtistConfigSection from "@/components/artist/ArtistConfigSection";
+import artistService from "@/services/artistService";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3,
@@ -38,7 +39,7 @@ import {
   MapPin,
 } from "lucide-react";
 
-import type { Artist as DBArtist } from '@/models/artist';
+import type { Artist as DBArtist } from "@/models/artist";
 
 // 🔧 INTERFACES SIMPLIFICADAS E CORRIGIDAS (para mock apenas)
 interface DashboardArtist {
@@ -118,22 +119,48 @@ export default function ArtistDashboard() {
   const [activeSection, setActiveSection] =
     useState<DashboardSection>("overview");
   const [loading, setLoading] = useState(true);
+  // ⚙️ Salvar estados de loading para upload de avatar etc.
   const [saving, setSaving] = useState(false);
-  const [artistName, setArtistName] = useState<string>('');
-  const [artistBio, setArtistBio] = useState<string>('');
+  const [artistName, setArtistName] = useState<string>("");
+  const [artistBio, setArtistBio] = useState<string>("");
+  const [province, setProvince] = useState<string>("");
+  const [instagram, setInstagram] = useState<string>("");
+  const [twitter, setTwitter] = useState<string>("");
+  const [website, setWebsite] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const MOZ_PROVINCES = [
+    "Cabo Delgado",
+    "Gaza",
+    "Inhambane",
+    "Manica",
+    "Maputo",
+    "Maputo Cidade",
+    "Nampula",
+    "Niassa",
+    "Sofala",
+    "Tete",
+    "Zambézia",
+  ];
   // Fetch current artist data once we have the authenticated user
   useEffect(() => {
     const fetchArtist = async () => {
       if (!user?.id) return;
       try {
-        const data = await artistService.getArtistById(user.id) as FullArtist;
+        const data = (await artistService.getArtistById(user.id)) as FullArtist;
         if (data) {
           setArtist(data);
-          setArtistName(data.name || '');
-          setArtistBio(data.bio || '');
+          setArtistName(data.name || "");
+          setArtistBio(data.bio || "");
+          setProvince(data.province || "");
+          setInstagram(
+            data.social_links?.instagram || (data as any).instagram || ""
+          );
+          setTwitter(data.social_links?.twitter || (data as any).twitter || "");
+          setWebsite(data.social_links?.website || (data as any).website || "");
+          setPhone(data.phone || (data as any).phone || "");
         }
       } catch (err) {
-        console.error('Erro ao carregar artista', err);
+        console.error("Erro ao carregar artista", err);
       }
     };
     fetchArtist();
@@ -151,7 +178,7 @@ export default function ArtistDashboard() {
   const mockArtist: DashboardArtist = {
     id: "1",
     nome: "Zena Bakar",
-    avatar: "/api/placeholder/128/128",
+    avatar: "/avatar.svg",
     verificado: true,
     total_seguidores: 12547,
     total_streams: 234891,
@@ -165,7 +192,7 @@ export default function ArtistDashboard() {
       titulo: "Marrabenta do Futuro",
       genero: "Marrabenta",
       duracao: "3:45",
-      capa: "/api/placeholder/300/300",
+      capa: "/avatar.svg",
       data_lancamento: "2024-11-20T00:00:00Z",
       status: "publicada",
       streams: 45623,
@@ -177,7 +204,7 @@ export default function ArtistDashboard() {
       titulo: "Noites de Maputo",
       genero: "Afrobeats",
       duracao: "4:12",
-      capa: "/api/placeholder/300/300",
+      capa: "/avatar.svg",
       data_lancamento: "2024-10-15T00:00:00Z",
       status: "publicada",
       streams: 32189,
@@ -191,7 +218,7 @@ export default function ArtistDashboard() {
     {
       id: "1",
       titulo: "Marrabenta do Futuro - Videoclipe",
-      thumbnail: "/api/placeholder/300/200",
+      thumbnail: "/avatar.svg",
       duracao: "3:45",
       data_lancamento: "2024-11-20T00:00:00Z",
       status: "publicada",
@@ -202,7 +229,7 @@ export default function ArtistDashboard() {
     {
       id: "2",
       titulo: "Live Session - Acústico",
-      thumbnail: "/api/placeholder/300/200",
+      thumbnail: "/avatar.svg",
       duracao: "15:30",
       data_lancamento: "2024-12-01T00:00:00Z",
       status: "publicada",
@@ -315,7 +342,11 @@ export default function ArtistDashboard() {
                 {/* 🔧 Reduzido padding */}
                 <img
                   src={artist?.profile_image_url || mockArtist.avatar}
-                  onError={(e)=>{ const t=e.currentTarget as HTMLImageElement; t.onerror=null; t.src='/avatar.svg'; }}
+                  onError={(e) => {
+                    const t = e.currentTarget as HTMLImageElement;
+                    t.onerror = null;
+                    t.src = "/avatar.svg";
+                  }}
                   alt={artist?.name || mockArtist.nome}
                   className="w-8 h-8 rounded-full border-2 border-purple-400"
                 />
@@ -334,7 +365,10 @@ export default function ArtistDashboard() {
                     )}
                   </div>
                   <p className="text-gray-400 text-xs">
-                    {(artist?.subscribers ?? mockArtist.total_seguidores).toLocaleString()} seguidores
+                    {(
+                      artist?.subscribers ?? mockArtist.total_seguidores
+                    ).toLocaleString()}{" "}
+                    seguidores
                   </p>
                 </div>
               </div>
@@ -634,7 +668,6 @@ export default function ArtistDashboard() {
                 </div>
                 <div
                   className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    /* 🔧 Badge melhorado */
                     evento.status === "confirmado"
                       ? "bg-green-500/20 text-green-400"
                       : "bg-yellow-500/20 text-yellow-400"
@@ -1412,140 +1445,18 @@ export default function ArtistDashboard() {
       </div>
     </div>
   );
-  // ⚙️ SEÇÃO DE CONFIGURAÇÕES
-  const ConfiguracoesSection = () => (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold text-white mb-2">Configurações</h2>
-        <p className="text-gray-400 text-lg">
-          Personaliza o teu perfil e preferências da conta
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* PERFIL */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 shadow-lg">
-          <h3 className="text-white font-semibold text-xl mb-6">
-            Informações do Perfil
-          </h3>
-          <div className="space-y-6">
-            <div className="flex items-center space-x-6">
-              <ProfilePhotoUploader
-                mode="artist"
-                id={user?.id || artist?.id || mockArtist.id}
-                initialUrl={(artist?.profile_image_url) || mockArtist.avatar}
-              />
-            </div>
-            <div>
-              <label className="block text-gray-400 font-medium mb-3">
-                Nome do Artista
-              </label>
-              <input
-                type="text"
-                value={artistName}
-                onChange={(e)=>setArtistName(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-400 font-medium mb-3">
-                Bio
-              </label>
-              <textarea
-                rows={4}
-                value={artistBio}
-                onChange={(e)=>setArtistBio(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* PREFERÊNCIAS */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 shadow-lg">
-          <h3 className="text-white font-semibold text-xl mb-6">
-            Preferências
-          </h3>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-white font-medium text-lg">
-                  Notificações por email
-                </h4>
-                <p className="text-gray-400 text-sm">
-                  Receber updates sobre a conta
-                </p>
-              </div>
-              <button className="bg-purple-600 w-14 h-7 rounded-full relative transition-colors">
-                <div className="bg-white w-5 h-5 rounded-full absolute top-1 right-1 transition-all"></div>
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-white font-medium text-lg">
-                  Perfil público
-                </h4>
-                <p className="text-gray-400 text-sm">
-                  Permitir que outros te encontrem
-                </p>
-              </div>
-              <button className="bg-purple-600 w-14 h-7 rounded-full relative transition-colors">
-                <div className="bg-white w-5 h-5 rounded-full absolute top-1 right-1 transition-all"></div>
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-white font-medium text-lg">
-                  Analytics detalhados
-                </h4>
-                <p className="text-gray-400 text-sm">
-                  Dados avançados de audiência
-                </p>
-              </div>
-              <button className="bg-gray-600 w-14 h-7 rounded-full relative transition-colors">
-                <div className="bg-white w-5 h-5 rounded-full absolute top-1 left-1 transition-all"></div>
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={async () => {
-              if (!user?.id) return alert('Você precisa estar autenticado');
-              try {
-                setSaving(true);
-                await artistService.updateArtist(user.id, {
-                  name: artistName,
-                  bio: artistBio,
-                });
-                alert('Alterações guardadas com sucesso');
-              } catch (err) {
-                console.error('Erro ao salvar alterações', err);
-                alert('Falha ao salvar alterações');
-              } finally {
-                setSaving(false);
-              }
-            }}
-            disabled={saving}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white py-4 rounded-xl mt-8 font-medium transition-colors flex items-center justify-center gap-2" >
-            {saving && <span className="loader inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-            Salvar Alterações
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   // 🗑️ MODAL DE CONFIRMAÇÃO DE DELETE
   const DeleteConfirmModal = () => (
     <AnimatePresence>
       {showDeleteConfirm && selectedContent && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick= {() => setShowDeleteConfirm(false)}
+          >
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1596,7 +1507,8 @@ export default function ArtistDashboard() {
             </div>
           </motion.div>
         </motion.div>
-      )}
+        )
+      }
     </AnimatePresence>
   );
 
@@ -1893,7 +1805,11 @@ export default function ArtistDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <ConfiguracoesSection />
+                <ArtistConfigSection
+                  userId={user?.id}
+                  artist={artist}
+                  provinces={MOZ_PROVINCES}
+                />
               </motion.div>
             )}
           </AnimatePresence>
