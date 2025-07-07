@@ -1,4 +1,7 @@
-import base64 from 'base-64';
+// Utilizar Buffer nativo para codificação Base64
+function encodeBase64(str: string): string {
+  return Buffer.from(str).toString('base64');
+}
 
 // PayPal REST API helper service
 // Docs: https://developer.paypal.com/docs/api/overview/
@@ -54,7 +57,7 @@ async function getAccessToken(): Promise<string> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${base64.encode(`${CLIENT_ID}:${CLIENT_SECRET}`)}`,
+      Authorization: `Basic ${encodeBase64(`${CLIENT_ID}:${CLIENT_SECRET}`)}`,
     },
     body: new URLSearchParams({ grant_type: 'client_credentials' }),
   });

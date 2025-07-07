@@ -1,12 +1,11 @@
-'use server';
-
 import { NextResponse } from 'next/server';
+
 import { z } from 'zod';
 import { createSupabaseServerClient } from '@/utils/supabaseServer';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: any) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

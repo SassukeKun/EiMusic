@@ -1,4 +1,6 @@
-import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
+'use server';
+
+import { createSupabaseServerClient } from '@/utils/supabaseServer';
 
 /* =========================================================
  * RevenueService – registra e consulta receitas de artistas
@@ -10,8 +12,6 @@ import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
 
 export type RevenueSource = 'subscription' | 'donation' | 'event' | 'community';
 
-const supabase = getSupabaseBrowserClient();
-
 interface AddTxInput {
   artistId: string;
   amount: number;
@@ -19,6 +19,7 @@ interface AddTxInput {
 }
 
 export async function addTransaction({ artistId, amount, sourceType }: AddTxInput) {
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from('revenue_transactions').insert({
     artist_id: artistId,
     amount,
@@ -28,6 +29,7 @@ export async function addTransaction({ artistId, amount, sourceType }: AddTxInpu
 }
 
 export async function getArtistBalance(artistId: string) {
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from('artist_balances')
     .select('balance')
@@ -38,6 +40,7 @@ export async function getArtistBalance(artistId: string) {
 }
 
 export async function triggerWeeklyProcess() {
+  const supabase = await createSupabaseServerClient();
   // Requer role com permissões EXECUTE na função (service key ou Edge Function)
   const { error } = await supabase.rpc('process_weekly_revenue');
   if (error) throw error;

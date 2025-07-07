@@ -7,7 +7,7 @@ interface EventosSectionProps {
   eventos: Event[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  setSelectedContent: (content: any) => void;
+  setSelectedContent: (content: Event | null) => void;
   setShowEditModal: (show: boolean) => void;
   setShowCreateModal: (show: boolean) => void;
   setShowDeleteConfirm: (show: boolean) => void;
@@ -23,7 +23,7 @@ const EventosSection: React.FC<EventosSectionProps> = ({
   setShowDeleteConfirm 
 }) => {
   const filteredEventos = eventos.filter((event) =>
-    event.name.toLowerCase().includes(searchTerm.toLowerCase())
+    event.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -95,12 +95,12 @@ const EventosSection: React.FC<EventosSectionProps> = ({
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-white font-semibold text-xl">{event.name}</h3>
+                    <h3 className="text-white font-semibold text-xl">{event.title}</h3>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        event.event_type === 'confirmado'
+                        event.event_status === 'confirmado'
                           ? 'bg-green-500/20 text-green-400'
-                          : event.event_type === 'agendado'
+                          : event.event_status === 'agendado'
                           ? 'bg-yellow-500/20 text-yellow-400'
                           : 'bg-red-500/20 text-red-400'
                       }`}>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient'
 import { FaRandom } from "react-icons/fa";
 
 import { 
@@ -18,8 +19,6 @@ import {
   FaMusic,
   FaHeadphones,
   FaCalendarAlt,
-  FaClock,
-  FaEye,
   FaArrowLeft,
   FaGift,
   FaCrown,
@@ -30,84 +29,6 @@ import {
   FaRedo,
   FaListUl
 } from 'react-icons/fa'
-
-// Mock data para demonstração
-const mockTracks = {
-  '1': {
-    id: '1',
-    title: 'Maputo Nights',
-    artist: {
-      id: '1',
-      name: 'MC Kappa',
-      avatar: null,
-      verified: true
-    },
-    album: 'Urban Mozambique',
-    duration: 245, // em segundos
-    genre: 'Hip-Hop',
-    release_date: '2024-11-01',
-    plays_count: 25420,
-    likes_count: 3240,
-    download_count: 1852,
-    cover_image: null,
-    audio_url: '/demo/maputo-nights.mp3',
-    lyrics: `[Verso 1]
-Nas ruas de Maputo quando a noite cai
-Sons da cidade ecoam, ninguém sai
-Luzes da Costa do Sol iluminam o mar
-Histórias da nossa terra vou contar
-
-[Refrão]
-Maputo nights, cidade que não dorme
-Sons urbanos, cultura que se forma
-Da Baixa ao Alto-Maé, nossa voz ressoa
-Mozambique hip-hop, música que emociona
-
-[Verso 2]
-Juventude que luta por um sonho melhor
-Através da música expressa a nossa dor
-Mas também a alegria de ser moçambicano
-Orgulho da terra, som africano`,
-    description: 'Uma homenagem às noites vibrantes de Maputo, misturando elementos do hip-hop moderno com a essência cultural moçambicana.',
-    tags: ['hip-hop', 'maputo', 'urban', 'moçambique', 'cultura'],
-    is_premium: false,
-    audio_quality: '320kbps'
-  },
-  '2': {
-    id: '2',
-    title: 'Mulher Moçambicana',
-    artist: {
-      id: '2',
-      name: 'Bella Moçambique',
-      avatar: null,
-      verified: true
-    },
-    album: 'Raízes Contemporâneas',
-    duration: 234,
-    genre: 'R&B/Soul',
-    release_date: '2024-10-20',
-    plays_count: 28900,
-    likes_count: 4120,
-    download_count: 2341,
-    cover_image: null,
-    audio_url: '/demo/mulher-mocambicana.mp3',
-    lyrics: `[Verso 1]
-Força e beleza em cada passo
-Mulher guerreira, nunca me canso
-De admirar tua resistência
-Moçambicana de essência
-
-[Refrão]
-Mulher moçambicana
-Orgulho da nossa nação
-Carrega a tradição
-No peito, no coração`,
-    description: 'Uma celebração da força e beleza da mulher moçambicana, combinando ritmos tradicionais com sonoridades modernas.',
-    tags: ['rnb', 'soul', 'empoderamento', 'mulher', 'tradição'],
-    is_premium: false,
-    audio_quality: '320kbps'
-  }
-}
 
 const mockComments = [
   {
@@ -188,19 +109,58 @@ export default function TrackDetailPage() {
   const [isLiked, setIsLiked] = useState(false)
   const [showLyrics, setShowLyrics] = useState(true)
   const [newComment, setNewComment] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true);
+  const [track, setTrack] = useState<any | null>(null)
 
-  // Buscar dados da música
-  const track = mockTracks[id as keyof typeof mockTracks] || mockTracks['1']
+  const supabase = getSupabaseBrowserClient();
 
-  // Simular carregamento
+  // Buscar dados da música no Supabase
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
-    
-    return () => clearTimeout(timer)
-  }, [])
+    const fetchTrack = async () => {
+      setIsLoading(true);
+      // 1) Tenta buscar na tabela de tracks (faixas de álbum)
+      const { data: trackData, error: trackError } = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!trackError && trackData) {
+        setTrack(trackData as any);
+        setIsLoading(false);
+        return;
+      }
+
+      // 2) Se não encontrou, tenta buscar na tabela de singles
+      const { data: singleData, error: singleError } = await supabase
+        .from('singles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!singleError && singleData) {
+        // Normaliza campos para coincidir com a UI de "track"
+        const normalized: any = {
+          ...singleData,
+          cover_image: (singleData as any).cover_url ?? (singleData as any).cover_image ?? null,
+          plays_count: (singleData as any).plays_count ?? 0,
+          likes_count: (singleData as any).likes_count ?? 0,
+          download_count: (singleData as any).download_count ?? 0,
+          tags: (singleData as any).tags ?? [],
+          artist: (singleData as any).artist ?? {
+            name: (singleData as any).artist_name ?? 'Artista',
+            verified: false,
+          },
+        };
+        setTrack(normalized);
+      } else {
+        setTrack(null);
+      }
+      setIsLoading(false);
+    };
+
+    fetchTrack();
+  }, [id]);
 
   // Funções do player
   const togglePlay = () => {
@@ -289,6 +249,10 @@ export default function TrackDetailPage() {
         </div>
       </div>
     )
+  }
+
+  if (!track) {
+    return <div className="text-center p-8">Música não encontrada</div>;
   }
 
   return (
@@ -560,7 +524,7 @@ export default function TrackDetailPage() {
                 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2">
-                  {track.tags.map((tag) => (
+                  {track.tags.map((tag: string) => (
                     <span
                       key={tag}
                       className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-sm"

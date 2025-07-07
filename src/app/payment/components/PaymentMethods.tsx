@@ -4,7 +4,6 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { 
   Smartphone, 
-  Building2, 
   CreditCard, 
   Check,
   Star,
@@ -14,7 +13,7 @@ import {
 
 // Interface para método de pagamento
 interface PaymentMethod {
-  id: 'mpesa' | 'banco' | 'paypal'
+  id: 'mpesa' | 'paypal'
   name: string
   description: string
   icon: React.ReactNode
@@ -30,7 +29,7 @@ interface PaymentMethod {
 // Interface para props do componente
 interface PaymentMethodsProps {
   onMethodSelect: (method: PaymentMethod) => void
-  selectedMethod: { id: 'mpesa' | 'banco' | 'paypal'; name: string; description: string } | null
+  selectedMethod: { id: 'mpesa' | 'paypal'; name: string; description: string } | null
 }
 
 /**
@@ -333,7 +332,7 @@ export default function PaymentMethods({ onMethodSelect, selectedMethod }: Payme
             Método selecionado: <span className="text-white font-semibold">{selectedMethod.name}</span>
           </p>
           <p className="text-gray-500 text-xs mt-1">
-            Clica em "Continuar" para prosseguir com o pagamento
+            Clica em &quot;Continuar&quot; para prosseguir com o pagamento
           </p>
         </motion.div>
       )}
