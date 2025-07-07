@@ -7,18 +7,25 @@ import { PlayerProvider } from '@/context/PlayerContext';
 
 // const inter = Inter({ subsets: ["latin"] }); // removido
 
-// Definição dos metadados do site (lado do servidor)
 export const metadata: Metadata = {
   title: "EiMusic - Plataforma de streaming",
   description: "Plataforma de streaming de musicas nacionais",
 };
 
-// Componente principal de layout (lado do servidor)
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isAuthPage = [
+    '/login',
+    '/register',
+    '/artist/login',
+    '/artist/register',
+    '/auth/callback'
+  ].includes(pathname);
+
   return (
     <html lang="pt-PT">
       <body>
