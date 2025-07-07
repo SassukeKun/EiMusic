@@ -1,6 +1,9 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
+import { createEvent } from '@/services/eventService'
+import uploadService from '@/services/uploadService'
+import { useAuth } from '@/hooks/useAuth'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, 
@@ -264,11 +267,49 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
   }
 
   // Handler para submissão do formulário
+  const { user, isArtist } = useAuth();
+
+  // Handler para submissão do formulário
   const handleSubmit = async () => {
     if (!validateForm()) return
     
     setIsLoading(true)
     try {
+      // 1️⃣ Upload da imagem do evento se existir
+      let uploadedImageUrl: string | undefined;
+      if (formData.imagem) {
+        try {
+          const uploadRes = await uploadService.uploadImage(
+            user?.id ?? 'anon',
+            formData.imagem,
+            'cover',
+            isArtist,
+          );
+          uploadedImageUrl = uploadRes.url;
+        } catch (err) {
+          console.error('Falha ao fazer upload da imagem do evento:', err);
+        }
+      }
+
+      // 2️⃣ Construir payload para o serviço
+      const startIso = new Date(`${formData.data}T${formData.hora}:00`).toISOString();
+      const payload = {
+        artist_id: user?.id ?? '',
+        name: formData.titulo,
+        event_type: formData.tipo,
+        price: formData.preco_min ?? 0,
+        description: formData.descricao,
+        start_time: startIso,
+        location: `${formData.venue_nome}, ${formData.venue_cidade}`,
+        capacity: formData.capacidade ?? null,
+        event_status: 'agendado' as const,
+      } as const;
+
+      // 3️⃣ Inserir no banco via EventService
+      const created = await createEvent(payload as any);
+      console.log('Evento criado:', created);
+
+      // 4️⃣ Callback opcional para pagina pai
       await onSubmit(formData)
       // Reset form após sucesso
       setFormData({

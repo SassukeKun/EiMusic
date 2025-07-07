@@ -1,4 +1,3 @@
-// src/app/track/[id]/page.tsx - Tela de Detalhes da Música
 'use client'
 
 import React, { useState, useEffect } from 'react'

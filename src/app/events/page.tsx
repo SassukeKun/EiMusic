@@ -1,5 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { fetchEvents, createEvent } from '@/services/eventService';
+import uploadService from '@/services/uploadService';
 import { PlansModal } from "@/components/PlansModal";
 import { CreateEventModal } from "./CreateEventModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -406,13 +408,51 @@ export default function EventsPage() {
     },
   ];
 
-  // Simulação de carregamento
+  // Carregar eventos a partir do Supabase
   useEffect(() => {
     const loadEvents = async () => {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setEvents(mockEvents);
-      setLoading(false);
+      try {
+        const data = await fetchEvents();
+        // Transformar os dados retornados pelo Supabase para o formato esperado pelo UI
+        const mapped: Event[] = data.map((e: any) => {
+          const startDate = new Date(e.start_time);
+          return {
+            id: e.id,
+            titulo: e.name,
+            artista: {
+              id: e.artist_id,
+              nome: e.artist_name ?? 'Artista',
+              avatar: '/api/placeholder/64/64', // TODO: substituir quando tivermos avatar do artista
+              verificado: true,
+            },
+            tipo: e.event_type,
+            data: e.start_time,
+            hora: startDate.toISOString().split('T')[1]?.substring(0, 5) ?? '',
+            venue: {
+              nome: e.location ?? 'Local a anunciar',
+              cidade: e.location?.split(',').pop()?.trim() ?? '',
+              tipo: 'centro_cultural',
+            },
+            descricao: e.description ?? '',
+            preco_min: e.price,
+            preco_max: e.price,
+            status: e.status ?? 'agendado',
+            is_exclusive: false,
+            plano_necessario: 'free',
+            imagem: e.image_url ?? '/api/placeholder/400/300',
+            tags: e.tags ?? [],
+            participantes: e.participants ?? 0,
+            is_trending: false,
+            link_externo: undefined,
+          };
+        });
+        setEvents(mapped);
+      } catch (err) {
+        console.error('Erro ao buscar eventos do Supabase:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     loadEvents();
   }, []);
@@ -459,50 +499,78 @@ export default function EventsPage() {
 
   const handleCreateEvent = async (formData: EventFormData) => {
     try {
-      // Simular criação do evento (aqui você faria a chamada real à API)
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // 1. Upload da imagem (se existir)
+      let uploadedImageUrl: string | undefined;
+      if (formData.imagem) {
+        try {
+          const uploadRes = await uploadService.uploadImage(
+            user?.id ?? 'anon',
+            formData.imagem,
+            'cover',
+            isArtist,
+          );
+          uploadedImageUrl = uploadRes.url;
+        } catch (err) {
+          console.error('Falha ao fazer upload da imagem do evento:', err);
+          // Continua sem imagem
+        }
+      }
 
-      // Criar novo evento com dados do formulário
-      const newEvent: Event = {
-        id: Date.now().toString(),
-        titulo: formData.titulo,
-        artista: {
-          id: user?.id || "temp",
-          nome:
-            user?.user_metadata?.name ||
-            user?.email?.split("@")[0] ||
-            "Artista",
-          avatar: "/api/placeholder/64/64",
-          verificado: isArtist || false,
+      // 2. Criar objeto de input para o Supabase
+      const startIso = new Date(`${formData.data}T${formData.hora}:00`).toISOString();
+      const input = {
+        artist_id: user?.id ?? '',
+        name: formData.titulo,
+        event_type: formData.tipo,
+        price: formData.preco_min ?? 0,
+        description: formData.descricao,
+        start_time: startIso,
+        location: `${formData.venue_nome}, ${formData.venue_cidade}`,
+        capacity: formData.capacidade ?? null,
+        status: 'agendado' as const,
+        image_url: uploadedImageUrl,
+      } as any; // usar any para permitir image_url extra se tabela tiver essa coluna
+
+      // 3. Inserir evento no Supabase
+      const created = await createEvent(input);
+      console.log('Evento criado:', created);
+
+      // 4. Atualizar lista de eventos local (opcional: refetch)
+      setEvents((prev) => [
+        {
+          id: created.id,
+          titulo: created.name,
+          artista: {
+            id: created.artist_id,
+            nome: user?.user_metadata?.name || 'Artista',
+            avatar: '/api/placeholder/64/64',
+            verificado: isArtist,
+          },
+          tipo: created.event_type,
+          data: created.start_time,
+          hora: formData.hora,
+          venue: {
+            nome: formData.venue_nome,
+            cidade: formData.venue_cidade,
+            capacidade: formData.capacidade,
+            tipo: formData.venue_tipo,
+          },
+          descricao: created.description,
+          preco_min: created.price,
+          preco_max: created.price,
+          status: created.status,
+          is_exclusive: formData.is_exclusive,
+          plano_necessario: formData.plano_necessario,
+          imagem: uploadedImageUrl ?? '/api/placeholder/400/300',
+          link_externo: formData.link_externo,
+          tags: formData.tags.map((t) => `#${t}`),
+          participantes: 0,
+          is_trending: false,
         },
-        tipo: formData.tipo,
-        data: `${formData.data}T${formData.hora}:00Z`,
-        hora: formData.hora,
-        venue: {
-          nome: formData.venue_nome,
-          cidade: formData.venue_cidade,
-          capacidade: formData.capacidade,
-          tipo: formData.venue_tipo,
-        },
-        descricao: formData.descricao,
-        preco_min: formData.preco_min,
-        preco_max: formData.preco_max,
-        status: "confirmado",
-        is_exclusive: formData.is_exclusive,
-        plano_necessario: formData.plano_necessario,
-        imagem: "/api/placeholder/400/300",
-        link_externo: formData.link_externo,
-        tags: formData.tags.map((tag) => `#${tag}`),
-        participantes: 1,
-        is_trending: false,
-      };
-
-      // Adicionar à lista de eventos
-      setEvents((prev) => [newEvent, ...prev]);
-
-      console.log("Novo evento criado:", newEvent);
+        ...prev,
+      ]);
     } catch (error) {
-      console.error("Erro ao criar evento:", error);
+      console.error('Erro ao criar evento:', error);
       throw error;
     }
   };
