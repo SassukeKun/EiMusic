@@ -18,8 +18,6 @@ import {
   FaMusic,
   FaHeadphones,
   FaCalendarAlt,
-  FaClock,
-  FaEye,
   FaArrowLeft,
   FaGift,
   FaCrown,
@@ -31,83 +29,8 @@ import {
   FaListUl
 } from 'react-icons/fa'
 
-// Mock data para demonstração
-const mockTracks = {
-  '1': {
-    id: '1',
-    title: 'Maputo Nights',
-    artist: {
-      id: '1',
-      name: 'MC Kappa',
-      avatar: null,
-      verified: true
-    },
-    album: 'Urban Mozambique',
-    duration: 245, // em segundos
-    genre: 'Hip-Hop',
-    release_date: '2024-11-01',
-    plays_count: 25420,
-    likes_count: 3240,
-    download_count: 1852,
-    cover_image: null,
-    audio_url: '/demo/maputo-nights.mp3',
-    lyrics: `[Verso 1]
-Nas ruas de Maputo quando a noite cai
-Sons da cidade ecoam, ninguém sai
-Luzes da Costa do Sol iluminam o mar
-Histórias da nossa terra vou contar
-
-[Refrão]
-Maputo nights, cidade que não dorme
-Sons urbanos, cultura que se forma
-Da Baixa ao Alto-Maé, nossa voz ressoa
-Mozambique hip-hop, música que emociona
-
-[Verso 2]
-Juventude que luta por um sonho melhor
-Através da música expressa a nossa dor
-Mas também a alegria de ser moçambicano
-Orgulho da terra, som africano`,
-    description: 'Uma homenagem às noites vibrantes de Maputo, misturando elementos do hip-hop moderno com a essência cultural moçambicana.',
-    tags: ['hip-hop', 'maputo', 'urban', 'moçambique', 'cultura'],
-    is_premium: false,
-    audio_quality: '320kbps'
-  },
-  '2': {
-    id: '2',
-    title: 'Mulher Moçambicana',
-    artist: {
-      id: '2',
-      name: 'Bella Moçambique',
-      avatar: null,
-      verified: true
-    },
-    album: 'Raízes Contemporâneas',
-    duration: 234,
-    genre: 'R&B/Soul',
-    release_date: '2024-10-20',
-    plays_count: 28900,
-    likes_count: 4120,
-    download_count: 2341,
-    cover_image: null,
-    audio_url: '/demo/mulher-mocambicana.mp3',
-    lyrics: `[Verso 1]
-Força e beleza em cada passo
-Mulher guerreira, nunca me canso
-De admirar tua resistência
-Moçambicana de essência
-
-[Refrão]
-Mulher moçambicana
-Orgulho da nossa nação
-Carrega a tradição
-No peito, no coração`,
-    description: 'Uma celebração da força e beleza da mulher moçambicana, combinando ritmos tradicionais com sonoridades modernas.',
-    tags: ['rnb', 'soul', 'empoderamento', 'mulher', 'tradição'],
-    is_premium: false,
-    audio_quality: '320kbps'
-  }
-}
+import { usePlayer, Track as PlayerTrack } from '@/context/PlayerContext'
+import { fetchTrackOrSingle, DisplayTrack } from '@/services/trackService'
 
 const mockComments = [
   {
@@ -174,14 +97,14 @@ const mockRelatedTracks = [
 export default function TrackDetailPage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
-  
-  // Estados do player
-  const [isPlaying, setIsPlaying] = useState(false)
+  const { track: currentTrack, playing, progress, duration, volume, setVolume, seek, playTrack, togglePlay } = usePlayer()
+  const [track, setTrack] = useState<DisplayTrack | null>(null)
+  const isPlaying = track ? currentTrack?.id === track.id && playing : false
   const [currentTime, setCurrentTime] = useState(0)
-  const [volume, setVolume] = useState(0.8)
   const [isMuted, setIsMuted] = useState(false)
   const [isShuffled, setIsShuffled] = useState(false)
   const [isRepeating, setIsRepeating] = useState(false)
+
   
   // Estados da interface
   const [activeTab, setActiveTab] = useState<'lyrics' | 'comments' | 'related'>('lyrics')
@@ -190,33 +113,52 @@ export default function TrackDetailPage() {
   const [newComment, setNewComment] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
-  // Buscar dados da música
-  const track = mockTracks[id as keyof typeof mockTracks] || mockTracks['1']
-
-  // Simular carregamento
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
-    
-    return () => clearTimeout(timer)
-  }, [])
+    const load = async () => {
+      setIsLoading(true);
+      const data = await fetchTrackOrSingle(id);
+      if (data) setTrack(data);
+      setIsLoading(false);
+    };
+    load();
+  }, [id])
+
+  // if still loading, show skeleton
+  if (isLoading || !track) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Carregando...</div>
+    );
+  }
+
+
 
   // Funções do player
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying)
-    // Aqui você integraria com o player real
+  // Função simplificada de play para seguir a mesma lógica de SongControls
+  const handlePlayPause = () => {
+    if (!track) return;
+    const playerTrack: PlayerTrack = {
+      id: track.id,
+      title: track.title,
+      cover_url: track.cover_image ?? '',
+      file_url: track.audio_url,
+      streams: track.plays_count ?? 0,
+    };
+    if (currentTrack?.id === track.id) {
+      togglePlay();
+    } else {
+      playTrack(playerTrack);
+    }
   }
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCurrentTime(parseInt(e.target.value))
-    // Aqui você integraria com o player real
+    const newTime = parseFloat(e.target.value);
+    seek(newTime);
   }
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value)
-    setVolume(newVolume)
-    setIsMuted(newVolume === 0)
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    setIsMuted(newVolume === 0);
   }
 
   const toggleMute = () => {
@@ -339,7 +281,7 @@ export default function TrackDetailPage() {
 
               {/* Play button overlay */}
               <motion.button
-                onClick={togglePlay}
+                onClick={handlePlayPause}
                 className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl opacity-0 hover:opacity-100 transition-opacity"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -383,26 +325,26 @@ export default function TrackDetailPage() {
               <div className="flex items-center space-x-6 text-sm text-gray-400 mb-6">
                 <span className="flex items-center">
                   <FaHeadphones className="mr-1" />
-                  {track.plays_count.toLocaleString()} reproduções
+                  {track.plays_count?.toLocaleString()} reproduções
                 </span>
-                <span className="flex items-center">
+                {/* <span className="flex items-center">
                   <FaHeart className="mr-1" />
-                  {track.likes_count.toLocaleString()} curtidas
-                </span>
+                  {track.likes_count?.toLocaleString()} curtidas
+                </span> */}
                 <span className="flex items-center">
                   <FaDownload className="mr-1" />
-                  {track.download_count.toLocaleString()} downloads
+                  {track.download_count?.toLocaleString()} downloads
                 </span>
                 <span className="flex items-center">
                   <FaCalendarAlt className="mr-1" />
-                  {new Date(track.release_date).toLocaleDateString('pt-PT')}
+                  {new Date(track.release_date ?? '').toLocaleDateString('pt-PT')}
                 </span>
               </div>
 
               {/* Ações principais */}
               <div className="flex flex-wrap items-center gap-4">
                 <motion.button
-                  onClick={togglePlay}
+                  onClick={handlePlayPause}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-full flex items-center font-semibold"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -411,14 +353,14 @@ export default function TrackDetailPage() {
                   {isPlaying ? 'Pausar' : 'Reproduzir'}
                 </motion.button>
 
-                <button
+                {/* <button
                   onClick={handleLike}
                   className={`p-3 rounded-full transition ${
                     isLiked ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
                   }`}
                 >
                   <FaHeart />
-                </button>
+                </button> */}
 
                 <button
                   onClick={handleDownload}
@@ -441,13 +383,13 @@ export default function TrackDetailPage() {
                   <FaShare />
                 </button>
 
-                <button
+                {/* <button
                   onClick={handleDonate}
                   className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-3 rounded-full flex items-center font-semibold"
                 >
                   <FaGift className="mr-2" />
                   Apoiar Artista
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -474,7 +416,7 @@ export default function TrackDetailPage() {
               </button>
               
               <button
-                onClick={togglePlay}
+                onClick={handlePlayPause}
                 className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 rounded-full flex items-center justify-center transition"
               >
                 {isPlaying ? <FaPause /> : <FaPlay className="ml-0.5" />}
@@ -504,8 +446,8 @@ export default function TrackDetailPage() {
                 <input
                   type="range"
                   min="0"
-                  max={track.duration}
-                  value={currentTime}
+                  max={duration}
+                  value={duration ? (progress/100)*duration : 0}
                   onChange={handleSeek}
                   className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
                 />
@@ -560,7 +502,7 @@ export default function TrackDetailPage() {
                 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2">
-                  {track.tags.map((tag) => (
+                  {(track.tags ?? []).map((tag) => (
                     <span
                       key={tag}
                       className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-sm"
@@ -573,7 +515,7 @@ export default function TrackDetailPage() {
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-gray-700 mb-6">
+            {/* <div className="border-b border-gray-700 mb-6">
               <nav className="flex space-x-8">
                 {[
                   { id: 'lyrics', label: 'Letra', icon: <FaMusic /> },
@@ -594,144 +536,9 @@ export default function TrackDetailPage() {
                   </button>
                 ))}
               </nav>
-            </div>
+            </div> */}
 
-            {/* Conteúdo das tabs */}
-            <AnimatePresence mode="wait">
-              {activeTab === 'lyrics' && (
-                <motion.div
-                  key="lyrics"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="bg-gray-800 rounded-xl p-6"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Letra</h3>
-                    <button
-                      onClick={() => setShowLyrics(!showLyrics)}
-                      className="text-indigo-400 hover:text-indigo-300 transition"
-                    >
-                      {showLyrics ? 'Ocultar' : 'Mostrar'}
-                    </button>
-                  </div>
-                  
-                  {showLyrics && (
-                    <div className="whitespace-pre-line text-gray-300 leading-loose">
-                      {track.lyrics}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-
-              {activeTab === 'comments' && (
-                <motion.div
-                  key="comments"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
-                >
-                  {/* Formulário de comentário */}
-                  <form onSubmit={handleCommentSubmit} className="bg-gray-800 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold mb-4">Deixe um comentário</h3>
-                    <div className="flex space-x-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-bold">U</span>
-                      </div>
-                      <div className="flex-1">
-                        <textarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="O que você achou desta música?"
-                          className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                          rows={3}
-                        />
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-sm text-gray-400">
-                            {newComment.length}/280 caracteres
-                          </span>
-                          <button
-                            type="submit"
-                            disabled={!newComment.trim()}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition"
-                          >
-                            Comentar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </form>
-
-                  {/* Lista de comentários */}
-                  <div className="space-y-4">
-                    {mockComments.map((comment) => (
-                      <div key={comment.id} className="bg-gray-800 rounded-xl p-6">
-                        <div className="flex space-x-4">
-                          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-bold">{comment.user.charAt(0)}</span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h4 className="font-semibold">{comment.user}</h4>
-                              <span className="text-sm text-gray-400">
-                                {new Date(comment.timestamp).toLocaleDateString('pt-PT')}
-                              </span>
-                            </div>
-                            <p className="text-gray-300 mb-3">{comment.content}</p>
-                            <div className="flex items-center space-x-4">
-                              <button className="flex items-center space-x-1 text-gray-400 hover:text-indigo-400 transition">
-                                <FaThumbsUp className="text-sm" />
-                                <span className="text-sm">{comment.likes}</span>
-                              </button>
-                              <button className="text-gray-400 hover:text-white transition text-sm">
-                                Responder
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === 'related' && (
-                <motion.div
-                  key="related"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-4"
-                >
-                  <h3 className="text-lg font-semibold mb-4">Músicas Relacionadas</h3>
-                  {mockRelatedTracks.map((relatedTrack) => (
-                    <div 
-                      key={relatedTrack.id}
-                      className="flex items-center p-4 bg-gray-800 hover:bg-gray-700 rounded-lg transition group cursor-pointer"
-                      onClick={() => router.push(`/track/${relatedTrack.id}`)}
-                    >
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg mr-4 flex items-center justify-center">
-                        <FaMusic className="text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium">{relatedTrack.title}</h4>
-                        <p className="text-sm text-gray-400">
-                          {relatedTrack.artist} • {relatedTrack.plays_count.toLocaleString()} reproduções
-                        </p>
-                      </div>
-                      <div className="text-gray-400 mr-4">
-                        {formatTime(relatedTrack.duration)}
-                      </div>
-                      <button className="opacity-0 group-hover:opacity-100 transition p-2 hover:bg-indigo-600 rounded-full">
-                        <FaPlay className="text-white text-sm" />
-                      </button>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            
 
           {/* Sidebar */}
           <div className="space-y-6">
@@ -757,7 +564,7 @@ export default function TrackDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Lançamento:</span>
-                  <span>{new Date(track.release_date).toLocaleDateString('pt-PT')}</span>
+                  <span>{new Date(track.release_date ?? '').toLocaleDateString('pt-PT')}</span>
                 </div>
                 {track.is_premium && (
                   <div className="flex justify-between">
@@ -772,7 +579,7 @@ export default function TrackDetailPage() {
             </div>
 
             {/* Estatísticas */}
-            <div className="bg-gray-800 rounded-xl p-6">
+            {/* <div className="bg-gray-800 rounded-xl p-6">
               <h3 className="font-bold mb-4">Estatísticas</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -782,19 +589,19 @@ export default function TrackDetailPage() {
                   </div>
                   <span className="font-semibold">{track.plays_count.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                {/* <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <FaHeart className="text-red-400" />
                     <span className="text-sm">Curtidas</span>
                   </div>
-                  <span className="font-semibold">{track.likes_count.toLocaleString()}</span>
-                </div>
+                  <span className="font-semibold">{track.likes_count?.toLocaleString()}</span>
+                </div> 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <FaDownload className="text-green-400" />
                     <span className="text-sm">Downloads</span>
                   </div>
-                  <span className="font-semibold">{track.download_count.toLocaleString()}</span>
+                  <span className="font-semibold">{track.download_count?.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -804,7 +611,7 @@ export default function TrackDetailPage() {
                   <span className="font-semibold">{mockComments.length}</span>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Apoiar artista */}
             <div className="bg-gradient-to-br from-yellow-600/20 to-orange-600/20 border border-yellow-600/30 rounded-xl p-6">
@@ -822,7 +629,7 @@ export default function TrackDetailPage() {
             </div>
 
             {/* Compartilhar */}
-            <div className="bg-gray-800 rounded-xl p-6">
+            {/* <div className="bg-gray-800 rounded-xl p-6">
               <h3 className="font-bold mb-4">Compartilhar</h3>
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -842,7 +649,7 @@ export default function TrackDetailPage() {
                   <span className="text-sm">Twitter</span>
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -875,6 +682,7 @@ export default function TrackDetailPage() {
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
       `}</style>
+    </div>
     </div>
   )
 }

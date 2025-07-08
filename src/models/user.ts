@@ -37,4 +37,4 @@ export type CreateUserInput = Omit<z.infer<typeof userSchema>, 'id' | 'created_a
  */
 export type UserLoginInput = Pick<User, 'email' | 'password'>;
 
-export default User; 
+export default User;

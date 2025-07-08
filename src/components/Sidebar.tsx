@@ -258,7 +258,7 @@ export default function Sidebar() {
     { icon: <FaUsers />, label: 'Comunidades', href: '/community' },
     { icon: <FaCalendarAlt />, label: 'Eventos', href: '/events' },
     { icon: <FaListUl />, label: 'Playlists', href: '/playlists' },
-    { icon: <FaHeadphones />, label: 'Minha Biblioteca', href: '/library' },
+    // { icon: <FaHeadphones />, label: 'Minha Biblioteca', href: '/library' },
     { icon: <FaMicrophone />, label: 'Artistas', href: '/artist' },
   ]
   

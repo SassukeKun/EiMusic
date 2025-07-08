@@ -16,6 +16,9 @@ interface PlayerContextType {
   playing: boolean;
   progress: number;
   duration: number;
+  volume: number;
+  setVolume: (v: number) => void;
+  seek: (time: number) => void;
   playTrack: (track: Track) => void;
   togglePlay: () => void;
 }
@@ -27,6 +30,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.8); // 0 to 1
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // When track changes, load and play
@@ -46,6 +50,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (error) console.error('Error incrementing streams:', error);
       });
   }, [track]);
+
+  // Volume control effect
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
 
   // Track progress
   useEffect(() => {
@@ -74,8 +85,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setPlaying(!playing);
   };
 
+  const seek = (time: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = time;
+    setProgress((audio.currentTime / audio.duration) * 100);
+  };
+
   return (
-    <PlayerContext.Provider value={{ track, playing, progress, duration, playTrack, togglePlay }}>
+    <PlayerContext.Provider value={{ track, playing, progress, duration, volume, setVolume, seek, playTrack, togglePlay }}>
       {children}
       <audio ref={audioRef} hidden />
     </PlayerContext.Provider>

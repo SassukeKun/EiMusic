@@ -23,8 +23,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { registerUser, registerArtist, loginWithOAuth, loading, error } = useAuth();
+  const { registerUser, registerArtist,  loading, error } = useAuth();
   const [userType, setUserType] = useState<'user' | 'artist'>('user');
   const [authError, setAuthError] = useState<string | null>(error);
   const [showPassword, setShowPassword] = useState(false);
@@ -66,6 +65,7 @@ export default function RegisterPage() {
           name: data.name,
           email: data.email,
           password: data.password,
+          plan: "free", // Adicione esta linha se não quiser alterar o tipo
         });
 
         if (result && result.user) {

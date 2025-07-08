@@ -1,8 +1,10 @@
-import supabase from '../utils/supabaseClient';
+import { getSafeSupabaseClient } from '../utils/supabaseClient';
 
 /**
  * Serviço para gerenciar operações relacionadas a usuários
  */
+const supabase = getSafeSupabaseClient();
+
 const userService = {
   /**
    * Deleta um usuário completamente (tanto da tabela users quanto da auth.users)
@@ -64,6 +66,47 @@ const userService = {
         error: error.message || 'Erro desconhecido ao excluir usuário'
       };
     }
+  },
+
+  /**
+   * Obter (fetch) um usuário pelo ID
+   * @param id - ID do usuário
+   * @returns Dados do usuário ou null
+   */
+  async getUserById(id: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return data;
+  },
+
+  /**
+   * Atualizar (ou criar) um usuário via upsert
+   * @param id - ID do usuário
+   * @param userData - Campos a serem atualizados
+   * @returns Linha atualizada ou null
+   */
+  async updateUser(id: string, userData: Record<string, any>) {
+    if (!id) throw new Error('ID do usuário é obrigatório');
+
+    const { data, error } = await supabase
+      .from('users')
+      .upsert({ id, ...userData }, { onConflict: 'id' })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
   }
 };
 

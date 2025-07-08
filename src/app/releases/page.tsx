@@ -1,38 +1,23 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useAuth } from '@/hooks/useAuth'
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser-client'
 import { FaThLarge } from 'react-icons/fa'
 import {
   FaPlay,
   FaPause,
   FaHeart,
-  FaHeartBroken,
-  FaShareAlt,
   FaMusic,
-  FaVideo,
-  FaUsers,
-  FaCalendarAlt,
-  FaFire,
   FaSearch,
   FaChevronLeft,
   FaChevronRight,
   FaCrown,
-  FaStar,
-  FaPlayCircle,
-  FaClock,
-  FaFilter,
-  FaSort,
   FaList,
-  FaEllipsisV,
-  FaDownload,
-  FaPlus,
-  FaEye,
-  FaThumbsUp,
-  FaCommentAlt
+  FaEllipsisV
 } from 'react-icons/fa'
 
 // Interface para releases baseada na documentação
@@ -55,7 +40,6 @@ interface Release {
 }
 
 export default function ReleasesPage() {
-  const { user, isAuthenticated } = useAuth()
   const [releases, setReleases] = useState<Release[]>([])
   const [filteredReleases, setFilteredReleases] = useState<Release[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,148 +50,11 @@ export default function ReleasesPage() {
   const [selectedType, setSelectedType] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [showFilters, setShowFilters] = useState(false)
   
   // Estados de paginação
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 12
+  const itemsPerPage = 12;
 
-  // Mock data baseado no contexto moçambicano
-  const mockReleases: Release[] = [
-    {
-      id: '1',
-      title: 'Marrabenta do Futuro',
-      artist: 'Zena Bakar',
-      album: 'Revolução Digital',
-      image: '/api/placeholder/300/300',
-      duration: '3:45',
-      releaseDate: '2024-03-10',
-      genre: 'Marrabenta',
-      type: 'music',
-      tags: ['marrabenta', 'moderna', 'maputo'],
-      plays: 127000,
-      likes: 8500,
-      isExplicit: false,
-      isPremium: false,
-      description: 'Uma fusão inovadora da marrabenta tradicional com elementos modernos'
-    },
-    {
-      id: '2',
-      title: 'Noites de Maputo - Clipe Oficial',
-      artist: 'Banda Kakana',
-      album: 'Cidade dos Sonhos',
-      image: '/api/placeholder/300/300',
-      duration: '4:12',
-      releaseDate: '2024-03-08',
-      genre: 'Jazz Fusion',
-      type: 'video',
-      tags: ['jazz', 'fusion', 'maputo', 'urbano'],
-      plays: 89000,
-      likes: 5200,
-      isExplicit: false,
-      isPremium: true,
-      description: 'Videoclipe gravado nas ruas de Maputo durante o pôr do sol'
-    },
-    {
-      id: '3',
-      title: 'Dança da Liberdade',
-      artist: 'MC Kabelo',
-      album: 'Resistência',
-      image: '/api/placeholder/300/300',
-      duration: '3:28',
-      releaseDate: '2024-03-05',
-      genre: 'Hip-Hop',
-      type: 'music',
-      tags: ['hip-hop', 'rap', 'consciência', 'moçambique'],
-      plays: 234000,
-      likes: 12800,
-      isExplicit: true,
-      isPremium: false,
-      description: 'Uma reflexão sobre a liberdade e resistência cultural'
-    },
-    {
-      id: '4',
-      title: 'African Dreams',
-      artist: 'DJ Tarico',
-      album: 'Continental Vibes',
-      image: '/api/placeholder/300/300',
-      duration: '4:05',
-      releaseDate: '2024-02-28',
-      genre: 'Afrobeats',
-      type: 'music',
-      tags: ['afrobeats', 'electronic', 'dança', 'energia'],
-      plays: 156000,
-      likes: 9700,
-      isExplicit: false,
-      isPremium: false,
-      description: 'Batidas africanas com elementos eletrônicos modernos'
-    },
-    {
-      id: '5',
-      title: 'Coração de Moçambique',
-      artist: 'Ana Mutimba',
-      image: '/api/placeholder/300/300',
-      duration: '3:52',
-      releaseDate: '2024-02-25',
-      genre: 'World Music',
-      type: 'music',
-      tags: ['tradicional', 'world', 'cultura', 'raízes'],
-      plays: 78000,
-      likes: 4600,
-      isExplicit: false,
-      isPremium: true,
-      description: 'Celebração das tradições musicais moçambicanas'
-    },
-    {
-      id: '6',
-      title: 'Bailamos Juntos - Live Session',
-      artist: 'Os Tubarões',
-      image: '/api/placeholder/300/300',
-      duration: '5:23',
-      releaseDate: '2024-02-20',
-      genre: 'Marrabenta',
-      type: 'video',
-      tags: ['marrabenta', 'live', 'tradicional', 'grupo'],
-      plays: 112000,
-      likes: 6800,
-      isExplicit: false,
-      isPremium: false,
-      description: 'Performance ao vivo no Centro Cultural Franco-Moçambicano'
-    },
-    {
-      id: '7',
-      title: 'Força da Terra',
-      artist: 'Marlene Muthemba',
-      album: 'Raízes Profundas',
-      image: '/api/placeholder/300/300',
-      duration: '4:18',
-      releaseDate: '2024-02-15',
-      genre: 'Folk',
-      type: 'music',
-      tags: ['folk', 'acústico', 'natureza', 'mulher'],
-      plays: 95000,
-      likes: 5900,
-      isExplicit: false,
-      isPremium: true,
-      description: 'Uma ode à força feminina e à conexão com a terra'
-    },
-    {
-      id: '8',
-      title: 'Beira Mar',
-      artist: 'Conjunto da Beira',
-      image: '/api/placeholder/300/300',
-      duration: '3:34',
-      releaseDate: '2024-02-10',
-      genre: 'Marrabenta',
-      type: 'music',
-      tags: ['marrabenta', 'beira', 'costa', 'tradicional'],
-      plays: 143000,
-      likes: 8200,
-      isExplicit: false,
-      isPremium: false,
-      description: 'Marrabenta clássica inspirada na cidade da Beira'
-    }
-  ]
 
   // Gêneros disponíveis baseados no contexto moçambicano
   const genres = [
@@ -224,14 +71,96 @@ export default function ReleasesPage() {
     { value: 'plays', label: 'Mais Ouvidas' }
   ]
 
-  // Inicializar dados
+  // Carregar lançamentos a partir do Supabase
   useEffect(() => {
-    // Simular carregamento
-    setTimeout(() => {
-      setReleases(mockReleases)
-      setFilteredReleases(mockReleases)
-      setLoading(false)
-    }, 1000)
+    const supabase = getSupabaseBrowserClient();
+
+    (async () => {
+      try {
+        setLoading(true);
+        const [singlesRes, albumsRes, videosRes] = await Promise.all([
+          supabase
+            .from('singles')
+            .select('id, title, cover_url, file_url, created_at, genre, duration, streams, artist:artists (id, name, profile_image_url)')
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('albums')
+            .select('id, title, cover_url, created_at, genre, tags, track_count, is_explicit, artist:artists (id, name, profile_image_url)')
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('videos')
+            .select('id, title, cover_url:thumbnail_url, created_at, genre, duration, views, likes, artist:artists (id, name, profile_image_url)')
+            .order('created_at', { ascending: false })
+        ]);
+
+        const mapArtistName = (artist: any) => {
+          if (!artist) return 'Desconhecido';
+          return Array.isArray(artist) ? artist[0]?.name ?? 'Desconhecido' : artist?.name ?? 'Desconhecido';
+        };
+
+        const singles = (singlesRes.data ?? []).map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          artist: mapArtistName(s.artist),
+          album: undefined,
+          image: s.cover_url || s.file_url || '/api/placeholder/300/300',
+          duration: s.duration ? `${Math.floor(s.duration / 60)}:${String(Math.floor(s.duration % 60)).padStart(2,'0')}` : '',
+          releaseDate: s.created_at,
+          genre: s.genre || '',
+          type: 'music' as const,
+          tags: [],
+          plays: s.streams ?? 0,
+          likes: 0,
+          isExplicit: false,
+          isPremium: false
+        }));
+
+        const albums = (albumsRes.data ?? []).map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          artist: mapArtistName(a.artist),
+          album: undefined,
+          image: a.cover_url || '/api/placeholder/300/300',
+          duration: a.track_count ? `${a.track_count} faixas` : '',
+          releaseDate: a.created_at,
+          genre: a.genre || '',
+          type: 'album' as const,
+          tags: a.tags ?? [],
+          plays: 0,
+          likes: 0,
+          isExplicit: a.is_explicit ?? false,
+          isPremium: false
+        }));
+
+        const videos = (videosRes.data ?? []).map((v: any) => ({
+          id: v.id,
+          title: v.title,
+          artist: mapArtistName(v.artist),
+          album: undefined,
+          image: v.cover_url || '/api/placeholder/300/300',
+          duration: v.duration ? `${Math.floor(v.duration / 60)}:${String(Math.floor(v.duration % 60)).padStart(2,'0')}` : '',
+          releaseDate: v.created_at,
+          genre: v.genre || '',
+          type: 'video' as const,
+          tags: [],
+          plays: v.views ?? 0,
+          likes: v.likes ?? 0,
+          isExplicit: false,
+          isPremium: false
+        }));
+
+        const allReleases = [...singles, ...albums, ...videos].sort(
+          (a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()
+        );
+
+        setReleases(allReleases);
+        setFilteredReleases(allReleases);
+      } catch (error) {
+        console.error('Erro ao buscar conteúdos:', error);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [])
 
   // Aplicar filtros e busca
@@ -286,21 +215,6 @@ export default function ReleasesPage() {
   const endIndex = startIndex + itemsPerPage
   const currentReleases = filteredReleases.slice(startIndex, endIndex)
 
-  // Formatação de números
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
-    return num.toString()
-  }
-
-  // Formatação de data
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('pt-MZ', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
-  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -310,11 +224,6 @@ export default function ReleasesPage() {
         staggerChildren: 0.1
       }
     }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
   }
 
   if (loading) {

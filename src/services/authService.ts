@@ -1,5 +1,5 @@
 import { User, CreateUserInput } from '../models/user';
-import { Artist, CreateArtistInput } from '../models/artist';
+import { CreateArtistInput } from '../models/artist';
 import { getSupabaseBrowserClient } from '../utils/supabaseClient';
 
 // Helper for logging sessionStorage
@@ -46,7 +46,7 @@ const authService = {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('sb-')) {
         localStorage.removeItem(key);
-      }
+      } 
     });
 
     // Clear Supabase-specific items from sessionStorage
@@ -135,13 +135,13 @@ const authService = {
     
     // Autenticar usuario com o Supabase auth
     const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
       password,
     });
     
     if (error) {
       throw error;
-    }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }
     
     // Check for valid refresh token
     if (!data.session?.refresh_token) {
@@ -311,6 +311,7 @@ const authService = {
     });
     
     if (error) {
+      console.error('Supabase auth error:', error);
       throw error;
     }
     
@@ -332,7 +333,10 @@ const authService = {
           email: userData.email,
           payment_method: userData.payment_method || null,
           has_active_subscription: userData.has_active_subscription || false,
-            created_at: new Date().toISOString(), // Adicionando campo de data se for necessário
+          // Não envie created_at, deixe o banco preencher
+          is_sso_user: false,
+          is_anonymous: false,
+          is_admin: false,
         };
         
           // Tentativa com upsert usando o cliente autenticado
@@ -448,7 +452,10 @@ const authService = {
           monetization_plan_id: artistData.monetization_plan_id || null,
           profile_image_url: artistData.profile_image_url || null,
           social_links: artistData.social_links || null,
-          created_at: new Date().toISOString(),  // Adicionando campo de data se for necessário
+          created_at: new Date().toISOString(),
+          // Campos obrigatórios da tabela artists
+          verified: false, // ou true, se quiser marcar como verificado por padrão
+          subscribers: 0,
         };
         
           // Tentativa com upsert usando o cliente autenticado

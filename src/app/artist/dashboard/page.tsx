@@ -20,32 +20,11 @@ import {
   Users,
   Music,
   Calendar,
-  DollarSign,
   Settings,
-  Upload,
-  Play,
-  Pause,
-  Edit,
-  Trash2,
-  Eye,
-  Heart,
-  Plus,
-  Search,
-  X,
-  TrendingUp,
-  Bell,
   Star,
-  Download,
-  Clock,
   Video,
-  Filter,
-  MoreHorizontal,
   Home,
-  Mic,
-  Share2,
-  Target,
-  Zap,
-  MapPin,
+  Play,
 } from "lucide-react";
 
 import type { Artist as DBArtist } from "@/models/artist";
@@ -56,6 +35,7 @@ import type { Community as CommunityModel } from "@/models/community";
 import type { Event as EventModel } from "@/models/event";
 import { createEvent } from "@/services/eventService";
 import uploadService from "@/services/uploadService";
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient';
 
 // 🎬 MODEL PARA UI DE VÍDEOS NA DASHBOARD
 interface VideoData {
@@ -121,14 +101,46 @@ export default function ArtistDashboard() {
     useState<DashboardSection>("overview");
   const [loading, setLoading] = useState(true);
   // ⚙️ Salvar estados de loading para upload de avatar etc.
-  const [saving, setSaving] = useState(false);
   const [artistName, setArtistName] = useState<string>("");
-  const [artistBio, setArtistBio] = useState<string>("");
-  const [province, setProvince] = useState<string>("");
-  const [instagram, setInstagram] = useState<string>("");
-  const [twitter, setTwitter] = useState<string>("");
-  const [website, setWebsite] = useState<string>("");
-  const [phone, setPhone] = useState<string>("");
+  const [, setArtistBio] = useState<string>("");
+  const [, setProvince] = useState<string>("");
+  const [, setInstagram] = useState<string>("");
+  const [, setTwitter] = useState<string>("");
+  const [, setWebsite] = useState<string>("");
+  const [, setPhone] = useState<string>("");
+  // 💰 Receita mensal (plataforma + doações líquidas)
+  const [monthlyRevenue, setMonthlyRevenue] = useState<number | null>(null);
+  const formatCurrency = (v:number)=>v.toLocaleString('pt-MZ',{style:'currency',currency:'MZN',minimumFractionDigits:2});
+
+  // Carregar receita mensal
+  useEffect(() => {
+    const fetchRevenue = async () => {
+      if (!user?.id) return;
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const startIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+        const { data: revRows, error: revErr } = await supabase
+          .from('revenue_transactions')
+          .select('amount')
+          .eq('artist_id', user.id)
+          .gte('created_at', startIso);
+        if (revErr) throw revErr;
+        const platformSum = revRows?.reduce((s, r)=> s + Number(r.amount),0) ?? 0;
+        const { data: donRows, error: donErr } = await supabase
+          .from('donations')
+          .select('amount')
+          .eq('artist_id', user.id)
+          .gte('created_at', startIso);
+        if (donErr) throw donErr;
+        const donationNet = (donRows?.reduce((s,r)=> s+Number(r.amount),0) ?? 0)*0.85;
+        setMonthlyRevenue(platformSum + donationNet);
+      } catch(err){
+        console.error('Erro ao buscar receita mensal',err);
+      }
+    };
+    fetchRevenue();
+  }, [user]);
+
   const MOZ_PROVINCES = [
     "Cabo Delgado",
     "Gaza",
@@ -173,7 +185,8 @@ export default function ArtistDashboard() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // 🔄 ESTADOS PARA O MODAL DE EDIÇÃO DE EVENTOS
   const [showEditEventModal, setShowEditEventModal] = useState<boolean>(false);
-  const [showCreateEventModal, setShowCreateEventModal] = useState<boolean>(false);
+  const [showCreateEventModal, setShowCreateEventModal] =
+    useState<boolean>(false);
   const [eventToEdit, setEventToEdit] = useState<EventModel | null>(null);
   const [videos, setVideos] = useState<VideoModel[]>([]); // will fetch later
   const [comunidades, setComunidades] = useState<CommunityModel[]>([]); // will fetch
@@ -249,7 +262,9 @@ export default function ArtistDashboard() {
       }
 
       // 2. Construir input para Supabase
-      const startIso = new Date(`${formData.data}T${formData.hora}:00`).toISOString();
+      const startIso = new Date(
+        `${formData.data}T${formData.hora}:00`
+      ).toISOString();
       const input = {
         artist_id: user?.id ?? "",
         name: formData.titulo,
@@ -389,7 +404,11 @@ export default function ArtistDashboard() {
                 {" "}
                 {/* 🔧 Reduzido padding */}
                 <img
-                  src={artist?.profile_image_url || mockArtist.avatar}
+                  src={
+                    artist?.profile_image_url === ""
+                      ? "/avatar.svg"
+                      : artist?.profile_image_url
+                  }
                   onError={(e) => {
                     const t = e.currentTarget as HTMLImageElement;
                     t.onerror = null;
@@ -447,23 +466,22 @@ export default function ArtistDashboard() {
             <div className="hidden xl:flex items-center space-x-4 flex-shrink-0">
               {" "}
               {/* 🔧 Reduzido espaçamento e adicionado flex-shrink-0 */}
-              <div className="text-center px-3 py-1 bg-gray-700/20 rounded-lg">
+              {/* <div className="text-center px-3 py-1 bg-gray-700/20 rounded-lg">
                 {" "}
-                {/* 🔧 Reduzido padding */}
+                
                 <p className="text-gray-400 text-xs font-medium">Streams</p>
                 <p className="text-white font-bold text-sm">
                   {(mockArtist.total_streams / 1000).toFixed(0)}k
                 </p>{" "}
-                {/* 🔧 Texto menor */}
+                
                 <p className="text-green-400 text-xs">+12.5%</p>
-              </div>
+              </div> */}
               <div className="text-center px-3 py-1 bg-gray-700/20 rounded-lg">
                 <p className="text-gray-400 text-xs font-medium">Receita</p>
                 <p className="text-green-400 font-bold text-sm">
-                  {mockArtist.receita_mensal}
+                  {monthlyRevenue !== null ? formatCurrency(monthlyRevenue) : "—"}
                 </p>{" "}
                 {/* 🔧 Removido MT para economizar espaço */}
-                <p className="text-green-400 text-xs">+15.7%</p>
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
 import ProfilePhotoUploader from '@/components/settings/ProfilePhotoUploader'
+import userService from '@/services/userService'
 import {
   FaUser,
   FaMusic,
@@ -68,6 +69,33 @@ export default function UserProfilePage() {
   const { user, loading } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [isEditing, setIsEditing] = useState(false)
+
+  // Fetch user profile from Supabase
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) return
+      try {
+        const data: any = await userService.getUserById(user.id)
+        if (data) {
+          setUserData({
+            id: data.id,
+            nome_usuario: data.name ?? '',
+            email: data.email ?? '',
+            foto_perfil_url: data.profile_image_url ?? '/api/placeholder/120/120',
+            localizacao: data.raw_user_meta_data?.location ?? '',
+            idioma_preferido: data.raw_user_meta_data?.preferred_language ?? 'pt-MZ',
+            data_registro: data.created_at ?? new Date().toISOString(),
+            metodo_pagamento_preferido: data.payment_method ?? '',
+            assinatura_ativa: data.has_active_subscription ?? false
+          })
+        }
+      } catch (err) {
+        console.error('Erro ao buscar perfil do usuário:', err)
+      }
+    }
+
+    fetchUserProfile()
+  }, [user])
 
   // Estados baseados nos atributos da documentação (Tabela 13)
   const [userData, setUserData] = useState<UserData>({
@@ -175,7 +203,7 @@ export default function UserProfilePage() {
         </motion.div>
 
         {/* Estatísticas Rápidas */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -205,7 +233,7 @@ export default function UserProfilePage() {
               </div>
             </motion.div>
           ))}
-        </motion.div>
+        </motion.div> */}
 
         {/* Navegação por Abas */}
         <motion.div
@@ -254,10 +282,26 @@ export default function UserProfilePage() {
 // Seção Overview melhorada baseada nos atributos da documentação
 function ProfileOverviewSection({ userData, setUserData, isEditing }: { userData: UserData, setUserData: any, isEditing: boolean }) {
   const [tempData, setTempData] = useState(userData)
+  const { user } = useAuth()
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setUserData(tempData)
-    // Aqui chamaria a API para salvar
+    try {
+      if (user?.id) {
+        const payload = {
+          name: tempData.nome_usuario,
+          payment_method: tempData.metodo_pagamento_preferido,
+          profile_image_url: tempData.foto_perfil_url ?? null,
+          raw_user_meta_data: {
+            location: tempData.localizacao,
+            preferred_language: tempData.idioma_preferido
+          }
+        }
+        await userService.updateUser(user.id, payload)
+      }
+    } catch (err) {
+      console.error('Erro ao salvar perfil do usuário:', err)
+    }
   }
 
   const handleCancel = () => {

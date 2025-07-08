@@ -23,8 +23,8 @@ interface OverviewSectionProps {
 
 const OverviewSection: React.FC<OverviewSectionProps> = ({ mockArtist, musicas, videos, eventos, setActiveSection }) => (
   <div className="space-y-8">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-      <StatsCard
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+      {/* <StatsCard
         title="Total de Streams"
         value={mockArtist.total_streams.toLocaleString()}
         icon={Play}
@@ -37,7 +37,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({ mockArtist, musicas, 
         icon={Users}
         color="from-green-500 to-blue-500"
         trend="+8.3%"
-      />
+      /> */}
       <StatsCard
         title="Receita Mensal"
         value={`${mockArtist.receita_mensal} MT`}

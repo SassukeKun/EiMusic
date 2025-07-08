@@ -6,122 +6,201 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { FaPlay, FaHeart, FaExclamationTriangle } from "react-icons/fa";
-import { getSupabaseBrowserClient } from "@/utils/supabaseClient";
-
-// Types for recent releases
-interface ReleaseBase {
-  id: string;
-  title: string;
-  cover_url: string;
-  created_at: string;
-}
-type RecentRelease = ReleaseBase & { type: "album" | "single" | "video" };
+import { FaPlay, FaHeart, FaExclamationTriangle } from 'react-icons/fa';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser-client';
+import artistService from '@/services/artistService';
+import { Artist, RawRelease, Release } from '@/types/releases';
 
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [showOAuthError, setShowOAuthError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Verificar erros de OAuth na URL
   useEffect(() => {
-    if (searchParams) {
-      const error = searchParams.get("error");
-      const errorCode = searchParams.get("error_code");
-      const errorDescription = searchParams.get("error_description");
+    const oauthError = searchParams.get('error');
 
-      if (
-        error &&
-        (errorCode === "bad_oauth_state" || error === "invalid_request")
-      ) {
-        console.error(
-          "Erro OAuth detectado:",
-          error,
-          errorCode,
-          errorDescription
-        );
-        setErrorMessage(
-          errorDescription?.replace(/\+/g, " ") || "Erro na autenticação OAuth"
-        );
-        setShowOAuthError(true);
-
-        // Limpar tokens de autenticação corrompidos
-        if (typeof window !== "undefined") {
-          // Redirecionar para login após 3 segundos
-          setTimeout(() => {
-            // Remover parâmetros de erro da URL e redirecionar para login
-            router.replace(
-              "/login?error=oauth_error&message=" +
-                encodeURIComponent(errorMessage)
-            );
-          }, 3000);
-        }
-      }
+    if (oauthError) {
+      setErrorMessage(
+        oauthError === 'access_denied'
+          ? 'You denied access to your Spotify account. Please try again.'
+          : 'An error occurred during authentication. Please try again.'
+      );
+      router.replace('/');
     }
   }, [searchParams, router, errorMessage]);
 
-  // Dados simulados para a página inicial com suas imagens
-  const featuredArtist = {
-    id: "1",
-    name: "Mc Mastoni",
-    image:
-      "https://i.ytimg.com/vi/rMqsjbG5Yr4/hq720.jpg?sqp=-oaymwE7CK4FEIIDSFryq4qpAy0IARUAAAAAGAElAADIQj0AgKJD8AEB-AH-CYAC0AWKAgwIABABGDogZShkMA8=&rs=AOn4CLBxlwFnsRq3dQx-QxXAmhv9DS1Tug",
-    title: "ARTISTA EM DESTAQUE",
-    description: "Nova música 'No chapa' já disponível",
-  };
-
-  const [recentReleases, setRecentReleases] = useState<RecentRelease[]>([]);
+  // State for recent release and popular artists
+  const [recentRelease, setRecentRelease] = useState<Release | null>(null);
+  const [recentReleases, setRecentReleases] = useState<Release[]>([]);
+  const [popularArtists, setPopularArtists] = useState<Artist[]>([]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     (async () => {
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id,title,cover_url,created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
+      try {
+        // Get the most recent release across all content types
+        const { data: recentAlbums } = await supabase
+          .from('albums')
+          .select('id, title, cover_url, created_at, artist_id, artist:artists(id, name, profile_image_url)')
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-      const { data: singlesData } = await supabase
-        .from("singles")
-        .select("id,title,cover_url,file_url,created_at")
+        const { data: recentSingles } = await supabase
+          .from('singles')
+          .select('id, title, cover_url, file_url, created_at, artist_id, artist:artists(id, name, profile_image_url)')
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-        .order("created_at", { ascending: false })
-        .limit(5);
+        const { data: recentVideos } = await supabase
+          .from('videos')
+          .select('id, title, cover_url:video_url, created_at, artist_id, artist:artists(id, name, profile_image_url)')
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-      const { data: videosData } = await supabase
-        .from("videos")
-        .select("id,title,video_url,created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      const videoRows: ReleaseBase[] = (videosData ?? []).map((v: any) => ({
-        id: v.id,
-        title: v.title,
-        cover_url: v.video_url,
-        created_at: v.created_at,
-      }));
+        // Find the most recent release
+        type MappedRelease = {
+          type: 'album' | 'single' | 'video';
+          artist: Artist;
+          id: string;
+          title: string;
+          cover_url?: string;
+          file_url?: string;
+          video_url?: string;
+          created_at: string;
+          artist_id: string;
+        };
 
-      const albumRows: ReleaseBase[] = albums ?? [];
-      const singleRows: ReleaseBase[] = (singlesData ?? []).map((s) => ({
-        id: s.id,
-        title: s.title,
-        cover_url: s.cover_url ?? s.file_url,
-        created_at: s.created_at,
-      }));
-      const tagged: RecentRelease[] = [
-        ...albumRows.map((a) => ({ ...a, type: "album" as const })),
-        ...singleRows.map((s) => ({ ...s, type: "single" as const })),
-        ...videoRows.map((v) => ({ ...v, type: "video" as const })),
-      ];
-      tagged.sort(
-        (a, b) =>
+        const releases = [
+          ...(recentAlbums ?? []).map((a: RawRelease | { error: true }) => {
+            if ('error' in a) return null;
+            return {
+              ...a,
+              type: 'album' as const,
+              artist: Array.isArray(a.artist) ? (a.artist[0] || { id: '', name: '', profile_image_url: '' }) : (a.artist || { id: '', name: '', profile_image_url: '' })
+            } as MappedRelease;
+          }),
+          ...(recentSingles ?? []).map((s: RawRelease | { error: true }) => {
+            if ('error' in s) return null;
+            return {
+              ...s,
+              type: 'single' as const,
+              artist: Array.isArray(s.artist) ? (s.artist[0] || { id: '', name: '', profile_image_url: '' }) : (s.artist || { id: '', name: '', profile_image_url: '' })
+            } as MappedRelease;
+          }),
+          ...(recentVideos ?? []).map((v: RawRelease | { error: true }) => {
+            if ('error' in v) return null;
+            return {
+              ...v,
+              type: 'video' as const,
+              artist: Array.isArray(v.artist) ? (v.artist[0] || { id: '', name: '', profile_image_url: '' }) : (v.artist || { id: '', name: '', profile_image_url: '' })
+            } as MappedRelease;
+          })
+        ].filter((v): v is MappedRelease => v !== null);
+
+        const mostRecentRelease = releases.sort((a: MappedRelease, b: MappedRelease) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      setRecentReleases(tagged.slice(0, 5));
+        )[0] as MappedRelease | undefined;
+
+        if (mostRecentRelease && mostRecentRelease.artist) {
+          setRecentRelease({
+            id: mostRecentRelease.id,
+            title: mostRecentRelease.title,
+            cover_url: mostRecentRelease.cover_url || mostRecentRelease.file_url || '',
+            created_at: mostRecentRelease.created_at,
+            type: mostRecentRelease.type,
+            artist: mostRecentRelease.artist
+          });
+        }
+
+        // Get recent releases for the grid
+        const { data: albumData } = await supabase
+          .from('albums')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        const { data: singleData } = await supabase
+          .from('singles')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        const { data: videoData } = await supabase
+          .from('videos')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        // Ensure we have valid data before mapping
+        const validAlbumData = albumData?.filter((item): item is { id: string; title: string; cover_url: string; created_at: string; artist_id: string; artist: Artist[] } => item !== null && typeof item === 'object') ?? [];
+        const validSingleData = singleData?.filter((item): item is { id: string; title: string; cover_url: string; file_url: string; created_at: string; artist_id: string; artist: Artist[] } => item !== null && typeof item === 'object') ?? [];
+        const validVideoData = videoData?.filter((item): item is { id: string; title: string; cover_url: string; created_at: string; artist_id: string; artist: Artist[] } => item !== null && typeof item === 'object') ?? [];
+
+        const albumReleases = validAlbumData.map((a): RawRelease => ({
+          id: a.id,
+          title: a.title,
+          cover_url: a.cover_url || '',
+          created_at: a.created_at,
+          artist_id: a.artist_id,
+          artist: Array.isArray(a.artist) ? a.artist : [a.artist],
+          type: 'album' as const
+        }));
+
+        const singleReleases = validSingleData.map((s): RawRelease => ({
+          id: s.id,
+          title: s.title,
+          cover_url: s.cover_url || s.file_url || '',
+          created_at: s.created_at,
+          artist_id: s.artist_id,
+          artist: Array.isArray(s.artist) ? s.artist : [s.artist],
+          type: 'single' as const
+        }));
+
+        const videoReleases = validVideoData.map((item): RawRelease => ({
+          id: item.id,
+          title: item.title,
+          cover_url: item.cover_url || '',
+          created_at: item.created_at,
+          artist_id: item.artist_id,
+          artist: Array.isArray(item.artist) ? item.artist : [item.artist],
+          type: 'video' as const
+        }));
+
+        const allReleases = [...albumReleases, ...singleReleases, ...videoReleases];
+        allReleases.sort((a: RawRelease, b: RawRelease) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        
+        const mappedReleases = allReleases.map((release: RawRelease) => {
+          const normalizedArtist = Array.isArray(release.artist) ? (release.artist[0] || { id: '', name: '', profile_image_url: '' }) : release.artist;
+          const normalizedRelease = {
+            id: release.id,
+            title: release.title,
+            cover_url: release.cover_url || '',
+            created_at: release.created_at,
+            artist: normalizedArtist,
+            type: release.type!
+          };
+          return normalizedRelease;
+        });
+        
+        setRecentReleases(mappedReleases.slice(0, 5));
+
+        // Get popular artists (trending)
+        const popularData = await artistService.getTrendingArtists(5);
+        const popularMapped = (popularData ?? []).map(a => ({
+          id: a.id,
+          name: a.name,
+          profile_image_url: a.profile_image_url || ''
+        }));
+        setPopularArtists(popularMapped);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
     })();
   }, []);
 
-  // Interface para playlists da homepage
+  // Interface for playlists
   interface HomePlaylist {
     id: string;
     title: string;
@@ -130,7 +209,7 @@ export default function HomePage() {
     category: string;
   }
 
-  // Mock data atualizado para playlists na homepage
+  // Mock data for playlists
   const topPlaylists: HomePlaylist[] = [
     {
       id: "1",
@@ -165,44 +244,7 @@ export default function HomePage() {
       category: "Chill",
     },
   ];
-  const topArtists = [
-    {
-      id: "1",
-      name: "DJ Manuel",
-      image:
-        "https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      id: "2",
-      name: "Sofia Lima",
-      image:
-        "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      id: "3",
-      name: "Ricardo Luz",
-      image:
-        "https://images.unsplash.com/photo-1539701938214-0d9736e1c16b?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      id: "4",
-      name: "Marina Sol",
-      image:
-        "https://images.unsplash.com/photo-1581881067989-7e3eaf45f4b7?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      id: "5",
-      name: "Bruno Dias",
-      image:
-        "https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      id: "6",
-      name: "Carla Rocha",
-      image:
-        "https://images.unsplash.com/photo-1542787781-5f7ddd8c4a99?auto=format&fit=crop&w=400&q=80",
-    },
-  ];
+  
 
   // Animação de entrada para os elementos da página
   const containerVariants = {
@@ -229,7 +271,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
       {/* Notificação de erro OAuth */}
-      {showOAuthError && (
+      {errorMessage && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
           <div className="bg-red-900/80 backdrop-blur-sm p-6 rounded-lg shadow-xl max-w-md w-full border border-red-700">
             <div className="flex items-center justify-center text-4xl text-red-500 mb-4">
@@ -253,41 +295,43 @@ export default function HomePage() {
         initial="hidden"
         animate="visible"
       >
-        {/* Artista em Destaque */}
-        <motion.div
-          className="relative w-full h-80 md:h-[400px] overflow-hidden mb-8"
-          variants={itemVariants}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30 z-10"></div>
-          <Image
-            src={featuredArtist.image}
-            alt={featuredArtist.name}
-            fill
-            className="object-cover"
-            unoptimized
-            sizes="100vw"
-            priority
-          />
-          <div className="absolute bottom-0 left-0 p-8 z-20 w-full md:w-2/3">
-            <span className="text-xs uppercase tracking-wider text-gray-300 mb-3 block font-medium">
-              {featuredArtist.title}
-            </span>
-            <h1 className="text-4xl md:text-5xl font-bold mb-2">
-              {featuredArtist.name}
-            </h1>
-            <p className="text-base text-gray-300 mb-6">
-              {featuredArtist.description}
-            </p>
-            <div className="flex space-x-4">
-              <button className="px-5 py-2.5 bg-indigo-700 hover:bg-indigo-600 rounded-full flex items-center text-base font-medium transition-colors">
-                <FaPlay className="mr-2" /> Ouvir Agora
-              </button>
-              <button className="p-2.5 rounded-full bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 transition-colors">
-                <FaHeart />
-              </button>
+        {/* Lançamento Recente */}
+        {recentRelease && (
+          <motion.div
+            className="relative w-full h-80 md:h-[400px] overflow-hidden mb-8"
+            variants={itemVariants}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30 z-10"></div>
+            <Image
+              src={recentRelease.cover_url=== "" ? "/placeholder.png" : recentRelease.cover_url}
+              alt={recentRelease.title}
+              fill
+              className="object-cover"
+              unoptimized
+              sizes="100vw"
+              priority
+            />
+            <div className="absolute bottom-0 left-0 p-8 z-20 w-full md:w-2/3">
+              <span className="text-xs uppercase tracking-wider text-gray-300 mb-3 block font-medium">
+                LANÇAMENTO RECENTE
+              </span>
+              <h1 className="text-4xl md:text-5xl font-bold mb-2">
+                {recentRelease.title}
+              </h1>
+              <p className="text-base text-gray-300 mb-6">
+                {recentRelease.artist.name}
+              </p>
+              <div className="flex space-x-4">
+                <button className="px-5 py-2.5 bg-indigo-700 hover:bg-indigo-600 rounded-full flex items-center text-base font-medium transition-colors">
+                  <FaPlay className="mr-2" /> {recentRelease.type === 'video' ? 'Ver' : 'Ouvir'} Agora
+                </button>
+                <button className="p-2.5 rounded-full bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 transition-colors">
+                  <FaHeart />
+                </button>
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* Conteúdo principal com padding */}
         <div className="px-8 pb-10">
@@ -320,7 +364,7 @@ export default function HomePage() {
                 >
                   <div className="relative overflow-hidden rounded-lg bg-gray-800 aspect-square mb-1 group-hover:shadow-md w-full max-w-[400px]">
                     <Image
-                      src={release.cover_url}
+                      src={release.cover_url=== "" ? "/placeholder.png" : release.cover_url}
                       alt={release.title}
                       fill
                       className="object-cover"
@@ -437,7 +481,7 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-              {topArtists.map((artist) => (
+              {popularArtists.slice(0, 5).map((artist: Artist) => (
                 <motion.div
                   key={artist.id}
                   className="text-center group"
@@ -448,12 +492,17 @@ export default function HomePage() {
                   <Link href={`/artist/${artist.id}`} className="block">
                     <div className="w-20 h-20 mx-auto relative rounded-full overflow-hidden mb-2 border-2 border-transparent group-hover:border-indigo-500 transition-colors">
                       <Image
-                        src={artist.image}
+                        src={artist.profile_image_url === "" ? "/avatar.svg" : artist.profile_image_url}
                         alt={artist.name}
                         fill
                         className="object-cover"
                         unoptimized
                         sizes="80px"
+                        onError={(e) => {
+                          const t = e.currentTarget as HTMLImageElement;
+                          t.onerror = null;
+                          t.src = "/avatar.svg";
+                        }}
                       />
                     </div>
                     <h3 className="font-medium text-sm truncate group-hover:text-purple-300 transition-colors">
@@ -469,3 +518,4 @@ export default function HomePage() {
     </div>
   );
 }
+
