@@ -67,7 +67,7 @@ function AuthCallbackContent() {
         const result = await handleOAuthCallback(code);
         
         if (!result.success) {
-          console.error('Auth callback error:', result.error);
+          console.log('Auth callback error:', result.error);
           trackError(result.error as Error, { context: 'AuthCallback-ExchangeCode' });
           
           // Check if this is a PKCE error
@@ -94,7 +94,7 @@ function AuthCallbackContent() {
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-        console.error('Exception in auth callback:', errorMessage);
+        console.log('Exception in auth callback:', errorMessage);
         setError(`Ocorreu um erro inesperado: ${errorMessage}`);
         setIsLoading(false);
       }

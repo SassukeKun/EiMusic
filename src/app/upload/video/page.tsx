@@ -394,7 +394,7 @@ export default function VideoUploadPage() {
       setUploadProgress(100);
       setUploadStep('success');
     } catch (err: any) {
-      console.error('Erro ao fazer upload de vídeo:', err);
+      console.log('Erro ao fazer upload de vídeo:', err);
       setError('Falha ao enviar vídeo. Tente novamente.');
       setUploadStep('error');
     }

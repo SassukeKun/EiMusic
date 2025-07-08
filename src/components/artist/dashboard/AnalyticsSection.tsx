@@ -49,7 +49,7 @@ const AnalyticsSection: React.FC = () => {
         setPlatformRevenue(platformSum);
         setDonationsTotal(donationNet);
       } catch (err) {
-        console.error('Erro ao buscar receitas:', err);
+        console.log('Erro ao buscar receitas:', err);
       } finally {
         setLoading(false);
       }

@@ -162,7 +162,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
       // Clear all errors since upload was successful
       setErrors({});
     } catch (error) {
-      console.error('Erro ao fazer upload da imagem:', error);
+      console.log('Erro ao fazer upload da imagem:', error);
       setErrors(prev => ({ ...prev, image: 'Erro ao fazer upload da imagem' }));
     }
   }
@@ -206,7 +206,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
           });
           bannerUrl = uploadResponse;
         } catch (error) {
-          console.error('Error uploading image to Cloudinary:', error);
+          console.log('Error uploading image to Cloudinary:', error);
           throw new Error('Falha ao fazer upload para Cloudinary');
         }
       }
@@ -234,7 +234,7 @@ export const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
       setErrors({});
       onClose();
     } catch (error) {
-      console.error('Erro ao criar comunidade:', error);
+      console.log('Erro ao criar comunidade:', error);
       setErrors({ submit: 'Erro ao criar comunidade. Tente novamente.' });
     } finally {
       setIsLoading(false);

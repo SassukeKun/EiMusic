@@ -242,7 +242,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     if (videoRef.current) {
       if (isPlaying) {
-        videoRef.current.play().catch(console.error);
+        videoRef.current.play().catch(err => console.log('Video play error:', err));
       } else {
         videoRef.current.pause();
       }
@@ -941,7 +941,7 @@ const CommentForm: React.FC<CommentFormProps> = ({
         textareaRef.current.style.height = "auto";
       }
     } catch (error) {
-      console.error("Erro ao enviar comentário:", error);
+      console.log("Erro ao enviar comentário:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -2116,7 +2116,7 @@ export default function VideosPage() {
         .from("videos")
         .update({ likes: updated.likes, dislikes: updated.dislikes })
         .eq("id", videoId);
-      if (error) console.error("Like update error:", error);
+      if (error) console.log("Like update error:", error);
     }
   };
 
@@ -2141,7 +2141,7 @@ export default function VideosPage() {
         .from("videos")
         .update({ likes: updated.likes, dislikes: updated.dislikes })
         .eq("id", videoId);
-      if (error) console.error("Dislike update error:", error);
+      if (error) console.log("Dislike update error:", error);
     }
   };
 
@@ -2346,7 +2346,7 @@ export default function VideosPage() {
         .select("*")
         .order("created_at", { ascending: false });
       if (videosError) {
-        console.error("Error fetching videos:", {
+        console.log("Error fetching videos:", {
           code: videosError.code,
           details: videosError.details,
           hint: videosError.hint,
@@ -2358,7 +2358,7 @@ export default function VideosPage() {
         .from("artists")
         .select("id,name,profile_image_url,verified,subscribers");
       if (artistsError) {
-        console.error("Error fetching artists:", {
+        console.log("Error fetching artists:", {
           code: artistsError.code,
           details: artistsError.details,
           hint: artistsError.hint,

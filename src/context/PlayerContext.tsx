@@ -47,7 +47,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .update({ streams: track.streams! + 1 })
       .eq('id', track.id)
       .then(({ error }) => {
-        if (error) console.error('Error incrementing streams:', error);
+        if (error) console.log('Error incrementing streams:', error);
       });
   }, [track]);
 

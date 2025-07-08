@@ -72,7 +72,7 @@ export default function CommunityPage() {
         setTotalMembers(stats.totalMembers);
         setPostsToday(stats.postsToday);
       } catch (error) {
-        console.error("Erro ao carregar estatísticas:", error);
+        console.log("Erro ao carregar estatísticas:", error);
       }
     };
     loadStats();
@@ -115,7 +115,7 @@ export default function CommunityPage() {
         setTotalMembers(stats.totalMembers);
         setPostsToday(stats.postsToday);
       } catch (error) {
-        console.error("Erro ao carregar estatísticas:", error);
+        console.log("Erro ao carregar estatísticas:", error);
       }
     };
     loadStats();
@@ -168,7 +168,7 @@ export default function CommunityPage() {
           }));
         setCommunities(uiData);
       } catch (error) {
-        console.error("Erro ao buscar comunidades:", error);
+        console.log("Erro ao buscar comunidades:", error);
       } finally {
         setLoading(false);
       }
@@ -233,7 +233,7 @@ export default function CommunityPage() {
             .select("banner"); // Only select the banner field to verify update
 
           if (updateError) {
-            console.error("Error updating community banner:", updateError);
+            console.log("Error updating community banner:", updateError);
             throw new Error(
               "Failed to update community banner URL: " + updateError.message
             );
@@ -246,15 +246,15 @@ export default function CommunityPage() {
             );
             // Verify if the banner field is actually updated
             if (!updateData[0].banner) {
-              console.error("Banner field is still NULL after update!");
+              console.log("Banner field is still NULL after update!");
               throw new Error("Banner field is NULL after update");
             }
           } else {
-            console.error("No data returned from update operation");
+            console.log("No data returned from update operation");
             throw new Error("No data returned from update operation");
           }
         } catch (error) {
-          console.error("Error during banner upload:", error);
+          console.log("Error during banner upload:", error);
           throw error;
         }
       }
@@ -286,7 +286,7 @@ export default function CommunityPage() {
       }));
       setCommunities(uiData);
     } catch (error) {
-      console.error("Erro ao criar comunidade:", error);
+      console.log("Erro ao criar comunidade:", error);
       throw error;
     }
   };
@@ -382,7 +382,7 @@ export default function CommunityPage() {
         }
         setIsJoined((prev) => !prev);
       } catch (err) {
-        console.error("Erro ao atualizar membro da comunidade:", err);
+        console.log("Erro ao atualizar membro da comunidade:", err);
       } finally {
         setJoinLoading(false);
       }
@@ -413,7 +413,7 @@ export default function CommunityPage() {
                   alt={`${community.name} banner`}
                   className="w-full h-32 object-cover"
                   onError={(e) => {
-                    console.error("Error loading community banner:", e);
+                    console.log("Error loading community banner:", e);
                     e.currentTarget.onerror = null; // prevent loop
                     e.currentTarget.src = "/avatar.svg";
                   }}
@@ -437,7 +437,7 @@ export default function CommunityPage() {
                       alt={community.artist?.name || ""}
                       className="w-14 h-14 rounded-full object-cover bg-gray-800"
                       onError={(e) => {
-                        console.error("Error loading artist profile image:", e);
+                        console.log("Error loading artist profile image:", e);
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = "/avatar.svg";
                       }}

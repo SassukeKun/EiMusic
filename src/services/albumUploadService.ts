@@ -191,7 +191,7 @@ class AlbumUploadService {
         .select();
       if (albumError) {
         // Log full Supabase error for debugging
-        console.error('Supabase album insert error:', JSON.stringify(albumError, null, 2));
+        console.log('Supabase album insert error:', JSON.stringify(albumError, null, 2));
         throw albumError;
       }
       // Persist album tracks to Supabase
@@ -208,13 +208,13 @@ class AlbumUploadService {
         .from('tracks')
         .insert(trackInserts);
       if (tracksError) {
-        console.error('Error inserting album tracks to Supabase:', tracksError);
+        console.log('Error inserting album tracks to Supabase:', tracksError);
         throw tracksError;
       }
 
       return results;
     } catch (error) {
-      console.error('Error uploading album:', error);
+      console.log('Error uploading album:', error);
       throw error;
     }
   }

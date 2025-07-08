@@ -269,7 +269,7 @@ export default function CommunityDetailPage() {
 
         // TODO: fetch posts when implemented
       } catch (error) {
-        console.error("Erro ao carregar comunidade:", error);
+        console.log("Erro ao carregar comunidade:", error);
       } finally {
         setLoading(false);
       }
@@ -598,7 +598,7 @@ export default function CommunityDetailPage() {
               alt={community.name}
               className="w-full h-full object-cover opacity-50"
               onError={(e) => {
-                console.error('Error loading banner image:', e);
+                console.log('Error loading banner image:', e);
                 // Replace with fallback image if loading fails
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = '/api/placeholder/800/300';
@@ -645,7 +645,7 @@ export default function CommunityDetailPage() {
                   alt={community.artist?.name}
                   className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gray-800 border-4 border-gray-900"
                   onError={(e) => {
-                    console.error('Error loading artist image:', e);
+                    console.log('Error loading artist image:', e);
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = '/avatar.svg';
                   }}
@@ -865,7 +865,7 @@ export default function CommunityDetailPage() {
                                     setPosts(prevPosts => [newPost, ...prevPosts]);
                                     
                                   } catch (error) {
-                                    console.error('Erro ao criar post:', error);
+                                    console.log('Erro ao criar post:', error);
                                     alert('Erro ao criar post. Por favor, tente novamente.');
                                   } finally {
                                     setIsCreatingPost(false);

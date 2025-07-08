@@ -77,7 +77,7 @@ export default function RegisterPage() {
         }
       }
     } catch (err: any) {
-      console.error('Erro detalhado no cadastro:', err);
+      console.log('Erro detalhado no cadastro:', err);
       if (err.message?.includes('already registered')) {
         setAuthError('Este email já está em uso. Tente fazer login ou use outro email.');
       } else {

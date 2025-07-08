@@ -43,7 +43,7 @@ const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({ mode, id, i
         }
       }
     } catch (err) {
-      console.error('Erro ao atualizar foto de perfil', err)
+      console.log('Erro ao atualizar foto de perfil', err)
       alert('Falha ao atualizar imagem de perfil')
       // Se o upload falhar, reverte o preview para imagem inicial
       setPreview(initialUrl)

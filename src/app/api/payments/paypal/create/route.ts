@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ orderId: order.id, approvalUrl: approvalLink, status: order.status });
   } catch (err: any) {
-    console.error('[PayPal Create] error', err);
+    console.log('[PayPal Create] error', err);
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

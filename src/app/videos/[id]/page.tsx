@@ -25,7 +25,7 @@ export default function VideoPage({ params }: VideoPageProps) {
         .eq("id", id)
         .single();
       if (error) {
-        console.error("Error fetching video:", error);
+        console.log("Error fetching video:", error);
         return;
       }
       const v = data as any;

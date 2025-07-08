@@ -50,7 +50,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
 
     return NextResponse.json({ status: captureStatus });
   } catch (err: any) {
-    console.error('[PayPal Capture] error', err);
+    console.log('[PayPal Capture] error', err);
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

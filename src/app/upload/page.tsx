@@ -125,7 +125,7 @@ export default function UploadPage() {
 
       console.log("Cancel upload process completed successfully");
     } catch (error) {
-      console.error("Erro ao cancelar upload:", error);
+      console.log("Erro ao cancelar upload:", error);
 
       // Em caso de erro, garantir que saímos do estado de reset
       setIsResetting(false);
@@ -793,7 +793,7 @@ export default function UploadPage() {
             );
             console.log("Inserted track:", trackInsertResult);
           } catch (insertError) {
-            console.error("Error inserting track to Supabase:", insertError);
+            console.log("Error inserting track to Supabase:", insertError);
           }
 
       // Verificar se o upload foi bem-sucedido E não foi cancelado
@@ -810,7 +810,7 @@ export default function UploadPage() {
         console.log("Upload was cancelled, not changing state");
       }
     } catch (error) {
-      console.error("Erro ao fazer upload:", error);
+      console.log("Erro ao fazer upload:", error);
 
       // Só mudar para erro se não foi cancelado
       if (!uploadCancelled) {

@@ -91,7 +91,7 @@ export default function UserProfilePage() {
           })
         }
       } catch (err) {
-        console.error('Erro ao buscar perfil do usuário:', err)
+        console.log('Erro ao buscar perfil do usuário:', err)
       }
     }
 
@@ -301,7 +301,7 @@ function ProfileOverviewSection({ userData, setUserData, isEditing }: { userData
         await userService.updateUser(user.id, payload)
       }
     } catch (err) {
-      console.error('Erro ao salvar perfil do usuário:', err)
+      console.log('Erro ao salvar perfil do usuário:', err)
     }
   }
 

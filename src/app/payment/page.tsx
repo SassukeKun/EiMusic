@@ -172,7 +172,7 @@ export default function PaymentPage() {
         router.push(`/payment/success?plan=${selectedPlan.id}`)
       }
     } catch (err) {
-      console.error(err)
+      console.log(err)
       alert('Ocorreu um erro ao processar o pagamento. Tenta novamente.')
     } finally {
       setIsProcessing(false)

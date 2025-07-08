@@ -79,7 +79,7 @@ export function useSecureCloudinaryUpload(): UseSecureCloudinaryUploadReturn {
       
       return await response.json();
     } catch (error: any) {
-      console.error('Error getting signed upload parameters:', error);
+      console.log('Error getting signed upload parameters:', error);
       throw error;
     }
   }, []);
@@ -225,7 +225,7 @@ export function useSecureCloudinaryUpload(): UseSecureCloudinaryUploadReturn {
       
       return result;
     } catch (error: any) {
-      console.error('Error uploading audio:', error);
+      console.log('Error uploading audio:', error);
       
       setUploadState({
         isUploading: false,
@@ -315,7 +315,7 @@ export function useSecureCloudinaryUpload(): UseSecureCloudinaryUploadReturn {
       
       return result;
     } catch (error: any) {
-      console.error('Error uploading video:', error);
+      console.log('Error uploading video:', error);
       
       setUploadState({
         isUploading: false,
@@ -378,7 +378,7 @@ export function useSecureCloudinaryUpload(): UseSecureCloudinaryUploadReturn {
       
       return result;
     } catch (error: any) {
-      console.error(`Error uploading ${type}:`, error);
+      console.log(`Error uploading ${type}:`, error);
       
       setUploadState({
         isUploading: false,

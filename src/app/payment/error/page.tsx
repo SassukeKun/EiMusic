@@ -75,7 +75,7 @@ export default function PaymentErrorPage() {
       
     } else {
       // Se parâmetros inválidos, redirecionar para página de pagamento
-      console.error('Parâmetros de erro inválidos:', {
+      console.log('Parâmetros de erro inválidos:', {
         errorCode,
         errorMessage,
         method,

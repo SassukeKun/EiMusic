@@ -151,7 +151,7 @@ export default function LoginPage() {
       // If we reach this point, the redirect didn't happen (which shouldn't occur in normal operation)
       console.warn('Redirecionamento OAuth não ocorreu como esperado');
     } catch (error) {
-      console.error('Erro ao iniciar login com Google:', error);
+      console.log('Erro ao iniciar login com Google:', error);
       setAuthError('Erro ao iniciar login com Google. Tente novamente.');
     }
   };

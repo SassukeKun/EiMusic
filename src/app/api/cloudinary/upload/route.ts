@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       resourceType,
     });
   } catch (error) {
-    console.error('Error in Cloudinary upload API:', error);
+    console.log('Error in Cloudinary upload API:', error);
     return NextResponse.json(
       { error: 'Failed to process upload request' },
       { status: 500 }

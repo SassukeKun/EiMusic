@@ -66,7 +66,7 @@ export async function getSignature(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Erro na resposta da API de assinatura:', {
+      console.log('Erro na resposta da API de assinatura:', {
         status: response.status,
         statusText: response.statusText,
         error: errorData
@@ -81,14 +81,14 @@ export async function getSignature(
     
     // Validar os dados recebidos
     if (!data.signature || !data.timestamp || !data.cloudName || !data.apiKey) {
-      console.error('Dados de assinatura inválidos recebidos:', data);
+      console.log('Dados de assinatura inválidos recebidos:', data);
       throw new Error('Dados de autenticação inválidos recebidos do servidor');
     }
     
     console.log('Assinatura obtida com sucesso para:', data.cloudName);
     return data;
   } catch (error) {
-    console.error('Erro ao obter assinatura:', error);
+    console.log('Erro ao obter assinatura:', error);
     throw new Error(
       error instanceof Error ? 
       `Falha ao obter assinatura: ${error.message}` : 
@@ -160,13 +160,13 @@ export async function uploadSignedFile(
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('Cloudinary upload error:', error);
+      console.log('Cloudinary upload error:', error);
       throw new Error(error.error?.message || 'Upload failed');
     }
 
     return await response.json();
   } catch (error: unknown) {
-    console.error('Upload error:', error);
+    console.log('Upload error:', error);
     if (error instanceof Error) {
       throw new Error(`Falha ao fazer upload para o Cloudinary: ${error.message}`);
     }

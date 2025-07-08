@@ -220,7 +220,7 @@ export default function AlbumUploadPage() {
         setUploadStep("error");
       }
     } catch (err: any) {
-      console.error("Erro ao fazer upload do álbum:", err);
+      console.log("Erro ao fazer upload do álbum:", err);
       setError(err.message || "Ocorreu um erro ao fazer upload do álbum");
       setUploadStep("error");
     }

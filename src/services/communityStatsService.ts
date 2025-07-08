@@ -26,7 +26,7 @@ export async function fetchCommunityStats() {
       postsToday: postsCount || 0
     };
   } catch (error) {
-    console.error('Error fetching community stats:', error);
+    console.log('Error fetching community stats:', error);
     throw error;
   }
 }

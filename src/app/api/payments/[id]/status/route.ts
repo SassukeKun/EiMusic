@@ -49,7 +49,7 @@ export async function GET(
         const smsRef = (res as any).sms_reference || (res as any).smsReference;
         if (smsRef?.startsWith("Pg")) insertObj.source_type = smsRef.slice(2);
         const { error: insertError } = await supabase.from("payments").insert(insertObj);
-        if (insertError) console.error("Erro ao inserir pagamento completado:", insertError.message);
+        if (insertError) console.log("Erro ao inserir pagamento completado:", insertError.message);
       }
       return NextResponse.json({ status: res.status });
     } catch (err: any) {

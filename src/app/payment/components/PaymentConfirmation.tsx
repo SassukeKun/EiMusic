@@ -109,7 +109,7 @@ export default function PaymentConfirmation({
       setShowCopiedFeedback(true)
       setTimeout(() => setShowCopiedFeedback(false), 2000)
     } catch (err) {
-      console.error('Erro ao copiar:', err)
+      console.log('Erro ao copiar:', err)
     }
   }
 

@@ -59,7 +59,7 @@ class PaymentService {
         }
       }
     } catch (error) {
-      console.error('Erro no pagamento M-Pesa:', error)
+      console.log('Erro no pagamento M-Pesa:', error)
       return {
         success: false,
         errorCode: 'NETWORK_ERROR',
@@ -108,7 +108,7 @@ class PaymentService {
         }
       }
     } catch (error) {
-      console.error('Erro no pagamento PayPal:', error)
+      console.log('Erro no pagamento PayPal:', error)
       return {
         success: false,
         errorCode: 'NETWORK_ERROR',
@@ -142,7 +142,7 @@ class PaymentService {
       return true
 
     } catch (error) {
-      console.error('Erro ao atualizar assinatura:', error)
+      console.log('Erro ao atualizar assinatura:', error)
       return false
     }
   }

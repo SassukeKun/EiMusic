@@ -137,7 +137,7 @@ export function useCloudinaryUpload(): UseCloudinaryUploadReturn {
       
       return result
     } catch (error: any) {
-      console.error('Erro no upload de áudio:', error)
+      console.log('Erro no upload de áudio:', error)
       
       setUploadState({
         isUploading: false,
@@ -193,7 +193,7 @@ export function useCloudinaryUpload(): UseCloudinaryUploadReturn {
       
       return result
     } catch (error: any) {
-      console.error('Erro no upload de vídeo:', error)
+      console.log('Erro no upload de vídeo:', error)
       
       setUploadState({
         isUploading: false,
@@ -241,7 +241,7 @@ export function useCloudinaryUpload(): UseCloudinaryUploadReturn {
       
       return result
     } catch (error: any) {
-      console.error(`Erro no upload de ${type}:`, error)
+      console.log(`Erro no upload de ${type}:`, error)
       
       setUploadState({
         isUploading: false,

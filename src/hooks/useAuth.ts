@@ -48,7 +48,7 @@ export function useAuth() {
                 setIsEmailVerified(emailVerified);
               }
             } catch (artistError) {
-              console.error("Erro ao verificar tipo de usuário:", artistError);
+              console.log("Erro ao verificar tipo de usuário:", artistError);
               if (isMounted) {
                 setIsArtist(false); // Default to regular user on error
               }
@@ -60,7 +60,7 @@ export function useAuth() {
           }
         }
       } catch (err: any) {
-        console.error('Erro ao carregar usuário:', err);
+        console.log('Erro ao carregar usuário:', err);
         if (isMounted) {
           // Não exibir erro de sessão ausente como mensagem de erro para o usuário
           if (err?.message?.includes('Auth session missing')) {
@@ -155,7 +155,7 @@ export function useAuth() {
       
       return true;
     } catch (err: any) {
-      console.error('Erro ao reenviar email de verificação:', err);
+      console.log('Erro ao reenviar email de verificação:', err);
       setError(err.message || 'Falha ao reenviar o email de verificação');
       return false;
     } finally {
@@ -318,7 +318,7 @@ export function useAuth() {
       
       return true;
     } catch (err: any) {
-      console.error('Erro ao iniciar login OAuth:', err);
+      console.log('Erro ao iniciar login OAuth:', err);
       
       // Exibir mensagem de erro amigável
       if (err.message && err.message.includes('network')) {
@@ -360,7 +360,7 @@ export function useAuth() {
       
       return data;
     } catch (err: any) {
-      console.error('Erro ao registrar:', err);
+      console.log('Erro ao registrar:', err);
       // Improved error handling with better fallbacks
       if (err?.message) {
         setError(err.message);
@@ -402,7 +402,7 @@ export function useAuth() {
       
       return data;
     } catch (err: any) {
-      console.error('Erro ao registrar artista:', err);
+      console.log('Erro ao registrar artista:', err);
       // Improved error handling with better fallbacks
       if (err?.message) {
         setError(err.message);
@@ -434,7 +434,7 @@ export function useAuth() {
       // Redirecionar para página inicial
       router.push('/');
     } catch (err: any) {
-      console.error('Erro ao fazer logout:', err);
+      console.log('Erro ao fazer logout:', err);
       setError(err.message || 'Falha ao realizar logout');
     } finally {
       setLoading(false);

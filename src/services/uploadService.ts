@@ -156,7 +156,7 @@ const uploadService = {
           cover_url: coverArtResult ? coverArtResult.secure_url : null,
         }]);
       if (trackError) {
-        console.error('Error inserting track to Supabase:', trackError);
+        console.log('Error inserting track to Supabase:', trackError);
         throw trackError;
       }
 
@@ -172,7 +172,7 @@ const uploadService = {
         } : undefined
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de música:', error);
+      console.log('Erro ao fazer upload de música:', error);
       throw error;
     }
   },
@@ -320,7 +320,7 @@ const uploadService = {
         } : undefined
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de vídeo:', error);
+      console.log('Erro ao fazer upload de vídeo:', error);
       throw error;
     }
   },
@@ -399,7 +399,7 @@ const uploadService = {
         height: result.height
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de imagem:', error);
+      console.log('Erro ao fazer upload de imagem:', error);
       throw error;
     }
   },
@@ -571,7 +571,7 @@ const uploadService = {
         tracks
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de álbum:', error);
+      console.log('Erro ao fazer upload de álbum:', error);
       throw error;
     }
   },
@@ -633,7 +633,7 @@ const uploadService = {
       )
       return result
     } catch (error) {
-      console.error('Error uploading community media:', error)
+      console.log('Error uploading community media:', error)
       throw error
     }
   }

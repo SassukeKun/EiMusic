@@ -83,7 +83,7 @@ export function useAlbumUpload(): UseAlbumUploadReturn {
 
       return result;
     } catch (error: any) {
-      console.error('Error uploading album:', error);
+      console.log('Error uploading album:', error);
       
       setUploadState({
         isUploading: false,

@@ -171,7 +171,7 @@ export async function POST(request: Request) {
         }
         
         if (error) {
-          console.error("Erro ao inserir pagamento via fallback:", error.message);
+          console.log("Erro ao inserir pagamento via fallback:", error.message);
           // Se falhar a inserção, ainda devolvemos o status do gateway
           return NextResponse.json({ 
             paymentId: fallback.id, 

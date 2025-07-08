@@ -37,7 +37,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     await supabase.from('payments').update({ status: order.status.toUpperCase() }).eq('id', orderId);
     return NextResponse.json({ status: order.status });
   } catch (err: any) {
-    console.error('[PayPal Status] error', err);
+    console.log('[PayPal Status] error', err);
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

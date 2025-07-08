@@ -72,7 +72,7 @@ export const authOptions: NextAuthOptions = {
             };
           }
         } catch (error) {
-          console.error('Erro de autenticação:', error);
+          console.log('Erro de autenticação:', error);
           return null;
         }
       }
@@ -95,7 +95,7 @@ export const authOptions: NextAuthOptions = {
           try {
             // TODO: Implementar lógica para vincular ou criar usuário no Supabase após OAuth
           } catch (error) {
-            console.error('Erro ao processar autenticação OAuth:', error);
+            console.log('Erro ao processar autenticação OAuth:', error);
           }
         }
       }

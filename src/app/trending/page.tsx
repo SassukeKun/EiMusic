@@ -67,7 +67,7 @@ export default function TrendingPage() {
       setTrendingData(data);
       setFilteredData(data);
     } catch (err) {
-      console.error("Error fetching trending data:", err);
+      console.log("Error fetching trending data:", err);
       setError("Erro ao carregar dados. Tente novamente mais tarde.");
     } finally {
       setIsLoading(false);

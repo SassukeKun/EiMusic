@@ -68,7 +68,7 @@ export async function fetchTrackOrSingle(id: string): Promise<DisplayTrack | nul
     return normalize(single)
   }
 
-  console.error('fetchTrackOrSingle error', trackError ?? singleError)
+  console.log('fetchTrackOrSingle error', trackError ?? singleError)
   return null
 }
 
@@ -102,7 +102,7 @@ export async function getArtistTracks(artistId: string) {
     .eq('artist_id', artistId)
     .order('created_at', { ascending: false })
   if (error) {
-    console.error('getArtistTracks error', error)
+    console.log('getArtistTracks error', error)
   }
   return data ?? []
 }
@@ -115,7 +115,7 @@ export async function getArtistSingles(artistId: string) {
     .eq('artist_id', artistId)
     .order('created_at', { ascending: false })
   if (error) {
-    console.error('getArtistSingles error', error)
+    console.log('getArtistSingles error', error)
   }
   return data ?? []
 }

@@ -131,7 +131,7 @@ const cloudinaryService = {
         resourceType: result.resource_type
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de áudio:', error);
+      console.log('Erro ao fazer upload de áudio:', error);
       throw error;
     }
   },
@@ -233,7 +233,7 @@ const cloudinaryService = {
         resourceType: result.resource_type
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de vídeo:', error);
+      console.log('Erro ao fazer upload de vídeo:', error);
       throw error;
     }
   },
@@ -294,7 +294,7 @@ const cloudinaryService = {
         resourceType: result.resource_type
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de capa:', error);
+      console.log('Erro ao fazer upload de capa:', error);
       throw error;
     }
   },
@@ -352,7 +352,7 @@ const cloudinaryService = {
         resourceType: result.resource_type
       };
     } catch (error) {
-      console.error('Erro ao fazer upload de thumbnail:', error);
+      console.log('Erro ao fazer upload de thumbnail:', error);
       throw error;
     }
   },
@@ -410,7 +410,7 @@ const cloudinaryService = {
         resourceType: result.resource_type
       };
     } catch (error) {
-      console.error(`Erro ao fazer upload de ${type}:`, error);
+      console.log(`Erro ao fazer upload de ${type}:`, error);
       throw error;
     }
   },
@@ -455,7 +455,7 @@ const cloudinaryService = {
         throw new Error('Falha ao salvar metadados');
       }
     } catch (error) {
-      console.error('Erro ao salvar metadados:', error);
+      console.log('Erro ao salvar metadados:', error);
       throw error;
     }
   },
@@ -506,7 +506,7 @@ const cloudinaryService = {
         throw new Error('Falha ao salvar dados de destaque');
       }
     } catch (error) {
-      console.error('Erro ao salvar dados de destaque:', error);
+      console.log('Erro ao salvar dados de destaque:', error);
       throw error;
     }
   },
@@ -648,7 +648,7 @@ const cloudinaryService = {
       
       return organized;
     } catch (error) {
-      console.error('Erro ao buscar assets do artista:', error);
+      console.log('Erro ao buscar assets do artista:', error);
       throw error;
     }
   },
@@ -679,7 +679,7 @@ const cloudinaryService = {
       
       return await response.json();
     } catch (error) {
-      console.error('Erro ao excluir asset:', error);
+      console.log('Erro ao excluir asset:', error);
       throw error;
     }
   },

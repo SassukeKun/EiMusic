@@ -156,7 +156,7 @@ export default function ReleasesPage() {
         setReleases(allReleases);
         setFilteredReleases(allReleases);
       } catch (error) {
-        console.error('Erro ao buscar conteúdos:', error);
+        console.log('Erro ao buscar conteúdos:', error);
       } finally {
         setLoading(false);
       }

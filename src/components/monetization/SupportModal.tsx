@@ -109,7 +109,7 @@ export default function SupportModal({ isOpen, onClose, artist, onSuccess }: Sup
       }, 2000)
       
     } catch (error) {
-      console.error('Erro no apoio:', error)
+      console.log('Erro no apoio:', error)
       alert('Erro ao processar apoio. Tente novamente.')
     } finally {
       setIsLoading(false)

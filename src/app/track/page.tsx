@@ -380,15 +380,15 @@ export default function TracksPage() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (trackErr) console.error(trackErr.message);
-        if (singlesErr) console.error(singlesErr.message);
+        if (trackErr) console.log(trackErr.message);
+        if (singlesErr) console.log(singlesErr.message);
 
         // Fetch artist names for mapping
         const { data: artistData, error: artistErr } = await supabase
           .from('artists')
           .select('id, name');
 
-        if (artistErr) console.error(artistErr.message);
+        if (artistErr) console.log(artistErr.message);
 
         const artistMap = new Map<string, string>([
           ...(artistData ?? []).map((a: any) => [a.id, a.name])
@@ -417,7 +417,7 @@ export default function TracksPage() {
         setTracks(normalizedTracks);
         setFilteredTracks(normalizedTracks);
       } catch (err:any) {
-        console.error('Erro ao buscar músicas:', err.message);
+        console.log('Erro ao buscar músicas:', err.message);
       } finally {
         setLoading(false);
       }

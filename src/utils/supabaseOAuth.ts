@@ -105,12 +105,12 @@ export async function initiateOAuthSignIn(provider: 'google' | 'facebook' | 'twi
     });
     
     if (error) {
-      console.error('Error initiating OAuth flow:', error);
+      console.log('Error initiating OAuth flow:', error);
       return { success: false, error };
     }
     
     if (!data?.url) {
-      console.error('No redirect URL returned from signInWithOAuth');
+      console.log('No redirect URL returned from signInWithOAuth');
       return { success: false, error: new Error('No redirect URL') };
     }
     
@@ -137,7 +137,7 @@ export async function initiateOAuthSignIn(provider: 'google' | 'facebook' | 'twi
     // Return a success status (this won't actually be used due to the redirect)
     return { success: true };
   } catch (error) {
-    console.error('Exception in OAuth flow initiation:', error);
+    console.log('Exception in OAuth flow initiation:', error);
     return { success: false, error };
   }
 }
@@ -173,11 +173,11 @@ export async function handleOAuthCallback(code: string) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (error) {
-      console.error('Error exchanging code for session:', error);
+      console.log('Error exchanging code for session:', error);
       
       // Check specifically for PKCE error
       if (error.message?.includes('code verifier') || error.message?.includes('PKCE')) {
-        console.error('PKCE verification failed - code_verifier missing or invalid');
+        console.log('PKCE verification failed - code_verifier missing or invalid');
         // We could implement recovery logic here if needed
       }
       
@@ -185,7 +185,7 @@ export async function handleOAuthCallback(code: string) {
     }
     
     if (!data?.session) {
-      console.error('No session returned from exchangeCodeForSession');
+      console.log('No session returned from exchangeCodeForSession');
       return { success: false, error: new Error('No session data'), userType };
     }
     
@@ -196,7 +196,7 @@ export async function handleOAuthCallback(code: string) {
     
     return { success: true, session: data.session, user: data.user, userType };
   } catch (error) {
-    console.error('Exception in OAuth callback handling:', error);
+    console.log('Exception in OAuth callback handling:', error);
     return { success: false, error, userType };
   }
 }

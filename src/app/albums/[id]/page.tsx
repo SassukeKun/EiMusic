@@ -36,7 +36,7 @@ export default function AlbumPage() {
         .select('id,title,description,cover_url')
         .eq('id', id)
         .single();
-      if (albumError) console.error('Album fetch error:', albumError);
+      if (albumError) console.log('Album fetch error:', albumError);
       else setAlbum(albumData);
 
       const { data: tracksData, error: tracksError } = await supabase
@@ -44,7 +44,7 @@ export default function AlbumPage() {
         .select('*')
         .eq('album_id', id)
         .order('created_at', { ascending: true });
-      if (tracksError) console.error('Tracks fetch error:', JSON.stringify(tracksError, null, 2));
+      if (tracksError) console.log('Tracks fetch error:', JSON.stringify(tracksError, null, 2));
       else setTracks(tracksData || []);
     })();
   }, [id]);

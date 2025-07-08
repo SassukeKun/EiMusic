@@ -268,7 +268,7 @@ export default function EventsPage() {
           setUserPlan({ tipo: 'free', ativo: true });
         }
       } catch (err) {
-        console.error('Erro ao buscar plano do usuário:', err);
+        console.log('Erro ao buscar plano do usuário:', err);
       }
     }
     fetchUserPlan();
@@ -316,7 +316,7 @@ export default function EventsPage() {
         });
         setEvents(mapped);
       } catch (err) {
-        console.error('Erro ao buscar eventos do Supabase:', err);
+        console.log('Erro ao buscar eventos do Supabase:', err);
       } finally {
         setLoading(false);
       }
@@ -378,7 +378,7 @@ export default function EventsPage() {
           );
           uploadedImageUrl = uploadRes.url;
         } catch (err) {
-          console.error('Falha ao fazer upload da imagem do evento:', err);
+          console.log('Falha ao fazer upload da imagem do evento:', err);
           // Continua sem imagem
         }
       }
@@ -445,7 +445,7 @@ export default function EventsPage() {
         ...prev,
       ]);
     } catch (error) {
-      console.error('Erro ao criar evento:', error);
+      console.log('Erro ao criar evento:', error);
       throw error;
     }
   };

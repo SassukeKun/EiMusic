@@ -195,7 +195,7 @@ export default function HomePage() {
         }));
         setPopularArtists(popularMapped);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.log('Error fetching data:', error);
       }
     })();
   }, []);

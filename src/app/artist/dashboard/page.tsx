@@ -135,7 +135,7 @@ export default function ArtistDashboard() {
         const donationNet = (donRows?.reduce((s,r)=> s+Number(r.amount),0) ?? 0)*0.85;
         setMonthlyRevenue(platformSum + donationNet);
       } catch(err){
-        console.error('Erro ao buscar receita mensal',err);
+        console.log('Erro ao buscar receita mensal',err);
       }
     };
     fetchRevenue();
@@ -174,7 +174,7 @@ export default function ArtistDashboard() {
                     setPhone(data.phone || (data as any).phone || "");
         }
       } catch (err) {
-        console.error("Erro ao carregar artista", err);
+        console.log("Erro ao carregar artista", err);
       }
     };
     fetchArtist();
@@ -204,7 +204,7 @@ export default function ArtistDashboard() {
         );
         setComunidades(mine);
       } catch (err) {
-        console.error("Erro ao carregar comunidades", err);
+        console.log("Erro ao carregar comunidades", err);
       }
     };
     loadCommunities();
@@ -258,7 +258,7 @@ export default function ArtistDashboard() {
           );
           uploadedImageUrl = uploadRes.url;
         } catch (err) {
-          console.error("Falha ao fazer upload da imagem do evento:", err);
+          console.log("Falha ao fazer upload da imagem do evento:", err);
         }
       }
 
@@ -283,7 +283,7 @@ export default function ArtistDashboard() {
       setEventos((prev) => [...prev, created]);
       setShowCreateEventModal(false);
     } catch (err) {
-      console.error("Erro ao criar evento", err);
+      console.log("Erro ao criar evento", err);
     }
   };
 
@@ -347,7 +347,7 @@ export default function ArtistDashboard() {
         ]);
         setMusicas([...tracks, ...singles]);
       } catch (err) {
-        console.error("Erro ao carregar músicas e singles", err);
+        console.log("Erro ao carregar músicas e singles", err);
       }
     };
     fetchTracksAndSingles();

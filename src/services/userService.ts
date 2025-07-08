@@ -29,7 +29,7 @@ const userService = {
           .eq('id', userId);
           
         if (artistDeleteError) {
-          console.error('Erro ao excluir artista:', artistDeleteError);
+          console.log('Erro ao excluir artista:', artistDeleteError);
           return { 
             success: false, 
             error: 'Falha ao excluir dados de artista: ' + artistDeleteError.message 
@@ -43,7 +43,7 @@ const userService = {
           .eq('id', userId);
           
         if (userDeleteError) {
-          console.error('Erro ao excluir usuário:', userDeleteError);
+          console.log('Erro ao excluir usuário:', userDeleteError);
           return { 
             success: false, 
             error: 'Falha ao excluir dados de usuário: ' + userDeleteError.message 
@@ -60,7 +60,7 @@ const userService = {
         message: 'Usuário excluído da tabela de perfil. Use o Admin API para completar a exclusão.'
       };
     } catch (error: any) {
-      console.error('Exceção ao excluir usuário:', error);
+      console.log('Exceção ao excluir usuário:', error);
       return { 
         success: false, 
         error: error.message || 'Erro desconhecido ao excluir usuário'

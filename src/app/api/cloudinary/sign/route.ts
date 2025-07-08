@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       resourceType
     });
   } catch (error) {
-    console.error('Error generating signature:', error);
+    console.log('Error generating signature:', error);
     return NextResponse.json(
       { error: 'Failed to generate upload signature' },
       { status: 500 }

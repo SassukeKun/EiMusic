@@ -445,7 +445,7 @@ const [genreItems, setGenreItems] = useState<ExploreItem[]>([]);
           .map(mapTrendingToExplore);
         setTrendingItems(mapped);
       } catch (error) {
-        console.error("Erro ao carregar itens trending:", error);
+        console.log("Erro ao carregar itens trending:", error);
       }
     };
 
@@ -467,7 +467,7 @@ const [genreItems, setGenreItems] = useState<ExploreItem[]>([]);
         const mapped = (data as any[]).map(mapArtistToExplore);
         setNewArtistItems(mapped);
       } catch (error) {
-        console.error('Erro ao carregar artistas recentes:', error);
+        console.log('Erro ao carregar artistas recentes:', error);
       }
     };
     fetchArtists();
@@ -498,7 +498,7 @@ const [genreItems, setGenreItems] = useState<ExploreItem[]>([]);
         }
         setGenreItems(unique);
       } catch (error) {
-        console.error('Erro ao carregar recomendações por gênero:', error);
+        console.log('Erro ao carregar recomendações por gênero:', error);
       }
     };
 

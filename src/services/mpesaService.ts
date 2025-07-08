@@ -70,7 +70,7 @@ export async function createPayment(
     );
     return paymentResponse.data;
   } catch (err: any) {
-    console.error('Erro createPayment:', err.response?.data || err.message);
+    console.log('Erro createPayment:', err.response?.data || err.message);
     const data = err.response?.data;
     // Se o gateway devolveu dados da transação mesmo com status HTTP de erro,
     // usamos esses dados para prosseguir com o fluxo
@@ -91,7 +91,7 @@ export async function queryStatus(paymentId: string): Promise<PaymentResponse> {
     );
     return queryResponse.data;
   } catch (err: any) {
-    console.error('Erro queryStatus:', err.response?.data || err.message);
+    console.log('Erro queryStatus:', err.response?.data || err.message);
     throw new Error(err.response?.data?.message || err.message);
   }
 }
@@ -121,7 +121,7 @@ export async function getPaymentByReference(reference: string, amount: number): 
       status: mappedStatus,
     };
   } catch (err: any) {
-    console.error('Erro getPaymentByReference:', err.response?.data || err.message);
+    console.log('Erro getPaymentByReference:', err.response?.data || err.message);
     return null;
   }
 }

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   
   // Se houver erro no retorno do provedor OAuth
   if (error) {
-    console.error('OAuth provider error:', error, errorDescription);
+    console.log('OAuth provider error:', error, errorDescription);
     return NextResponse.redirect(
       `${requestUrl.origin}/login?error=oauth_provider_error&message=${encodeURIComponent(errorDescription || 'Erro no provedor de autenticação')}&clear_cookies=true`
     );
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   
   // Verificar se temos o código de autorização
   if (!code) {
-    console.error('No code provided in callback');
+    console.log('No code provided in callback');
     return NextResponse.redirect(
       `${requestUrl.origin}/login?error=no_code&message=${encodeURIComponent('Código de autenticação ausente')}&clear_cookies=true`
     );
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (error) {
-      console.error('Auth callback error:', error);
+      console.log('Auth callback error:', error);
       
       // Determinar tipo de erro para mensagem mais específica
       let errorType = 'auth_error';
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     }
 
     if (!data?.user) {
-      console.error('Nenhum usuário retornado após troca de código');
+      console.log('Nenhum usuário retornado após troca de código');
       return NextResponse.redirect(
         `${requestUrl.origin}/login?error=no_user&message=${encodeURIComponent('Nenhum usuário encontrado')}&clear_cookies=true`
       );
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
       });
       
       if (updateResult.error) {
-        console.error('Erro ao atualizar metadados:', updateResult.error);
+        console.log('Erro ao atualizar metadados:', updateResult.error);
       } else {
         console.log('Metadados de autenticação atualizados com sucesso');
       }
@@ -113,7 +113,7 @@ export async function GET(request: Request) {
           .upsert(artistRecord, { onConflict: 'id' });
           
         if (insertArtistError) {
-          console.error('Erro ao criar/atualizar registro de artista:', insertArtistError);
+          console.log('Erro ao criar/atualizar registro de artista:', insertArtistError);
         } else {
           console.log('Registro de artista processado com sucesso');
         }
@@ -133,7 +133,7 @@ export async function GET(request: Request) {
           .upsert(userRecord, { onConflict: 'id' });
           
         if (insertUserError) {
-          console.error('Erro ao criar/atualizar registro de usuário:', insertUserError);
+          console.log('Erro ao criar/atualizar registro de usuário:', insertUserError);
         } else {
           console.log('Registro de usuário processado com sucesso');
         }
@@ -142,12 +142,12 @@ export async function GET(request: Request) {
       // Redirecionar para a home page em todos os casos
       return NextResponse.redirect(requestUrl.origin);
     } catch (updateError: any) {
-      console.error('Erro ao processar dados do usuário:', updateError);
+      console.log('Erro ao processar dados do usuário:', updateError);
       // Mesmo com erro na atualização, continuar com a autenticação e ir para a home
       return NextResponse.redirect(requestUrl.origin);
     }
   } catch (error: any) {
-    console.error('Exception in auth callback:', error);
+    console.log('Exception in auth callback:', error);
     return NextResponse.redirect(
       `${requestUrl.origin}/login?error=callback_error&message=${encodeURIComponent(error?.message || 'Erro inesperado')}&clear_cookies=true`
     );

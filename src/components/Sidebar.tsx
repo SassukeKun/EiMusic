@@ -76,23 +76,44 @@ export default function Sidebar() {
   const [dbEmail, setDbEmail] = useState<string | null>(null);
   const [dbAvatar, setDbAvatar] = useState<string | null>(null);
 
-  // Busca nome do usuário na tabela users
+  // Remove espaços em branco do URL do avatar
+  const avatarUrl = dbAvatar?.trim() || '/avatar.svg';
+
+  // Busca nome do usuário ou artista dependendo do tipo
   useEffect(() => {
     if (!user?.id) return;
     const fetchCredentials = async () => {
-      const { data, error } = await supabase
+      if (isArtist) {
+        // Busca dados do artista
+        const { data: artistData, error: artistError } = await supabase
+          .from('artists')
+          .select('name, email, profile_image_url')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (!artistError && artistData?.name) {
+          setDbName(artistData.name as string);
+          setDbEmail(artistData.email as string);
+          setDbAvatar(artistData.profile_image_url as string);
+          return;
+        }
+      }
+
+      // Busca dados do usuário normal
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('name, email, profile_image_url')
         .eq('id', user.id)
         .maybeSingle();
-      if (!error && data?.name) {
-        setDbName(data.name as string);
-        setDbEmail(data.email as string);
-        setDbAvatar(data.profile_image_url as string);
+      
+      if (!userError && userData?.name) {
+        setDbName(userData.name as string);
+        setDbEmail(userData.email as string);
+        setDbAvatar(userData.profile_image_url as string);
       }
     };
     fetchCredentials();
-  }, [user, supabase]);
+  }, [user, supabase, isArtist]);
 
   // Estados para mini-modals
   const [showSettingsModal, setShowSettingsModal] = useState(false)
@@ -226,7 +247,7 @@ export default function Sidebar() {
       setIsLoggingOut(true)
       await logout()
     } catch (error) {
-      console.error('Erro ao fazer logout:', error)
+      console.log('Erro ao fazer logout:', error)
     } finally {
       setIsLoggingOut(false)
     }
@@ -397,15 +418,15 @@ export default function Sidebar() {
           </div>
         ) : (
           <div className="h-10 w-10 rounded-full border-2 border-[#333333] group-hover:border-yellow-400 overflow-hidden transition-colors">
-            <Image
-              src={avatarUrl}
-              alt="Avatar"
-              width={40}
-              height={40}
-              className="rounded-full group-hover:scale-110 transition-transform duration-200"
-              priority
-              onError={() => setImgError(true)}
-            />
+               <Image
+                 src={avatarUrl}
+                 alt="Avatar"
+                 width={40}
+                 height={40}
+                 className="rounded-full group-hover:scale-110 transition-transform duration-200"
+                 priority
+                 onError={() => setImgError(true)}
+               />
           </div>
         )}
          {(!isCollapsed || (isMobile && isOpen)) && (

@@ -9,8 +9,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Check for missing environment variables
 if (!supabaseUrl || !supabaseKey) {
-  console.error('CRITICAL ERROR: Missing Supabase environment variables. Authentication will not work!');
-  console.error('Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your .env file');
+  console.log('CRITICAL ERROR: Missing Supabase environment variables. Authentication will not work!');
+  console.log('Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your .env file');
 }
 
 /**

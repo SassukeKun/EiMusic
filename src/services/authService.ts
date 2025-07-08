@@ -238,13 +238,13 @@ const authService = {
     });
     
     if (error) {
-      console.error('OAuth Error:', error);
+      console.log('OAuth Error:', error);
       logSessionStoragePkceVerifier('signInWithOAuth - Error');
       throw error;
     }
     
     if (!data?.url) {
-      console.error('No redirect URL in OAuth response');
+      console.log('No redirect URL in OAuth response');
       logSessionStoragePkceVerifier('signInWithOAuth - No URL');
       throw new Error('Failed to generate auth URL');
     }
@@ -599,7 +599,7 @@ const authService = {
     });
 
     if (usersError) {
-      console.error('Erro ao configurar política RLS para usuários:', usersError);
+      console.log('Erro ao configurar política RLS para usuários:', usersError);
       return { success: false, error: usersError };
     }
 
@@ -613,7 +613,7 @@ const authService = {
     });
 
     if (artistsError) {
-      console.error('Erro ao configurar política RLS para artistas:', artistsError);
+      console.log('Erro ao configurar política RLS para artistas:', artistsError);
       return { success: false, error: artistsError };
     }
 

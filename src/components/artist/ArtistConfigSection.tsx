@@ -100,7 +100,7 @@ const ArtistConfigSection: React.FC<ArtistConfigSectionProps> = ({
       await artistService.updateArtist(userId, updateFields);
       alert("Alterações guardadas com sucesso");
     } catch (err) {
-      console.error("Erro ao salvar alterações", err);
+      console.log("Erro ao salvar alterações", err);
       alert("Falha ao salvar alterações");
     } finally {
       setSaving(false);

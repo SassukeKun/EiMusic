@@ -115,7 +115,7 @@ export default function ArtistDetailPage() {
         setFollowers((prev) => prev + 1);
       }
     } catch (err) {
-      console.error("Error updating follow status", err);
+      console.log("Error updating follow status", err);
     }
   };
   const artistStats = {

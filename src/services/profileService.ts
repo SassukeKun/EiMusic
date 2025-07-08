@@ -25,7 +25,7 @@ class ProfileService {
       .eq('id', userId)
 
     if (error) {
-      console.error('Supabase updateUserAvatar', error)
+      console.log('Supabase updateUserAvatar', error)
       throw error
     }
 
@@ -48,7 +48,7 @@ class ProfileService {
       .eq('id', artistId)
 
     if (error) {
-      console.error('Supabase updateArtistAvatar', error)
+      console.log('Supabase updateArtistAvatar', error)
       throw error
     }
 

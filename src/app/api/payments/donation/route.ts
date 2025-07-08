@@ -142,7 +142,7 @@ async function persistSuccessfulDonation({
     provider: "mpesa",
     external_id: externalId,
   });
-  if (payErr) console.error("Erro ao inserir payment:", payErr.message);
+  if (payErr) console.log("Erro ao inserir payment:", payErr.message);
 
   // Tabela donations
   const { error: donErr } = await supabase.from("donations").insert({
@@ -151,7 +151,7 @@ async function persistSuccessfulDonation({
     artist_id: artistId,
     amount,
   });
-  if (donErr) console.error("Erro ao inserir donation:", donErr.message);
+  if (donErr) console.log("Erro ao inserir donation:", donErr.message);
 
   // Tabela notifications – envia notificação ao artista
   const { error: notifErr } = await supabase.from("notifications").insert({
@@ -162,7 +162,7 @@ async function persistSuccessfulDonation({
     title: "Novo apoio recebido!",
     message: `Recebeste uma doação de MT ${amount}. 🎉`,
   });
-  if (notifErr) console.error("Erro ao inserir notification:", notifErr.message);
+  if (notifErr) console.log("Erro ao inserir notification:", notifErr.message);
 
   // Calcula divisão de receita e registra em revenue_transactions
   try {
@@ -198,7 +198,7 @@ async function persistSuccessfulDonation({
           artist_cut: rev.artist_cut,
           calculated_at: new Date().toISOString(),
         });
-      if (revInsErr) console.error("Erro ao inserir revenue_transactions:", revInsErr.message);
+      if (revInsErr) console.log("Erro ao inserir revenue_transactions:", revInsErr.message);
 
         // Atualiza/insere saldo da plataforma
         try {
@@ -227,12 +227,12 @@ async function persistSuccessfulDonation({
               },
               { onConflict: "as_of_date" }
             );
-          if (balUpErr) console.error("Erro ao atualizar platform_balance:", balUpErr.message);
+          if (balUpErr) console.log("Erro ao atualizar platform_balance:", balUpErr.message);
         } catch (balErr: any) {
-          console.error("Falha ao processar platform_balance:", balErr.message);
+          console.log("Falha ao processar platform_balance:", balErr.message);
         }
     }
   } catch (err: any) {
-    console.error("Erro ao calcular/inserir revenue:", err.message);
+    console.log("Erro ao calcular/inserir revenue:", err.message);
   }
 }

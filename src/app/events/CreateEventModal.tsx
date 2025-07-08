@@ -291,7 +291,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
           );
           uploadedImageUrl = uploadRes.url;
         } catch (err) {
-          console.error('Falha ao fazer upload da imagem do evento:', err);
+          console.log('Falha ao fazer upload da imagem do evento:', err);
         }
       }
 
@@ -343,7 +343,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
       setErrors({})
       onClose()
     } catch (error) {
-      console.error('Erro ao criar evento:', error)
+      console.log('Erro ao criar evento:', error)
       setErrors({ submit: 'Erro ao criar evento. Tente novamente.' })
     } finally {
       setIsLoading(false)
