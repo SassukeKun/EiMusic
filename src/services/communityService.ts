@@ -65,7 +65,6 @@ export async function createCommunity(input: CreateCommunityInput): Promise<Comm
       category: input.category,
       tags: input.tags || [],
       banner: input.banner || null,
-      price: input.price ?? 0,
     })
     .select(
       `id,

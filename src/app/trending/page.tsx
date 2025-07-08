@@ -139,7 +139,7 @@ export default function TrendingPage() {
       animate={{ opacity: 1, y: 0 }}
     >
       <Link
-        href={`/${item.type === "music" ? "songs" : "videos"}/${item.id}`}
+        href={`/${item.type === "music" ? "track" : "videos"}/${item.id}`}
       >
         <div className="relative">
           {/* Imagem do card */}

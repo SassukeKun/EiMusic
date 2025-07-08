@@ -126,9 +126,9 @@ const CategorySlider = ({
       <Link
         href={`/${
           item.type === "music"
-            ? "musicas"
+            ? "track"
             : item.type === "artist"
-            ? "artistas"
+            ? "artist"
             : "playlists"
         }/${item.id}`}
       >
@@ -700,7 +700,7 @@ const [genreItems, setGenreItems] = useState<ExploreItem[]>([]);
       <Link
         href={`/${
           item.type === "music"
-            ? "musicas"
+            ? "track"
             : item.type === "artist"
             ? "artistas"
             : "playlists"

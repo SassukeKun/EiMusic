@@ -18,12 +18,10 @@ import {
   Disc,
   Heart,
   Globe,
-  Lock,
   Crown,
   Gem,
   Save,
   AlertCircle,
-  ExternalLink,
   Tag
 } from 'lucide-react'
 
@@ -271,6 +269,11 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
 
   // Handler para submissão do formulário
   const handleSubmit = async () => {
+    // Somente artistas podem criar eventos
+    if (!isArtist) {
+      setErrors({ submit: 'Somente artistas podem criar eventos.' })
+      return
+    }
     if (!validateForm()) return
     
     setIsLoading(true)
@@ -294,15 +297,19 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
       // 2️⃣ Construir payload para o serviço
       const startIso = new Date(`${formData.data}T${formData.hora}:00`).toISOString();
       const payload = {
+        event_date: new Date(formData.data).toISOString(),
+        access_level: formData.plano_necessario === 'free' ? 'publico' : formData.plano_necessario,
         artist_id: user?.id ?? '',
-        name: formData.titulo,
+        title: formData.titulo,
         event_type: formData.tipo,
-        price: formData.preco_min ?? 0,
+        price_min: formData.preco_min ?? 0,
+        price_max: formData.preco_max ?? formData.preco_min ?? 0,
         description: formData.descricao,
         start_time: startIso,
         location: `${formData.venue_nome}, ${formData.venue_cidade}`,
         capacity: formData.capacidade ?? null,
         event_status: 'agendado' as const,
+        image_url: uploadedImageUrl,
       } as const;
 
       // 3️⃣ Inserir no banco via EventService

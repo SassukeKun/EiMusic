@@ -1,7 +1,7 @@
 import { User, CreateUserInput } from '../models/user';
 import { CreateArtistInput } from '../models/artist';
 import { getSupabaseBrowserClient } from '../utils/supabaseClient';
-
+import supabase from '../utils/supabaseClient';
 // Helper for logging sessionStorage
 const PKCE_VERIFIER_KEY_PREFIX = 'sb-';
 const PKCE_VERIFIER_KEY_SUFFIX = '-auth-session-code-verifier';
@@ -46,7 +46,7 @@ const authService = {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('sb-')) {
         localStorage.removeItem(key);
-      } 
+      }
     });
 
     // Clear Supabase-specific items from sessionStorage
@@ -135,13 +135,13 @@ const authService = {
     
     // Autenticar usuario com o Supabase auth
     const { data, error } = await supabaseClient.auth.signInWithPassword({
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+      email,
       password,
     });
     
     if (error) {
       throw error;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }
+    }
     
     // Check for valid refresh token
     if (!data.session?.refresh_token) {
@@ -262,14 +262,18 @@ const authService = {
     
     // Verificar se o email já existe
     try {
-      const { data: existingUser, error: checkError } = await supabaseClient
-        .from('auth_email_check_view')
-        .select('email, is_artist')
-        .eq('email', userData.email)
-        .maybeSingle();
-
-      if (existingUser) {
-        if (existingUser.is_artist) {
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name,
+            is_artist: false, // Importante: definir como false para usuários
+          },
+        },
+      });
+      if (data) {
+        if (data.user?.user_metadata?.is_artist) {
           throw new Error('Este email já está registrado como artista. Use um email diferente ou faça login como artista.');
         } else {
           throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
@@ -311,7 +315,6 @@ const authService = {
     });
     
     if (error) {
-      console.error('Supabase auth error:', error);
       throw error;
     }
     
@@ -333,10 +336,7 @@ const authService = {
           email: userData.email,
           payment_method: userData.payment_method || null,
           has_active_subscription: userData.has_active_subscription || false,
-          // Não envie created_at, deixe o banco preencher
-          is_sso_user: false,
-          is_anonymous: false,
-          is_admin: false,
+            created_at: new Date().toISOString(), // Adicionando campo de data se for necessário
         };
         
           // Tentativa com upsert usando o cliente autenticado
@@ -375,14 +375,19 @@ const authService = {
     
     // Verificar se o email já existe
     try {
-      const { data: existingUser, error: checkError } = await supabaseClient
-        .from('auth_email_check_view')
-        .select('email, is_artist')
-        .eq('email', artistData.email)
-        .maybeSingle();
+      const { data, error } = await supabase.auth.signUp({
+        email: artistData.email,
+        password: artistData.password || "",
+        options: {
+          data: {
+            name: artistData.name,
+            is_artist: true, // Importante: definir como true para artistas
+          },
+        },
+      });
 
-      if (existingUser) {
-        if (!existingUser.is_artist) {
+      if (data) {
+        if (!data.user?.user_metadata?.is_artist) {
           throw new Error('Este email já está registrado como usuário regular. Use um email diferente ou faça login como usuário.');
         } else {
           throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
@@ -452,10 +457,7 @@ const authService = {
           monetization_plan_id: artistData.monetization_plan_id || null,
           profile_image_url: artistData.profile_image_url || null,
           social_links: artistData.social_links || null,
-          created_at: new Date().toISOString(),
-          // Campos obrigatórios da tabela artists
-          verified: false, // ou true, se quiser marcar como verificado por padrão
-          subscribers: 0,
+          created_at: new Date().toISOString(),  // Adicionando campo de data se for necessário
         };
         
           // Tentativa com upsert usando o cliente autenticado

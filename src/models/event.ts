@@ -16,7 +16,9 @@ export interface Event {
   capacity: number | null;
   created_at: string;
   event_date: string;
+  access_level: 'publico' | 'premium' | 'vip';
   event_status: 'confirmado' | 'agendado' | 'cancelado';
+  image_url?: string; // URL da imagem de capa do evento
 }
 
 /**
@@ -25,15 +27,18 @@ export interface Event {
 export const eventSchema = z.object({
   id: z.string().uuid().optional(),
   artist_id: z.string().uuid(),
-  name: z.string().min(2),
+  title: z.string().min(2),
   event_type: z.enum(['show', 'lancamento', 'tour', 'visita', 'colaboracao']).optional(),
   price_min: z.number().min(0),
   price_max: z.number().min(0),
   description: z.string().max(500).optional(),
   start_time: z.string().datetime(),
+  event_date: z.string().datetime(),
+  access_level: z.enum(['publico', 'premium', 'vip']),
   location: z.string().optional(),
   capacity: z.number().int().min(0).nullable().optional(),
   event_status: z.enum(['confirmado', 'agendado', 'cancelado']).optional(),
+  image_url: z.string().url().optional(),
 });
 
 export type CreateEventInput = Omit<z.infer<typeof eventSchema>, 'id'>;

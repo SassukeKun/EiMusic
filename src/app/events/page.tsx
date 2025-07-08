@@ -30,10 +30,8 @@ import {
   Share2,
   ChevronDown,
   Tag,
-  Plus,
 } from "lucide-react";
-
-// Interfaces TypeScript para tipagem forte
+// Tipos específicos para exibição no front-end – independentes do schema de banco
 interface Artist {
   id: string;
   nome: string;
@@ -48,7 +46,7 @@ interface Venue {
   tipo: "teatro" | "hotel" | "centro_cultural" | "festival" | "online";
 }
 
-interface Event {
+interface UiEvent {
   id: string;
   titulo: string;
   artista: Artist;
@@ -68,6 +66,8 @@ interface Event {
   participantes?: number;
   is_trending?: boolean;
 }
+
+// Interfaces TypeScript para tipagem forte
 
 interface UserPlan {
   tipo: "free" | "premium" | "vip";
@@ -108,8 +108,8 @@ export default function EventsPage() {
   const router = useRouter();
   const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);
   // Estados para gerenciamento de dados e UI
-  const [events, setEvents] = useState<Event[]>([]);
-  const [userPlan, setUserPlan] = useState<UserPlan>({
+  const [events, setEvents] = useState<UiEvent[]>([]);
+  const [userPlan] = useState<UserPlan>({
     tipo: "free",
     ativo: true,
   });
@@ -122,7 +122,7 @@ export default function EventsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Função para verificar acesso ao evento
-  const hasAccessToEvent = (event: Event): boolean => {
+  const hasAccessToEvent = (event: UiEvent): boolean => {
     if (!event.is_exclusive) return true;
     const planHierarchy = { free: 0, premium: 1, vip: 2 };
     return (
@@ -225,188 +225,7 @@ export default function EventsPage() {
     return `${min} - ${max} MT`;
   };
 
-  // Mock data dos eventos
-  const mockEvents: Event[] = [
-    {
-      id: "1",
-      titulo: "Noite de Marrabenta Moderna",
-      artista: {
-        id: "art1",
-        nome: "Zena Bakar",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      tipo: "show",
-      data: "2025-01-15T20:00:00Z",
-      hora: "20:00",
-      venue: {
-        nome: "Centro Cultural Franco-Moçambicano",
-        cidade: "Maputo",
-        capacidade: 500,
-        tipo: "centro_cultural",
-      },
-      descricao:
-        "Uma noite especial celebrando a evolução da marrabenta com toques modernos. Zena Bakar apresenta seu novo repertório em um show intimista.",
-      preco_min: 150,
-      preco_max: 300,
-      status: "confirmado",
-      is_exclusive: false,
-      plano_necessario: "free",
-      imagem: "/api/placeholder/400/300",
-      link_externo: "https://ticketing-mocambique.com/zena-bakar",
-      tags: ["#Marrabenta", "#AoVivo", "#Maputo"],
-      participantes: 350,
-      is_trending: true,
-    },
-    {
-      id: "2",
-      titulo: 'Lançamento: "Fusão Urbana" EP',
-      artista: {
-        id: "art2",
-        nome: "MC Joaquim",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      tipo: "lancamento",
-      data: "2025-01-20T18:00:00Z",
-      hora: "18:00",
-      venue: {
-        nome: "Polana Serena Hotel",
-        cidade: "Maputo",
-        capacidade: 200,
-        tipo: "hotel",
-      },
-      descricao:
-        'Sessão de escuta exclusiva do novo EP "Fusão Urbana" que mistura pandza com elementos de hip-hop internacional. Apenas para membros Premium.',
-      preco_min: 80,
-      preco_max: 120,
-      status: "confirmado",
-      is_exclusive: true,
-      plano_necessario: "premium",
-      imagem: "/api/placeholder/400/300",
-      link_externo: "https://eventbrite.com/mc-joaquim-ep-launch",
-      tags: ["#Pandza", "#HipHop", "#Lançamento"],
-      participantes: 120,
-      is_trending: false,
-    },
-    {
-      id: "3",
-      titulo: 'Tour Nacional "Beats de Maputo"',
-      artista: {
-        id: "art3",
-        nome: "DJ Azagaia Jr",
-        avatar: "/api/placeholder/64/64",
-        verificado: false,
-      },
-      tipo: "tour",
-      data: "2025-02-01T19:30:00Z",
-      hora: "19:30",
-      venue: {
-        nome: "Festival de Verão",
-        cidade: "Beira",
-        capacidade: 2000,
-        tipo: "festival",
-      },
-      descricao:
-        'Primeira parada da tour nacional "Beats de Maputo". DJ Azagaia Jr leva sua produção inovadora para todo o país.',
-      preco_min: 50,
-      preco_max: 150,
-      status: "confirmado",
-      is_exclusive: false,
-      plano_necessario: "free",
-      imagem: "/api/placeholder/400/300",
-      link_externo: "https://festivaldeverao.mz/ingressos",
-      tags: ["#Tour", "#Beira", "#Eletrônica"],
-      participantes: 1200,
-      is_trending: true,
-    },
-    {
-      id: "4",
-      titulo: "Meet & Greet Exclusivo VIP",
-      artista: {
-        id: "art4",
-        nome: "Lenna Bahule",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      tipo: "visita",
-      data: "2025-01-25T15:00:00Z",
-      hora: "15:00",
-      venue: {
-        nome: "Estúdio Privado",
-        cidade: "Maputo",
-        capacidade: 20,
-        tipo: "teatro",
-      },
-      descricao:
-        "Sessão exclusiva para membros VIP com Lenna Bahule. Conversa íntima sobre música, carreira e performance acústica privada.",
-      status: "confirmado",
-      is_exclusive: true,
-      plano_necessario: "vip",
-      imagem: "/api/placeholder/400/300",
-      tags: ["#VIP", "#Acústico", "#Exclusivo"],
-      participantes: 15,
-      is_trending: false,
-    },
-    {
-      id: "5",
-      titulo: 'Colaboração: "Vozes do Sul"',
-      artista: {
-        id: "art5",
-        nome: "Kelvin Momo Moz",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      tipo: "colaboracao",
-      data: "2025-02-10T17:00:00Z",
-      hora: "17:00",
-      venue: {
-        nome: "Live Stream",
-        cidade: "Online",
-        tipo: "online",
-      },
-      descricao:
-        'Projeto colaborativo "Vozes do Sul" reúne artistas de Moçambique e África do Sul em uma sessão ao vivo especial.',
-      status: "em_breve",
-      is_exclusive: true,
-      plano_necessario: "premium",
-      imagem: "/api/placeholder/400/300",
-      link_externo: "https://youtube.com/vozesdosul",
-      tags: ["#Colaboração", "#AfricaDoSul", "#Online"],
-      participantes: 500,
-      is_trending: true,
-    },
-    {
-      id: "6",
-      titulo: "Festival de Jazz Moçambicano",
-      artista: {
-        id: "art6",
-        nome: "Maria dos Anjos",
-        avatar: "/api/placeholder/64/64",
-        verificado: true,
-      },
-      tipo: "show",
-      data: "2024-12-01T19:00:00Z",
-      hora: "19:00",
-      venue: {
-        nome: "Teatro Avenida",
-        cidade: "Maputo",
-        capacidade: 800,
-        tipo: "teatro",
-      },
-      descricao:
-        "Festival anual que celebrou o jazz moçambicano com os melhores artistas locais. Evento histórico já realizado.",
-      preco_min: 200,
-      preco_max: 500,
-      status: "confirmado",
-      is_exclusive: false,
-      plano_necessario: "free",
-      imagem: "/api/placeholder/400/300",
-      tags: ["#Jazz", "#Festival", "#História"],
-      participantes: 750,
-      is_trending: false,
-    },
-  ];
+
 
   // Carregar eventos a partir do Supabase
   useEffect(() => {
@@ -415,11 +234,11 @@ export default function EventsPage() {
       try {
         const data = await fetchEvents();
         // Transformar os dados retornados pelo Supabase para o formato esperado pelo UI
-        const mapped: Event[] = data.map((e: any) => {
+        const mapped: UiEvent[] = data.map((e: any) => {
           const startDate = new Date(e.start_time);
           return {
             id: e.id,
-            titulo: e.name,
+            titulo: e.title ?? e.name ?? '',
             artista: {
               id: e.artist_id,
               nome: e.artist_name ?? 'Artista',
@@ -435,9 +254,9 @@ export default function EventsPage() {
               tipo: 'centro_cultural',
             },
             descricao: e.description ?? '',
-            preco_min: e.price,
-            preco_max: e.price,
-            status: e.status ?? 'agendado',
+            preco_min: e.price_min ?? 0,
+            preco_max: e.price_max ?? e.price_min ?? 0,
+            status: e.event_status ?? 'agendado',
             is_exclusive: false,
             plano_necessario: 'free',
             imagem: e.image_url ?? '/api/placeholder/400/300',
@@ -519,16 +338,24 @@ export default function EventsPage() {
       // 2. Criar objeto de input para o Supabase
       const startIso = new Date(`${formData.data}T${formData.hora}:00`).toISOString();
       const input = {
+        event_date: new Date(formData.data).toISOString(),
+        access_level: formData.plano_necessario === 'free' ? 'publico' : formData.plano_necessario,
         artist_id: user?.id ?? '',
-        name: formData.titulo,
+        title: formData.titulo,
         event_type: formData.tipo,
-        price: formData.preco_min ?? 0,
+        price_min: formData.preco_min ?? 0,
+        price_max: formData.preco_max ?? formData.preco_min ?? 0,
         description: formData.descricao,
         start_time: startIso,
         location: `${formData.venue_nome}, ${formData.venue_cidade}`,
         capacity: formData.capacidade ?? null,
-        status: 'agendado' as const,
+        event_status: 'agendado' as const,
         image_url: uploadedImageUrl,
+        tags: formData.tags,
+        participants: formData.capacidade ?? 0,
+        link_externo: formData.link_externo,
+        is_exclusive: formData.is_exclusive,
+        plano_necessario: formData.plano_necessario,
       } as any; // usar any para permitir image_url extra se tabela tiver essa coluna
 
       // 3. Inserir evento no Supabase
@@ -539,7 +366,7 @@ export default function EventsPage() {
       setEvents((prev) => [
         {
           id: created.id,
-          titulo: created.name,
+          titulo: created.title ?? created.name ?? '',
           artista: {
             id: created.artist_id,
             nome: user?.user_metadata?.name || 'Artista',
@@ -556,15 +383,15 @@ export default function EventsPage() {
             tipo: formData.venue_tipo,
           },
           descricao: created.description,
-          preco_min: created.price,
-          preco_max: created.price,
-          status: created.status,
+          preco_min: created.price_min,
+          preco_max: created.price_max,
+          status: created.event_status,
           is_exclusive: formData.is_exclusive,
           plano_necessario: formData.plano_necessario,
           imagem: uploadedImageUrl ?? '/api/placeholder/400/300',
           link_externo: formData.link_externo,
           tags: formData.tags.map((t) => `#${t}`),
-          participantes: 0,
+          participantes: formData.capacidade ?? 0,
           is_trending: false,
         },
         ...prev,
@@ -592,7 +419,7 @@ export default function EventsPage() {
   );
 
   // Componente do Card de Evento
-  const EventCard = ({ event }: { event: Event }) => {
+  const EventCard = ({ event }: { event: UiEvent }) => {
     const [isReminded, setIsReminded] = useState(false);
     const hasAccess = hasAccessToEvent(event);
     const dateInfo = formatDate(event.data);

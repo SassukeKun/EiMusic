@@ -3,16 +3,13 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { FaRandom } from "react-icons/fa";
 
 import { 
   FaPlay, 
   FaPause,
-  FaHeart, 
-  FaShare, 
-  FaComment,
-  FaThumbsUp,
+  FaShare,
   FaDownload,
   FaPlus,
   FaMusic,
@@ -32,67 +29,67 @@ import {
 import { usePlayer, Track as PlayerTrack } from '@/context/PlayerContext'
 import { fetchTrackOrSingle, DisplayTrack } from '@/services/trackService'
 
-const mockComments = [
-  {
-    id: '1',
-    user: 'Maria Santos',
-    avatar: null,
-    content: 'Que música incrível! Representa muito bem a nossa cultura 🔥',
-    timestamp: '2024-12-05T10:30:00Z',
-    likes: 12
-  },
-  {
-    id: '2',
-    user: 'João Mateus',
-    avatar: null,
-    content: 'MC Kappa sempre entregando qualidade. Orgulho moçambicano!',
-    timestamp: '2024-12-05T09:15:00Z',
-    likes: 8
-  },
-  {
-    id: '3',
-    user: 'Ana Costa',
-    avatar: null,
-    content: 'Essa beat é viciante! Já ouvi umas 20 vezes hoje 😍',
-    timestamp: '2024-12-04T20:45:00Z',
-    likes: 15
-  },
-  {
-    id: '4',
-    user: 'Carlos Silva',
-    avatar: null,
-    content: 'Finalmente uma música que fala da nossa realidade. Muito bom!',
-    timestamp: '2024-12-04T18:20:00Z',
-    likes: 6
-  }
-]
+// const mockComments = [
+//   {
+//     id: '1',
+//     user: 'Maria Santos',
+//     avatar: null,
+//     content: 'Que música incrível! Representa muito bem a nossa cultura 🔥',
+//     timestamp: '2024-12-05T10:30:00Z',
+//     likes: 12
+//   },
+//   {
+//     id: '2',
+//     user: 'João Mateus',
+//     avatar: null,
+//     content: 'MC Kappa sempre entregando qualidade. Orgulho moçambicano!',
+//     timestamp: '2024-12-05T09:15:00Z',
+//     likes: 8
+//   },
+//   {
+//     id: '3',
+//     user: 'Ana Costa',
+//     avatar: null,
+//     content: 'Essa beat é viciante! Já ouvi umas 20 vezes hoje 😍',
+//     timestamp: '2024-12-04T20:45:00Z',
+//     likes: 15
+//   },
+//   {
+//     id: '4',
+//     user: 'Carlos Silva',
+//     avatar: null,
+//     content: 'Finalmente uma música que fala da nossa realidade. Muito bom!',
+//     timestamp: '2024-12-04T18:20:00Z',
+//     likes: 6
+//   }
+// ]
 
-const mockRelatedTracks = [
-  {
-    id: '3',
-    title: 'Cidade de Pedra e Cal',
-    artist: 'MC Kappa',
-    duration: 267,
-    plays_count: 32300,
-    cover_image: null
-  },
-  {
-    id: '4',
-    title: 'Cultura Nossa',
-    artist: 'MC Kappa',
-    duration: 189,
-    plays_count: 19800,
-    cover_image: null
-  },
-  {
-    id: '5',
-    title: 'Vamos Dançar',
-    artist: 'MC Kappa feat. Bella Moçambique',
-    duration: 212,
-    plays_count: 42100,
-    cover_image: null
-  }
-]
+// const mockRelatedTracks = [
+//   {
+//     id: '3',
+//     title: 'Cidade de Pedra e Cal',
+//     artist: 'MC Kappa',
+//     duration: 267,
+//     plays_count: 32300,
+//     cover_image: null
+//   },
+//   {
+//     id: '4',
+//     title: 'Cultura Nossa',
+//     artist: 'MC Kappa',
+//     duration: 189,
+//     plays_count: 19800,
+//     cover_image: null
+//   },
+//   {
+//     id: '5',
+//     title: 'Vamos Dançar',
+//     artist: 'MC Kappa feat. Bella Moçambique',
+//     duration: 212,
+//     plays_count: 42100,
+//     cover_image: null
+//   }
+// ]
 
 export default function TrackDetailPage() {
   const { id } = useParams() as { id: string }
@@ -100,17 +97,13 @@ export default function TrackDetailPage() {
   const { track: currentTrack, playing, progress, duration, volume, setVolume, seek, playTrack, togglePlay } = usePlayer()
   const [track, setTrack] = useState<DisplayTrack | null>(null)
   const isPlaying = track ? currentTrack?.id === track.id && playing : false
-  const [currentTime, setCurrentTime] = useState(0)
+  const [currentTime] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const [isShuffled, setIsShuffled] = useState(false)
   const [isRepeating, setIsRepeating] = useState(false)
 
   
   // Estados da interface
-  const [activeTab, setActiveTab] = useState<'lyrics' | 'comments' | 'related'>('lyrics')
-  const [isLiked, setIsLiked] = useState(false)
-  const [showLyrics, setShowLyrics] = useState(true)
-  const [newComment, setNewComment] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -175,10 +168,10 @@ export default function TrackDetailPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleLike = () => {
-    setIsLiked(!isLiked)
-    // Aqui você integraria com a API
-  }
+  // const handleLike = () => {
+  //   setIsLiked(!isLiked)
+  //   // Aqui você integraria com a API
+  // }
 
   const handleDownload = () => {
     alert('Download iniciado! (Funcionalidade simulada)')
@@ -193,13 +186,13 @@ export default function TrackDetailPage() {
     alert('Adicionar à playlist (Funcionalidade em desenvolvimento)')
   }
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (newComment.trim()) {
-      alert(`Comentário adicionado: "${newComment}"`)
-      setNewComment('')
-    }
-  }
+  // const handleCommentSubmit = (e: React.FormEvent) => {
+  //   e.preventDefault()
+  //   if (newComment.trim()) {
+  //     alert(`Comentário adicionado: "${newComment}"`)
+  //     setNewComment('')
+  //   }
+  // }
 
   const handleDonate = () => {
     alert(`Apoiar ${track.artist.name} - Funcionalidade em desenvolvimento`)
