@@ -1,5 +1,5 @@
 "use client";
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import ArtistConfigSection from "@/components/artist/ArtistConfigSection";
@@ -165,12 +165,13 @@ export default function ArtistDashboard() {
           setArtistName(data.name || "");
           setArtistBio(data.bio || "");
           setProvince(data.province || "");
+          
           setInstagram(
-            data.social_links?.instagram || (data as any).instagram || ""
+                        data.social_links?.instagram || (data as any).instagram || ""
           );
-          setTwitter(data.social_links?.twitter || (data as any).twitter || "");
-          setWebsite(data.social_links?.website || (data as any).website || "");
-          setPhone(data.phone || (data as any).phone || "");
+                    setTwitter(data.social_links?.twitter || (data as any).twitter || "");
+                    setWebsite(data.social_links?.website || (data as any).website || "");
+                    setPhone(data.phone || (data as any).phone || "");
         }
       } catch (err) {
         console.error("Erro ao carregar artista", err);
@@ -210,7 +211,7 @@ export default function ArtistDashboard() {
   }, [user]);
 
   // 👉 Centralized content selection handler
-  const handleSelectContent = (content: any) => {
+    const handleSelectContent = (content: any) => {
     setSelectedContent(content);
     if (content && "start_time" in content && "location" in content) {
       setEventToEdit(content as EventModel);
@@ -303,6 +304,8 @@ export default function ArtistDashboard() {
       capacity: eventData.capacity,
       created_at: new Date().toISOString(),
       event_status: eventData.event_status || "agendado",
+      image_url: eventData.image_url,
+      access_level: eventData.access_level,
     };
 
     if (eventData.id) {

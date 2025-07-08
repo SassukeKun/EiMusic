@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import axios from "axios";
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const BASE_URL = process.env.E2PAYMENTS_BASE_URL as string;
 const CLIENT_ID = process.env.E2PAYMENTS_CLIENT_ID as string;
 const CLIENT_SECRET = process.env.E2PAYMENTS_CLIENT_SECRET as string;

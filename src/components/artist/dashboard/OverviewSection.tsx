@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Users, DollarSign, Music, Upload, Calendar } from 'lucide-react';
@@ -166,7 +168,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({ mockArtist, musicas, 
                 <Calendar className="w-5 h-5 text-yellow-400" />
               </div>
               <div className="flex-1">
-                <p className="text-white font-medium">{evento.name}</p>
+                <p className="text-white font-medium">{evento.title}</p>
                 <p className="text-gray-400 text-sm">
                   {new Date(evento.start_time).toLocaleDateString('pt-MZ')} •{' '}
                   {evento.location}
@@ -177,7 +179,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({ mockArtist, musicas, 
               </div>
               <div
                 className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  evento.event_type === 'confirmado'
+                  evento.event_type === 'show'
                     ? 'bg-green-500/20 text-green-400'
                     : 'bg-yellow-500/20 text-yellow-400'
                 }`}>

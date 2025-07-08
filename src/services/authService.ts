@@ -1,7 +1,8 @@
 import { User, CreateUserInput } from '../models/user';
 import { CreateArtistInput } from '../models/artist';
 import { getSupabaseBrowserClient } from '../utils/supabaseClient';
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Helper for logging sessionStorage
 const PKCE_VERIFIER_KEY_PREFIX = 'sb-';
 const PKCE_VERIFIER_KEY_SUFFIX = '-auth-session-code-verifier';

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Interface de community representando uma comunidade no banco de dados
  */

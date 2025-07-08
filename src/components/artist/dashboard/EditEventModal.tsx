@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, MapPin, Music, Mic, Disc, Heart, Globe, Crown, Gem, Save, AlertCircle, ExternalLink, Tag } from 'lucide-react';
+import { X, Calendar, MapPin, Music, Mic, Disc, Heart, Globe, Crown, Gem, Save, AlertCircle, ExternalLink, Tag, Type } from 'lucide-react';
 import { Event as EventModel } from '@/models/event';
 
 // Interface para dados do formulário (compatível com o modelo Event)

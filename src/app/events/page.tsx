@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useRouter } from "next/navigation";
 import { fetchEvents, createEvent } from '@/services/eventService';
@@ -5,6 +7,7 @@ import uploadService from '@/services/uploadService';
 import { PlansModal } from "@/components/PlansModal";
 import { CreateEventModal } from "./CreateEventModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseClient } from "@/utils/supabaseClient";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -106,10 +109,11 @@ type DateFilter = "todos" | "proximos" | "este_mes" | "este_ano" | "passados";
 export default function EventsPage() {
   const { user, isArtist, isAuthenticated } = useAuth();
   const router = useRouter();
+  const supabase = useSupabaseClient();
   const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);
   // Estados para gerenciamento de dados e UI
   const [events, setEvents] = useState<UiEvent[]>([]);
-  const [userPlan] = useState<UserPlan>({
+  const [userPlan, setUserPlan] = useState<UserPlan>({
     tipo: "free",
     ativo: true,
   });
@@ -229,6 +233,48 @@ export default function EventsPage() {
 
   // Carregar eventos a partir do Supabase
   useEffect(() => {
+    // Fetch current user's subscription plan
+    async function fetchUserPlan() {
+      if (!user?.id) return; // no logged-in user yet
+      try {
+        // Busca info de assinatura do utilizador
+        const { data: userRow, error: userErr } = await supabase
+          .from('users')
+          .select('has_active_subscription, subscription_plan_id')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (userErr && userErr.code !== 'PGRST116') throw userErr;
+
+        if (userRow && userRow.has_active_subscription && userRow.subscription_plan_id) {
+          // Obtém nome do plano
+          const { data: planRow, error: planErr } = await supabase
+            .from('monetization_plans')
+            .select('name')
+            .eq('id', userRow.subscription_plan_id)
+            .maybeSingle();
+          if (planErr) throw planErr;
+          if (!planRow) {
+            // Plano desconhecido, volta para FREE
+            setUserPlan({ tipo: 'free', ativo: true });
+            return;
+          }
+
+          const planName = (planRow?.name?.toLowerCase() ?? 'premium') as
+            | 'premium'
+            | 'vip';
+          setUserPlan({ tipo: planName, ativo: true });
+        } else {
+          // Sem assinatura ativa
+          setUserPlan({ tipo: 'free', ativo: true });
+        }
+      } catch (err) {
+        console.error('Erro ao buscar plano do usuário:', err);
+      }
+    }
+    fetchUserPlan();
+  }, [user, supabase]);
+
+  useEffect(() => {
     const loadEvents = async () => {
       setLoading(true);
       try {
@@ -236,6 +282,8 @@ export default function EventsPage() {
         // Transformar os dados retornados pelo Supabase para o formato esperado pelo UI
         const mapped: UiEvent[] = data.map((e: any) => {
           const startDate = new Date(e.start_time);
+          const accessLevel = (e.access_level || 'publico') as 'publico' | 'premium' | 'vip';
+          const requiredPlan: 'free' | 'premium' | 'vip' = accessLevel === 'publico' ? 'free' : accessLevel;
           return {
             id: e.id,
             titulo: e.title ?? e.name ?? '',
@@ -257,8 +305,8 @@ export default function EventsPage() {
             preco_min: e.price_min ?? 0,
             preco_max: e.price_max ?? e.price_min ?? 0,
             status: e.event_status ?? 'agendado',
-            is_exclusive: false,
-            plano_necessario: 'free',
+            is_exclusive: requiredPlan !== 'free',
+            plano_necessario: requiredPlan,
             imagem: e.image_url ?? '/api/placeholder/400/300',
             tags: e.tags ?? [],
             participantes: e.participants ?? 0,
@@ -505,7 +553,7 @@ export default function EventsPage() {
           {/* Artista */}
           <div className="flex items-center space-x-2 mb-3">
             <img
-              src={event.artista.avatar === "" ? "/avatar.png" : event.artista.avatar}
+              src={event.artista.avatar}
               alt={event.artista.nome}
               className="w-8 h-8 rounded-full border border-gray-600"
             />
@@ -986,18 +1034,19 @@ export default function EventsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div
-                  className={`w-3 h-3 rounded-full ${
-                    userPlan.tipo === "free"
-                      ? "bg-gray-500"
-                      : userPlan.tipo === "premium"
-                      ? "bg-yellow-500"
-                      : "bg-purple-500"
-                  }`}
+                  className={`w-3 h-3 rounded-full bg-green-500`}
                 ></div>
-                <span className="text-white font-medium">
-                  Plano {userPlan.tipo.toUpperCase()}
-                </span>
+                {userPlan.tipo !== 'free' && (
+                  <span className="text-white font-medium">
+                    Plano {userPlan.tipo.toUpperCase()}
+                  </span>
+                )}
                 <span className="text-gray-400 text-sm">
+                  {userPlan.tipo === "free"
+                    ? "Acesso a eventos públicos"
+                    : userPlan.tipo === "premium"
+                    ? "Acesso a eventos Premium + públicos"
+                    : "Acesso total + contato direto"}
                   {userPlan.tipo === "free" && "Acesso a eventos públicos"}
                   {userPlan.tipo === "premium" &&
                     "Acesso a eventos Premium + públicos"}

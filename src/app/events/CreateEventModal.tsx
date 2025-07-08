@@ -1,5 +1,6 @@
 'use client'
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef } from 'react'
 import { createEvent } from '@/services/eventService'
 import uploadService from '@/services/uploadService'

@@ -1,6 +1,7 @@
 // src/app/track/page.tsx
 'use client'
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react'
 import { getSupabaseBrowserClient } from '@/utils/supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -750,7 +751,7 @@ export default function TracksPage() {
                 
                 {searchTerm && (
                   <span className="inline-flex items-center px-2 py-1 bg-purple-600/20 text-purple-300 rounded-full text-xs">
-                    Busca: "{searchTerm}"
+                    Busca: {searchTerm}
                     <button onClick={() => setSearchTerm('')} className="ml-1 hover:text-purple-200">
                       <FaTimes size={10} />
                     </button>

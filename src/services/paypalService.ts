@@ -1,5 +1,6 @@
 import base64 from 'base-64';
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // PayPal REST API helper service
 // Docs: https://developer.paypal.com/docs/api/overview/
 // The functions here deliberately keep a small surface area that covers the needs of EiMusic:

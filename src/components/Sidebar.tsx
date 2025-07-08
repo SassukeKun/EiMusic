@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
+import { getSupabaseBrowserClient } from '@/utils/supabaseClient'
 import {
   FaHome,
   FaChartLine,
@@ -68,7 +69,30 @@ export default function Sidebar() {
   const [isMobile, setIsMobile] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const { user, loading, isAuthenticated, logout, isArtist } = useAuth()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const supabase = getSupabaseBrowserClient();
+  const [dbName, setDbName] = useState<string | null>(null);
+  const [dbEmail, setDbEmail] = useState<string | null>(null);
+  const [dbAvatar, setDbAvatar] = useState<string | null>(null);
+
+  // Busca nome do usuário na tabela users
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchCredentials = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('name, email, profile_image_url')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!error && data?.name) {
+        setDbName(data.name as string);
+        setDbEmail(data.email as string);
+        setDbAvatar(data.profile_image_url as string);
+      }
+    };
+    fetchCredentials();
+  }, [user, supabase]);
 
   // Estados para mini-modals
   const [showSettingsModal, setShowSettingsModal] = useState(false)
@@ -343,9 +367,9 @@ export default function Sidebar() {
   }
 
     // Dados do usuário autenticado
-  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Usuário';
-  const userEmail = user?.email || '';
-  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/avatar.svg';
+  const userName = dbName || user?.user_metadata?.full_name || user?.user_metadata?.name || 'Usuário';
+  const userEmail = dbEmail || user?.email || '';
+  const avatarUrl = dbAvatar || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/avatar.svg';
   const [imgError, setImgError] = useState(false);
 
   // 🔧 FUNÇÃO PARA NAVEGAR PARA O DASHBOARD DO ARTISTA

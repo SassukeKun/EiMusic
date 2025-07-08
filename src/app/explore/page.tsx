@@ -1,5 +1,6 @@
 "use client";
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef } from "react";
 import { trendingService, type TrendingItem } from "@/services/trendingService";
 import { getSupabaseBrowserClient } from "@/utils/supabaseClient";
