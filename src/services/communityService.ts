@@ -134,7 +134,7 @@ export async function joinCommunity(communityId: string, userId: string): Promis
   // 1. Buscar comunidade e tipo de acesso
   const { data: community, error: commErr } = await supabase
     .from('communities')
-    .select('access_type, price')
+    .select('access_type')
     .eq('id', communityId)
     .single();
   if (commErr) throw commErr;

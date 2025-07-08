@@ -505,7 +505,7 @@ export default function EventsPage() {
           {/* Artista */}
           <div className="flex items-center space-x-2 mb-3">
             <img
-              src={event.artista.avatar}
+              src={event.artista.avatar === "" ? "/avatar.png" : event.artista.avatar}
               alt={event.artista.nome}
               className="w-8 h-8 rounded-full border border-gray-600"
             />

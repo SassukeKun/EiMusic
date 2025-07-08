@@ -1,7 +1,7 @@
 import { User, CreateUserInput } from '../models/user';
 import { CreateArtistInput } from '../models/artist';
 import { getSupabaseBrowserClient } from '../utils/supabaseClient';
-import supabase from '../utils/supabaseClient';
+
 // Helper for logging sessionStorage
 const PKCE_VERIFIER_KEY_PREFIX = 'sb-';
 const PKCE_VERIFIER_KEY_SUFFIX = '-auth-session-code-verifier';
@@ -260,40 +260,9 @@ const authService = {
   async signUpUser(userData: CreateUserInput) {
     const supabaseClient = getSupabaseBrowserClient();
     
-    // Verificar se o email já existe
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          data: {
-            name: userData.name,
-            is_artist: false, // Importante: definir como false para usuários
-          },
-        },
-      });
-      if (data) {
-        if (data.user?.user_metadata?.is_artist) {
-          throw new Error('Este email já está registrado como artista. Use um email diferente ou faça login como artista.');
-        } else {
-          throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
-        }
-      }
-    } catch (viewError) {
-      // Fallback - vamos tentar fazer login sem senha para ver se o email existe
-      // Essa abordagem não é ideal, mas funciona para verificar se um email está cadastrado
-      const { error: existingUserError } = await supabaseClient.auth.signInWithOtp({
-        email: userData.email,
-        options: {
-          shouldCreateUser: false // Não criar usuário se não existir
-        }
-      });
-      
-      // Se não retornar "User not found", significa que o email existe
-      if (!existingUserError || !existingUserError.message.includes('User not found')) {
-        throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
-      }
-    }
+    // A verificação de email duplicado será feita pelo próprio Supabase na chamada principal de sign-up logo abaixo.
+    // Caso o email já exista, o erro retornado por `supabaseClient.auth.signUp` será tratado mais adiante.
+
     
     // Simplificamos o URL de redirecionamento para enviar direto para a home
     // Não usamos mais a rota /auth/callback para evitar problemas com PKCE
@@ -307,8 +276,7 @@ const authService = {
       options: {
         data: {
           name: userData.name,
-          payment_method: userData.payment_method || null,
-          has_active_subscription: userData.has_active_subscription || false,
+          is_artist: false
         },
         emailRedirectTo: redirectUrl,
       }
@@ -373,41 +341,9 @@ const authService = {
   async signUpArtist(artistData: CreateArtistInput) {
     const supabaseClient = getSupabaseBrowserClient();
     
-    // Verificar se o email já existe
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: artistData.email,
-        password: artistData.password || "",
-        options: {
-          data: {
-            name: artistData.name,
-            is_artist: true, // Importante: definir como true para artistas
-          },
-        },
-      });
+    // A verificação de email duplicado será feita pelo próprio Supabase na chamada principal de sign-up logo abaixo.
+    // Caso o email já exista, o erro retornado por `supabaseClient.auth.signUp` será tratado mais adiante.
 
-      if (data) {
-        if (!data.user?.user_metadata?.is_artist) {
-          throw new Error('Este email já está registrado como usuário regular. Use um email diferente ou faça login como usuário.');
-        } else {
-          throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
-        }
-      }
-    } catch (viewError) {
-      // Fallback - vamos tentar fazer login sem senha para ver se o email existe
-      // Essa abordagem não é ideal, mas funciona para verificar se um email está cadastrado
-      const { error: existingUserError } = await supabaseClient.auth.signInWithOtp({
-        email: artistData.email,
-        options: {
-          shouldCreateUser: false // Não criar usuário se não existir
-        }
-      });
-      
-      // Se não retornar "User not found", significa que o email existe
-      if (!existingUserError || !existingUserError.message.includes('User not found')) {
-        throw new Error('Este email já está em uso. Faça login ou use a recuperação de senha se necessário.');
-      }
-    }
     
     // Simplificamos o URL de redirecionamento para enviar direto para a home do artista
     // Não usamos mais a rota /auth/callback para evitar problemas com PKCE
@@ -421,12 +357,7 @@ const authService = {
       options: {
         data: {
           name: artistData.name,
-          bio: artistData.bio || null,
-          phone: artistData.phone || null,
-          monetization_plan_id: artistData.monetization_plan_id || null,
-          profile_image_url: artistData.profile_image_url || null,
-          social_links: artistData.social_links || null,
-          is_artist: true,
+          is_artist: true
         },
         emailRedirectTo: redirectUrl,
       }
@@ -662,7 +593,7 @@ const authService = {
       sql: `
         DROP POLICY IF EXISTS users_insert ON users;
         CREATE POLICY users_insert ON users 
-          FOR INSERT WITH CHECK (auth.uid() = id);
+          FOR INSERT WITH CHECK (auth.uid() = id OR auth.role() = 'supabase_auth_admin');
       `
     });
 
@@ -676,7 +607,7 @@ const authService = {
       sql: `
         DROP POLICY IF EXISTS artists_insert ON artists;
         CREATE POLICY artists_insert ON artists 
-          FOR INSERT WITH CHECK (auth.uid() = id);
+          FOR INSERT WITH CHECK (auth.uid() = id OR auth.role() = 'supabase_auth_admin');
       `
     });
 
